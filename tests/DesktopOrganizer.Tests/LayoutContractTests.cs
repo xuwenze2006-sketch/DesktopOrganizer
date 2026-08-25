@@ -1,0 +1,111 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Text.Json;
+
+namespace DesktopOrganizer.Tests;
+
+[TestClass]
+public sealed class LayoutContractTests
+{
+    [TestMethod]
+    public void NewLayout_UsesCurrentVersionAndSafeDefaults()
+    {
+        var layout = new AppLayoutData();
+
+        Assert.AreEqual(15, layout.Version);
+        Assert.IsTrue(layout.SnapToGrid);
+        Assert.IsTrue(layout.PushReflowEnabled);
+        Assert.IsTrue(layout.AutoCollapseControlPanel);
+        Assert.IsTrue(layout.CompactGroupLayout);
+        Assert.IsTrue(layout.ReserveTemporaryWorkspace);
+        Assert.AreEqual(0, layout.FreeIcons.Count);
+        Assert.AreEqual(0, layout.Groups.Count);
+        Assert.IsTrue(layout.RecycleBinWidget.IsVisible);
+    }
+
+    [TestMethod]
+    public void JsonRoundTrip_PreservesLayoutIdentityAndTopologyFields()
+    {
+        var original = new AppLayoutData
+        {
+            Version = 15,
+            SnapToGrid = false,
+            AutoClassifyNewItems = true,
+            ControlPanelX = 123.5,
+            ControlPanelY = 456.25,
+            RecycleBinWidget = new RecycleBinWidgetLayoutInfo
+            {
+                X = 1500,
+                Y = 820,
+                IsVisible = false
+            },
+            FreeIcons = new Dictionary<string, IconPosition>
+            {
+                ["readme.txt"] = new IconPosition { X = 11.5, Y = 22.5 }
+            },
+            Groups =
+            [
+                new GroupInfo
+                {
+                    Id = "group-1",
+                    Name = "文档",
+                    ItemNames = ["readme.txt"],
+                    SortMode = GroupSortMode.Name,
+                    IsAutoCategory = true,
+                    AutoCategoryKey = "documents"
+                }
+            ],
+            DesktopTopology =
+            [
+                new DesktopMonitorLayoutInfo
+                {
+                    DeviceName = "DISPLAY1",
+                    BoundsWidth = 1920,
+                    BoundsHeight = 1080,
+                    WorkWidth = 1920,
+                    WorkHeight = 1040,
+                    IsPrimary = true,
+                    DpiX = 96,
+                    DpiY = 96
+                }
+            ],
+            ItemIdentities = new Dictionary<string, DesktopItemIdentityInfo>
+            {
+                ["readme.txt"] = new DesktopItemIdentityInfo
+                {
+                    Kind = DesktopItemKind.FileSystem,
+                    LastKnownPath = @"C:\Users\Test\Desktop\readme.txt",
+                    FileId = "volume:file-id",
+                    CreationTimeUtcTicks = 123456789
+                },
+                ["此电脑"] = new DesktopItemIdentityInfo
+                {
+                    Kind = DesktopItemKind.ShellNamespace,
+                    ShellParsingName = "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"
+                }
+            }
+        };
+
+        string json = JsonSerializer.Serialize(original);
+        AppLayoutData restored = JsonSerializer.Deserialize<AppLayoutData>(json)
+            ?? throw new AssertFailedException("布局 JSON 反序列化返回 null。");
+
+        Assert.AreEqual(15, restored.Version);
+        Assert.IsFalse(restored.SnapToGrid);
+        Assert.IsTrue(restored.AutoClassifyNewItems);
+        Assert.IsTrue(restored.ControlPanelX.HasValue);
+        Assert.IsTrue(restored.ControlPanelY.HasValue);
+        Assert.AreEqual(123.5, restored.ControlPanelX.GetValueOrDefault());
+        Assert.AreEqual(456.25, restored.ControlPanelY.GetValueOrDefault());
+        Assert.AreEqual(1500, restored.RecycleBinWidget.X.GetValueOrDefault());
+        Assert.AreEqual(820, restored.RecycleBinWidget.Y.GetValueOrDefault());
+        Assert.IsFalse(restored.RecycleBinWidget.IsVisible);
+        Assert.AreEqual(11.5, restored.FreeIcons["readme.txt"].X);
+        Assert.AreEqual(GroupSortMode.Name, restored.Groups[0].SortMode);
+        Assert.AreEqual("documents", restored.Groups[0].AutoCategoryKey);
+        Assert.AreEqual(96u, restored.DesktopTopology[0].DpiX);
+        Assert.AreEqual("volume:file-id", restored.ItemIdentities["readme.txt"].FileId);
+        Assert.AreEqual(
+            DesktopItemKind.ShellNamespace,
+            restored.ItemIdentities["此电脑"].Kind);
+    }
+}
