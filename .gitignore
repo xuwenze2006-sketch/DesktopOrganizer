@@ -1,0 +1,42 @@
+# .NET build output
+bin/
+obj/
+
+# Local publish and CI output
+release/
+artifacts/
+TestResults/
+
+# Test and coverage output
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+coverage*.xml
+coverage*.json
+*.lcov
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# DesktopOrganizer runtime data accidentally copied to repository root
+/layout.json
+/layout.pending-exit.json
+/restore-native-icons.flag
+/Logs/
+
+# Logs, temporary files and OS metadata
+*.log
+*.tmp
+*.bak
+Thumbs.db
+Desktop.ini
+.DS_Store
