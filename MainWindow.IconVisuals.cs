@@ -370,8 +370,25 @@ namespace DesktopOrganizer
             List<RecycleRequest> selected = _selectedItemNames
                 .Where(name => _desktopItems.TryGetValue(name, out string? location) &&
                                !ShellItemLocation.TryDecode(location, out _, out _))
-                .Select(name => new RecycleRequest(name, _desktopItems[name]))
+                .Select(name =>
+                {
+                    string path = _desktopItems[name];
+                    return FileOperationIdentityGuard.TryCapture(path, out string identity)
+                        ? new RecycleRequest(name, path, identity)
+                        : null;
+                })
+                .Where(request => request != null)
+                .Select(request => request!)
                 .ToList();
+            int selectedPhysicalCount = _selectedItemNames.Count(name =>
+                _desktopItems.TryGetValue(name, out string? location) &&
+                !ShellItemLocation.TryDecode(location, out _, out _));
+            if (selected.Count != selectedPhysicalCount)
+            {
+                StatusText.Text = "无法确认部分所选项目的身份，未排队删除";
+                return;
+            }
+
             if (selected.Count == 0)
             {
                 return;

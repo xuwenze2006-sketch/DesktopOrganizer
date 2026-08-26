@@ -218,6 +218,7 @@ namespace DesktopOrganizer
             int SourceGroupItemIndex,
             IconPosition? FreePosition,
             bool HadAutoClassificationPosition,
+            string ItemIdentity,
             DateTime CreatedUtc);
 
         private enum PhysicalFolderMoveResult

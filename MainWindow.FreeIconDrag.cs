@@ -358,6 +358,20 @@ namespace DesktopOrganizer
                 return PhysicalFolderMoveResult.Rejected;
             }
 
+            if (!FileOperationIdentityGuard.TryCapture(sourcePath, out string sourceIdentity))
+            {
+                StatusText.Text = $"无法确认“{displayName}”仍是当前项目，未排队移动";
+                return PhysicalFolderMoveResult.Rejected;
+            }
+
+            if (!FileOperationIdentityGuard.TryCapture(
+                    targetFolderPath,
+                    out string targetFolderIdentity))
+            {
+                StatusText.Text = "无法确认目标文件夹身份，未排队移动";
+                return PhysicalFolderMoveResult.Rejected;
+            }
+
             string sourceName = Path.GetFileName(Path.TrimEndingDirectorySeparator(sourcePath));
             string destinationPath = Path.Combine(targetFolderPath, sourceName);
             bool allowAutoRename = false;
@@ -396,7 +410,9 @@ namespace DesktopOrganizer
                 CreateUndoGroupSnapshot(originalGroup),
                 originalGroupItemIndex,
                 originalFreePosition,
-                hadAutoClassificationPosition));
+                hadAutoClassificationPosition,
+                sourceIdentity,
+                targetFolderIdentity));
         }
 
         private static string GetUniqueDestinationPath(

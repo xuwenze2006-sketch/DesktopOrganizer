@@ -243,6 +243,12 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (!FileOperationIdentityGuard.TryCapture(fullPath, out string expectedIdentity))
+            {
+                StatusText.Text = $"无法确认“{displayName}”仍是当前项目，未排队删除";
+                return;
+            }
+
             string itemType = isDirectory ? "文件夹" : "文件";
             MessageBoxResult result = MessageBox.Show(
                 $"确定把这个{itemType}移到 Windows 回收站吗？\n\n{displayName}\n{fullPath}\n\n这会删除真实桌面项目，但通常可以从回收站恢复。",
@@ -255,7 +261,7 @@ namespace DesktopOrganizer
                 return;
             }
 
-            QueueRecycleOperation([new RecycleRequest(displayName, fullPath)]);
+            QueueRecycleOperation([new RecycleRequest(displayName, fullPath, expectedIdentity)]);
         }
 
         private void OpenItem(object sender)

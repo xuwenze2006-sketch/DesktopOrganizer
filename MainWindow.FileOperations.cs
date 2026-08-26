@@ -12,7 +12,9 @@ namespace DesktopOrganizer
             GroupInfo? SourceGroupSnapshot,
             int SourceGroupItemIndex,
             IconPosition? FreePosition,
-            bool HadAutoClassificationPosition);
+            bool HadAutoClassificationPosition,
+            string SourceIdentity,
+            string TargetFolderIdentity);
 
         private sealed record PhysicalMoveCompletion(
             bool Success,
@@ -21,7 +23,10 @@ namespace DesktopOrganizer
             string? DestinationPath,
             string? ErrorMessage);
 
-        private sealed record RecycleRequest(string DisplayName, string FullPath);
+        private sealed record RecycleRequest(
+            string DisplayName,
+            string FullPath,
+            string ExpectedIdentity);
 
         private sealed record RecycleItemCompletion(
             string DisplayName,
@@ -37,6 +42,7 @@ namespace DesktopOrganizer
         {
             Success,
             DestinationMissing,
+            DestinationChanged,
             SourceOccupied,
             Canceled,
             Failed
@@ -131,6 +137,22 @@ namespace DesktopOrganizer
         private PhysicalFolderMoveResult QueuePhysicalFolderMove(
             PendingPhysicalMove pending)
         {
+            if (!FileOperationIdentityGuard.Matches(
+                    pending.SourcePath,
+                    pending.SourceIdentity))
+            {
+                StatusText.Text = $"无法确认“{pending.DisplayName}”仍是当前项目，未排队移动";
+                return PhysicalFolderMoveResult.Rejected;
+            }
+
+            if (!FileOperationIdentityGuard.Matches(
+                    pending.TargetFolderPath,
+                    pending.TargetFolderIdentity))
+            {
+                StatusText.Text = "无法确认目标文件夹身份，未排队移动";
+                return PhysicalFolderMoveResult.Rejected;
+            }
+
             if (!TryReserveFileOperation(
                     [pending.SourcePath, pending.TargetFolderPath],
                     $"“{pending.DisplayName}”或目标文件夹已有文件操作正在进行",
@@ -204,6 +226,7 @@ namespace DesktopOrganizer
                     pending.SourceGroupItemIndex,
                     pending.FreePosition,
                     pending.HadAutoClassificationPosition,
+                    pending.SourceIdentity,
                     DateTime.UtcNow));
 
                 RemoveDesktopItemAfterPhysicalOperation(
@@ -249,9 +272,21 @@ namespace DesktopOrganizer
                 return new PhysicalMoveCompletion(false, false, pending.SourcePath, null, "源项目已不存在");
             }
 
+            if (!FileOperationIdentityGuard.Matches(pending.SourcePath, pending.SourceIdentity))
+            {
+                return new PhysicalMoveCompletion(false, false, pending.SourcePath, null, "源项目已被替换，未执行移动");
+            }
+
             if (!Directory.Exists(pending.TargetFolderPath))
             {
                 return new PhysicalMoveCompletion(false, false, pending.SourcePath, null, "目标文件夹已不存在");
+            }
+
+            if (!FileOperationIdentityGuard.Matches(
+                    pending.TargetFolderPath,
+                    pending.TargetFolderIdentity))
+            {
+                return new PhysicalMoveCompletion(false, false, pending.SourcePath, null, "目标文件夹已被替换，未执行移动");
             }
 
             string sourceName = Path.GetFileName(Path.TrimEndingDirectorySeparator(pending.SourcePath));
@@ -270,6 +305,18 @@ namespace DesktopOrganizer
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            if (!FileOperationIdentityGuard.Matches(pending.SourcePath, pending.SourceIdentity))
+            {
+                return new PhysicalMoveCompletion(false, false, pending.SourcePath, null, "源项目已被替换，未执行移动");
+            }
+
+            if (!FileOperationIdentityGuard.Matches(
+                    pending.TargetFolderPath,
+                    pending.TargetFolderIdentity))
+            {
+                return new PhysicalMoveCompletion(false, false, pending.SourcePath, null, "目标文件夹已被替换，未执行移动");
+            }
+
             if (sourceIsDirectory)
             {
                 Directory.Move(pending.SourcePath, destinationPath);
@@ -284,8 +331,23 @@ namespace DesktopOrganizer
 
         private void QueueRecycleOperation(IReadOnlyList<RecycleRequest> requests)
         {
-            if (requests.Count == 0 ||
-                !TryReserveFileOperation(
+            if (requests.Count == 0)
+            {
+                return;
+            }
+
+            foreach (RecycleRequest request in requests)
+            {
+                if (!FileOperationIdentityGuard.Matches(
+                        request.FullPath,
+                        request.ExpectedIdentity))
+                {
+                    StatusText.Text = $"无法确认“{request.DisplayName}”仍是当前项目，未排队删除";
+                    return;
+                }
+            }
+
+            if (!TryReserveFileOperation(
                     requests.Select(request => request.FullPath),
                     "所选项目中已有文件操作正在进行",
                     out List<string> reservedKeys))
@@ -423,6 +485,19 @@ namespace DesktopOrganizer
                     continue;
                 }
 
+                if (!FileOperationIdentityGuard.Matches(
+                        request.FullPath,
+                        request.ExpectedIdentity))
+                {
+                    results.Add(new RecycleItemCompletion(
+                        request.DisplayName,
+                        request.FullPath,
+                        Success: false,
+                        Canceled: false,
+                        ErrorMessage: "项目已被替换，未执行删除"));
+                    continue;
+                }
+
                 try
                 {
                     if (isDirectory)
@@ -543,6 +618,18 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (completion.Kind == UndoMoveCompletionKind.DestinationChanged)
+            {
+                if (_fileMoveHistory.First?.Value == record)
+                {
+                    _fileMoveHistory.RemoveFirst();
+                }
+                UpdateUndoFileMoveButton();
+                StatusText.Text = FormatFileOperationStatus("撤销失败：移动后的项目已被替换");
+                _diagnostics.Log($"UNDO_MOVE identity changed destination={record.DestinationPath}");
+                return;
+            }
+
             if (completion.Kind == UndoMoveCompletionKind.SourceOccupied)
             {
                 StatusText.Text = FormatFileOperationStatus("撤销失败：原位置存在同名项目");
@@ -582,6 +669,13 @@ namespace DesktopOrganizer
                 return new UndoMoveCompletion(UndoMoveCompletionKind.DestinationMissing, null);
             }
 
+            if (!FileOperationIdentityGuard.Matches(
+                    record.DestinationPath,
+                    record.ItemIdentity))
+            {
+                return new UndoMoveCompletion(UndoMoveCompletionKind.DestinationChanged, null);
+            }
+
             if (Directory.Exists(record.SourcePath) || File.Exists(record.SourcePath))
             {
                 return new UndoMoveCompletion(UndoMoveCompletionKind.SourceOccupied, null);
@@ -589,6 +683,18 @@ namespace DesktopOrganizer
 
             Directory.CreateDirectory(Path.GetDirectoryName(record.SourcePath)!);
             cancellationToken.ThrowIfCancellationRequested();
+            if (!FileOperationIdentityGuard.Matches(
+                    record.DestinationPath,
+                    record.ItemIdentity))
+            {
+                return new UndoMoveCompletion(UndoMoveCompletionKind.DestinationChanged, null);
+            }
+
+            if (Directory.Exists(record.SourcePath) || File.Exists(record.SourcePath))
+            {
+                return new UndoMoveCompletion(UndoMoveCompletionKind.SourceOccupied, null);
+            }
+
             if (destinationIsDirectory)
             {
                 Directory.Move(record.DestinationPath, record.SourcePath);
