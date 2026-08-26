@@ -40,13 +40,15 @@ namespace DesktopOrganizer
             }
 
             string payload = location[Prefix.Length..];
+            bool decodedIsFolder;
             if (payload.StartsWith("folder:", StringComparison.Ordinal))
             {
-                isFolder = true;
+                decodedIsFolder = true;
                 payload = payload["folder:".Length..];
             }
             else if (payload.StartsWith("item:", StringComparison.Ordinal))
             {
+                decodedIsFolder = false;
                 payload = payload["item:".Length..];
             }
             else
@@ -57,8 +59,15 @@ namespace DesktopOrganizer
             try
             {
                 byte[] bytes = Convert.FromBase64String(payload);
-                parsingName = Encoding.UTF8.GetString(bytes);
-                return !string.IsNullOrWhiteSpace(parsingName);
+                string decodedParsingName = Encoding.UTF8.GetString(bytes);
+                if (string.IsNullOrWhiteSpace(decodedParsingName))
+                {
+                    return false;
+                }
+
+                parsingName = decodedParsingName;
+                isFolder = decodedIsFolder;
+                return true;
             }
             catch (FormatException)
             {
