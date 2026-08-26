@@ -61,6 +61,7 @@ namespace DesktopOrganizer
         private readonly DispatcherTimer _recycleBinStatusTimer;
         private readonly AppDiagnostics _diagnostics = new();
         private readonly CancellationTokenSource _lifetimeCts = new();
+        private readonly RefreshCancellationEpoch _refreshCancellationEpoch = new();
         private readonly FileOperationService _fileOperationService;
         private readonly object _refreshDebounceLock = new();
         private readonly object _desktopRenameLock = new();

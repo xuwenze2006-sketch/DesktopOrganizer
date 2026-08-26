@@ -545,6 +545,7 @@ namespace DesktopOrganizer
         // ==================== 桌面扫描与刷新 ====================
 
         private Dictionary<string, string> ScanDesktopItems(
+            CancellationToken cancellationToken,
             out bool physicalScanComplete,
             out bool shellScanComplete)
         {
@@ -553,10 +554,12 @@ namespace DesktopOrganizer
             // 每个目录必须完整枚举成功后才提交，防止瞬时 I/O 异常产生半份快照。
             bool commonDesktopComplete = AddDesktopPathItems(
                 _commonDesktopPath,
-                existing);
+                existing,
+                cancellationToken);
             bool userDesktopComplete = AddDesktopPathItems(
                 _userDesktopPath,
-                existing);
+                existing,
+                cancellationToken);
             physicalScanComplete = commonDesktopComplete && userDesktopComplete;
 
             // v15 起系统回收站由独立小组件负责，不再进入普通图标、分组、

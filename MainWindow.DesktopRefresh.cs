@@ -6,6 +6,7 @@ namespace DesktopOrganizer
         private DesktopScanSnapshot ScanDesktopSnapshot(CancellationToken cancellationToken)
         {
             Dictionary<string, string> items = ScanDesktopItems(
+                cancellationToken,
                 out bool physicalScanComplete,
                 out bool shellScanComplete);
             var categories = new Dictionary<string, DesktopCategoryDefinition>(StringComparer.OrdinalIgnoreCase);
@@ -69,7 +70,8 @@ namespace DesktopOrganizer
 
         private static bool AddDesktopPathItems(
             string desktopPath,
-            Dictionary<string, string> target)
+            Dictionary<string, string> target,
+            CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(desktopPath))
             {
@@ -89,6 +91,7 @@ namespace DesktopOrganizer
             {
                 foreach (string path in Directory.EnumerateFileSystemEntries(desktopPath))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     string name = Path.GetFileName(path);
                     if (string.IsNullOrWhiteSpace(name) ||
                         name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase))
@@ -109,6 +112,7 @@ namespace DesktopOrganizer
 
             foreach ((string name, string path) in stagedItems)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 target[name] = path;
             }
 
@@ -773,6 +777,17 @@ namespace DesktopOrganizer
             }
         }
 
+        private void CancelActiveDesktopRefresh()
+        {
+            _refreshCancellationEpoch.Advance();
+            Interlocked.Exchange(ref _refreshRequested, 0);
+            Interlocked.Exchange(ref _clearIconCacheRequested, 0);
+            lock (_refreshDebounceLock)
+            {
+                _pendingRefreshStatus = null;
+            }
+        }
+
         private void ScheduleDesktopRefresh(bool allowInSafeMode = false)
         {
             if (_isClosing || (_isSafeModeActive && !allowInSafeMode))
@@ -952,6 +967,11 @@ namespace DesktopOrganizer
                 $"SCAN incomplete physical={snapshot.PhysicalScanComplete}, " +
                 $"shell={snapshot.ShellScanComplete}, consecutive={failureCount}");
 
+            if (_isSafeModeActive)
+            {
+                return;
+            }
+
             if (failureCount >= 3 && !_isClosing && !Dispatcher.HasShutdownStarted)
             {
                 _ = Dispatcher.BeginInvoke(
@@ -973,10 +993,12 @@ namespace DesktopOrganizer
 
         private async Task RetryIncompleteDesktopScanAsync(int failureCount)
         {
+            using CancellationTokenSource refreshCancellation =
+                _refreshCancellationEpoch.CreateLinkedTokenSource(_lifetimeCts.Token);
             try
             {
                 int delayMilliseconds = Math.Min(5000, 500 + failureCount * 400);
-                await Task.Delay(delayMilliseconds, _lifetimeCts.Token).ConfigureAwait(false);
+                await Task.Delay(delayMilliseconds, refreshCancellation.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -987,7 +1009,10 @@ namespace DesktopOrganizer
                 Interlocked.Exchange(ref _incompleteScanRetryQueued, 0);
             }
 
-            if (!_isClosing && !_lifetimeCts.IsCancellationRequested)
+            if (!_isClosing &&
+                !_isSafeModeActive &&
+                !_lifetimeCts.IsCancellationRequested &&
+                !refreshCancellation.IsCancellationRequested)
             {
                 RequestDesktopRefresh(clearIconCache: false, statusMessage: null);
             }
@@ -995,9 +1020,11 @@ namespace DesktopOrganizer
 
         private async Task RefreshDesktopSnapshotAsync(bool clearIconCache, string? statusMessage)
         {
+            using CancellationTokenSource refreshCancellation =
+                _refreshCancellationEpoch.CreateLinkedTokenSource(_lifetimeCts.Token);
             try
             {
-                CancellationToken cancellationToken = _lifetimeCts.Token;
+                CancellationToken cancellationToken = refreshCancellation.Token;
                 Stopwatch scanStopwatch = Stopwatch.StartNew();
                 DesktopScanSnapshot snapshot = await Task.Run(
                     () => ScanDesktopSnapshot(cancellationToken),
@@ -1033,7 +1060,7 @@ namespace DesktopOrganizer
                     // 不在任何鼠标捕获或拖动过程中替换整棵视觉树。
                     if (IsUserInteractionActive())
                     {
-                        ScheduleDesktopRefresh(allowInSafeMode: true);
+                        ScheduleDesktopRefresh();
                         return;
                     }
 
@@ -1100,9 +1127,12 @@ namespace DesktopOrganizer
                     }
                 }, DispatcherPriority.Background, cancellationToken);
             }
-            catch (OperationCanceledException) when (_isClosing || _lifetimeCts.IsCancellationRequested)
+            catch (OperationCanceledException) when (
+                _isClosing ||
+                _lifetimeCts.IsCancellationRequested ||
+                refreshCancellation.IsCancellationRequested)
             {
-                // 正常退出。
+                // 正常退出或安全模式取消了旧刷新代次。
             }
             catch (Exception exception)
             {

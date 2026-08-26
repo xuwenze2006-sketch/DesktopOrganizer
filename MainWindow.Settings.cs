@@ -102,6 +102,7 @@ namespace DesktopOrganizer
                 {
                     StopDesktopWatchers();
                     CancelScheduledDesktopRefresh();
+                    CancelActiveDesktopRefresh();
                 }
 
                 CancelPushPreview(restoreVisuals: true);

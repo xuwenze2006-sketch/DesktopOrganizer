@@ -550,6 +550,7 @@ namespace DesktopOrganizer
             _healthMonitorTimer.Stop();
             _recycleBinStatusTimer.Stop();
             StopDesktopWatchers();
+            _refreshCancellationEpoch.Dispose();
             StopAsyncIconLoading();
             _fileOperationService.Dispose();
             _diagnostics.Log("STOP application closing");
