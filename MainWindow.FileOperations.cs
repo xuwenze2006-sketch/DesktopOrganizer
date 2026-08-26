@@ -12,7 +12,7 @@ namespace DesktopOrganizer
             GroupInfo? SourceGroupSnapshot,
             int SourceGroupItemIndex,
             IconPosition? FreePosition,
-            bool HadAutoClassificationPosition,
+            IconPosition? AutoClassificationOriginalPosition,
             string SourceIdentity,
             string TargetFolderIdentity);
 
@@ -225,7 +225,7 @@ namespace DesktopOrganizer
                     pending.SourceGroupSnapshot,
                     pending.SourceGroupItemIndex,
                     pending.FreePosition,
-                    pending.HadAutoClassificationPosition,
+                    pending.AutoClassificationOriginalPosition,
                     pending.SourceIdentity,
                     DateTime.UtcNow));
 
@@ -715,11 +715,14 @@ namespace DesktopOrganizer
             }
             UpdateUndoFileMoveButton();
 
-            GroupInfo? originalGroup = !string.IsNullOrWhiteSpace(record.SourceGroupId)
+            bool canceledAutoCategory = record.SourceGroupSnapshot?.IsAutoCategory == true &&
+                !string.IsNullOrWhiteSpace(record.SourceGroupId) &&
+                _canceledAutoCategoryGroupIds.Contains(record.SourceGroupId);
+            GroupInfo? originalGroup = !canceledAutoCategory && !string.IsNullOrWhiteSpace(record.SourceGroupId)
                 ? _appLayout.Groups.FirstOrDefault(group =>
                     group.Id.Equals(record.SourceGroupId, StringComparison.OrdinalIgnoreCase))
                 : null;
-            if (originalGroup == null && record.SourceGroupSnapshot != null)
+            if (originalGroup == null && record.SourceGroupSnapshot != null && !canceledAutoCategory)
             {
                 originalGroup = record.SourceGroupSnapshot;
                 originalGroup.ItemNames = new List<string>();
@@ -741,18 +744,40 @@ namespace DesktopOrganizer
             }
             else
             {
-                _appLayout.FreeIcons[record.DisplayName] = record.FreePosition != null
+                IconPosition requestedPosition = record.FreePosition != null
                     ? ClonePosition(record.FreePosition)
-                    : new IconPosition { X = GridOriginX, Y = GridOriginY };
+                    : record.AutoClassificationOriginalPosition != null
+                        ? ClonePosition(record.AutoClassificationOriginalPosition)
+                        : CreateUndoFallbackPosition(record);
+                ClampIconPosition(requestedPosition);
+                _appLayout.FreeIcons[record.DisplayName] = _appLayout.SnapToGrid
+                    ? FindAlignedIconPosition(record.DisplayName, requestedPosition) ?? requestedPosition
+                    : requestedPosition;
             }
 
-            if (record.HadAutoClassificationPosition &&
+            if (!canceledAutoCategory &&
+                record.AutoClassificationOriginalPosition != null &&
                 !_appLayout.AutoClassificationOriginalPositions.ContainsKey(record.DisplayName))
             {
-                _appLayout.AutoClassificationOriginalPositions[record.DisplayName] = record.FreePosition != null
-                    ? ClonePosition(record.FreePosition)
-                    : new IconPosition { X = GridOriginX, Y = GridOriginY };
+                _appLayout.AutoClassificationOriginalPositions[record.DisplayName] =
+                    ClonePosition(record.AutoClassificationOriginalPosition);
             }
+        }
+
+        private static IconPosition CreateUndoFallbackPosition(FileMoveUndoRecord record)
+        {
+            GroupInfo? group = record.SourceGroupSnapshot;
+            if (group == null)
+            {
+                return new IconPosition { X = GridOriginX, Y = GridOriginY };
+            }
+
+            int index = Math.Max(0, record.SourceGroupItemIndex);
+            return new IconPosition
+            {
+                X = group.X + (index % 3) * IconCellWidth,
+                Y = group.Y + 36 + (index / 3) * IconCellHeight
+            };
         }
     }
 }

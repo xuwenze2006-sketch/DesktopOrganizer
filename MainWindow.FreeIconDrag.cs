@@ -406,7 +406,13 @@ namespace DesktopOrganizer
             IconPosition? originalFreePosition = _appLayout.FreeIcons.TryGetValue(displayName, out IconPosition? savedPosition) && savedPosition != null
                 ? ClonePosition(savedPosition)
                 : null;
-            bool hadAutoClassificationPosition = _appLayout.AutoClassificationOriginalPositions.ContainsKey(displayName);
+            IconPosition? autoClassificationOriginalPosition =
+                _appLayout.AutoClassificationOriginalPositions.TryGetValue(
+                    displayName,
+                    out IconPosition? savedAutoPosition) &&
+                savedAutoPosition != null
+                    ? ClonePosition(savedAutoPosition)
+                    : null;
 
             return QueuePhysicalFolderMove(new PendingPhysicalMove(
                 displayName,
@@ -417,7 +423,7 @@ namespace DesktopOrganizer
                 CreateUndoGroupSnapshot(originalGroup),
                 originalGroupItemIndex,
                 originalFreePosition,
-                hadAutoClassificationPosition,
+                autoClassificationOriginalPosition,
                 sourceIdentity,
                 targetFolderIdentity));
         }

@@ -83,6 +83,7 @@ namespace DesktopOrganizer
         private readonly Dictionary<string, FreeIconVisualState> _freeIconVisualStates = new(StringComparer.OrdinalIgnoreCase);
         private readonly LinkedList<FileMoveUndoRecord> _fileMoveHistory = new();
         private readonly HashSet<string> _pendingFileOperationPaths = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _canceledAutoCategoryGroupIds = new(StringComparer.OrdinalIgnoreCase);
         private DesktopGeometry _desktopGeometry = new([]);
         private Dictionary<string, string> _desktopItems = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, DesktopCategoryDefinition> _desktopCategories = new(StringComparer.OrdinalIgnoreCase);
@@ -221,7 +222,7 @@ namespace DesktopOrganizer
             GroupInfo? SourceGroupSnapshot,
             int SourceGroupItemIndex,
             IconPosition? FreePosition,
-            bool HadAutoClassificationPosition,
+            IconPosition? AutoClassificationOriginalPosition,
             string ItemIdentity,
             DateTime CreatedUtc);
 

@@ -266,6 +266,11 @@ namespace DesktopOrganizer
                     StringComparer.OrdinalIgnoreCase);
             }
 
+            _canceledAutoCategoryGroupIds.UnionWith(autoGroups.Select(group => group.Id));
+            _canceledAutoCategoryGroupIds.UnionWith(_fileMoveHistory
+                .Where(record => record.SourceGroupSnapshot?.IsAutoCategory == true)
+                .Select(record => record.SourceGroupId)
+                .OfType<string>());
             _appLayout.Groups.RemoveAll(group => group.IsAutoCategory);
             foreach ((string name, IconPosition position) in restoredPositions)
             {
