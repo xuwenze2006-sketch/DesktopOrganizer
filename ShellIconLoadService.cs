@@ -274,18 +274,22 @@ namespace DesktopOrganizer
 
     internal readonly struct IconLoadRequestKey : IEquatable<IconLoadRequestKey>
     {
-        public IconLoadRequestKey(string cacheKey, int generation)
+        public IconLoadRequestKey(string cacheKey, int generation, int cacheVersion)
         {
             CacheKey = cacheKey;
             Generation = generation;
+            CacheVersion = cacheVersion;
         }
 
         public string CacheKey { get; }
 
         public int Generation { get; }
 
+        public int CacheVersion { get; }
+
         public bool Equals(IconLoadRequestKey other) =>
             Generation == other.Generation &&
+            CacheVersion == other.CacheVersion &&
             StringComparer.OrdinalIgnoreCase.Equals(CacheKey, other.CacheKey);
 
         public override bool Equals(object? obj) =>
@@ -294,7 +298,8 @@ namespace DesktopOrganizer
         public override int GetHashCode() =>
             HashCode.Combine(
                 StringComparer.OrdinalIgnoreCase.GetHashCode(CacheKey),
-                Generation);
+                Generation,
+                CacheVersion);
 
         public static bool operator ==(IconLoadRequestKey left, IconLoadRequestKey right) =>
             left.Equals(right);

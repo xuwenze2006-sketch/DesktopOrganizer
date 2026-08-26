@@ -61,7 +61,10 @@ namespace DesktopOrganizer
                 return host;
             }
 
-            var requestKey = new IconLoadRequestKey(cacheKey, _iconVisualGeneration);
+            var requestKey = new IconLoadRequestKey(
+                cacheKey,
+                _iconVisualGeneration,
+                GetIconCacheVersion(cacheKey));
             if (!_pendingIconVisuals.TryGetValue(requestKey, out List<IconVisualBinding>? bindings))
             {
                 bindings = new List<IconVisualBinding>();
@@ -119,7 +122,9 @@ namespace DesktopOrganizer
             _queuedIconLoads.Remove(requestKey);
             _pendingIconVisuals.Remove(requestKey, out List<IconVisualBinding>? bindings);
 
-            if (_isClosing || requestKey.Generation != _iconVisualGeneration)
+            if (_isClosing ||
+                requestKey.Generation != _iconVisualGeneration ||
+                requestKey.CacheVersion != GetIconCacheVersion(requestKey.CacheKey))
             {
                 return;
             }
@@ -184,6 +189,46 @@ namespace DesktopOrganizer
             _pendingIconVisuals.Clear();
             _queuedIconLoads.Clear();
             _shellIconLoadService.AdvanceGeneration(_iconVisualGeneration);
+        }
+
+        private int GetIconCacheVersion(string cacheKey) =>
+            _iconCacheVersions.TryGetValue(cacheKey, out int version)
+                ? version
+                : 0;
+
+        private int InvalidateIconCacheLocations(IEnumerable<string> locations)
+        {
+            ArgumentNullException.ThrowIfNull(locations);
+            var invalidatedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string location in locations.Where(value => !string.IsNullOrWhiteSpace(value)))
+            {
+                invalidatedKeys.UnionWith(IconCacheInvalidation.GetCandidateCacheKeys(location));
+            }
+
+            foreach (string cacheKey in invalidatedKeys)
+            {
+                _iconCache.Remove(cacheKey);
+                unchecked
+                {
+                    _iconCacheVersions[cacheKey] = GetIconCacheVersion(cacheKey) + 1;
+                }
+            }
+
+            foreach (IconLoadRequestKey requestKey in _pendingIconVisuals.Keys
+                         .Where(key => invalidatedKeys.Contains(key.CacheKey))
+                         .ToList())
+            {
+                _pendingIconVisuals.Remove(requestKey);
+            }
+
+            foreach (IconLoadRequestKey requestKey in _queuedIconLoads.Keys
+                         .Where(key => invalidatedKeys.Contains(key.CacheKey))
+                         .ToList())
+            {
+                _queuedIconLoads.Remove(requestKey);
+            }
+
+            return invalidatedKeys.Count;
         }
 
         private void StopAsyncIconLoading()

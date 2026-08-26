@@ -456,11 +456,13 @@ namespace DesktopOrganizer
 
         private FreeIconVisualState BuildFreeIconVisualState(string displayName, string fullPath)
         {
+            string cacheKey = GetIconCacheKey(fullPath);
             return new FreeIconVisualState(
                 GetDesktopItemVisualKind(displayName, fullPath),
                 _appLayout.IsEditMode,
                 !ShellItemLocation.TryDecode(fullPath, out _, out _) && IsFileOperationPending(fullPath),
-                _iconVisualGeneration);
+                _iconVisualGeneration,
+                GetIconCacheVersion(cacheKey));
         }
 
         private string BuildGroupVisualFingerprint(
@@ -489,6 +491,7 @@ namespace DesktopOrganizer
                     : string.Empty;
                 AppendFingerprintPart(builder, fullPath);
                 AppendFingerprintPart(builder, GetDesktopItemVisualKind(itemName, fullPath));
+                builder.Append('|').Append(GetIconCacheVersion(GetIconCacheKey(fullPath)));
                 builder.Append('|').Append(
                     !ShellItemLocation.TryDecode(fullPath, out _, out _) && IsFileOperationPending(fullPath)
                         ? '1'
@@ -1037,9 +1040,13 @@ namespace DesktopOrganizer
                         return;
                     }
 
-                    if (clearIconCache || _iconCache.Count > 512)
+                    bool resetAllIconCache = clearIconCache ||
+                        _iconCache.Count > 512 ||
+                        _iconCacheVersions.Count > 1024;
+                    if (resetAllIconCache)
                     {
                         _iconCache.Clear();
+                        _iconCacheVersions.Clear();
                         unchecked
                         {
                             _iconVisualGeneration++;
@@ -1047,6 +1054,20 @@ namespace DesktopOrganizer
 
                         AdvanceIconCacheGeneration();
                         EnsureRecycleBinWidgetIcon(forceReload: true);
+                    }
+                    else
+                    {
+                        HashSet<string> changedIconLocations = IconCacheInvalidation.FindChangedLocations(
+                            _desktopItems,
+                            _appLayout.ItemIdentities,
+                            snapshot.Items,
+                            snapshot.Identities);
+                        int invalidatedKeyCount = InvalidateIconCacheLocations(changedIconLocations);
+                        if (invalidatedKeyCount > 0)
+                        {
+                            _diagnostics.Log(
+                                $"ICON_CACHE invalidatedLocations={changedIconLocations.Count}, keys={invalidatedKeyCount}");
+                        }
                     }
 
                     bool identityLayoutChanged = ReconcileDesktopItemIdentities(snapshot);

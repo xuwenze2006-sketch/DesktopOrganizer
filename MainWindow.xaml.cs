@@ -71,6 +71,7 @@ namespace DesktopOrganizer
         private readonly List<FileSystemWatcher> _watchers = new();
         private readonly List<DesktopRenameOperation> _pendingDesktopRenames = new();
         private readonly Dictionary<string, BitmapSource?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> _iconCacheVersions = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, FrameworkElement> _freeIconVisuals = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, FrameworkElement> _allIconVisuals = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _selectedItemNames = new(StringComparer.OrdinalIgnoreCase);
@@ -204,7 +205,8 @@ namespace DesktopOrganizer
             string VisualKind,
             bool IsEditMode,
             bool FileOperationPending,
-            int IconGeneration);
+            int IconGeneration,
+            int IconCacheVersion);
 
         private sealed record FreeIconVisualTarget(
             string FullPath,

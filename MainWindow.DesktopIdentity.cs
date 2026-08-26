@@ -369,8 +369,6 @@ namespace DesktopOrganizer
 
             foreach (DesktopItemRenameCandidate rename in renames)
             {
-                _iconCache.Remove(GetIconCacheKey(rename.OldFullPath));
-                _iconCache.Remove(GetIconCacheKey(rename.NewFullPath));
                 _diagnostics.Log(
                     $"LAYOUT_RENAME source={rename.Source}, old={rename.OldName}, new={rename.NewName}, oldPath={rename.OldFullPath}, newPath={rename.NewFullPath}");
             }

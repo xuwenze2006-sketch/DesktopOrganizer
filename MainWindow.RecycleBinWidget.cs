@@ -115,7 +115,7 @@ namespace DesktopOrganizer
             {
                 // Explorer 的回收站图标会区分空/非空。只在状态跨越空与非空时
                 // 失效这一项缓存，避免四秒轮询不断重新提取 Shell 图标。
-                _iconCache.Remove(GetIconCacheKey(RecycleBinWidgetLocation));
+                InvalidateIconCacheLocations([RecycleBinWidgetLocation]);
                 EnsureRecycleBinWidgetIcon(forceReload: true);
             }
 

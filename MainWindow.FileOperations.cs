@@ -131,7 +131,7 @@ namespace DesktopOrganizer
             _desktopItems.Remove(displayName);
             _desktopCategories.Remove(displayName);
             _selectedItemNames.Remove(displayName);
-            _iconCache.Remove(GetIconCacheKey(fullPath));
+            InvalidateIconCacheLocations([fullPath]);
         }
 
         private PhysicalFolderMoveResult QueuePhysicalFolderMove(
