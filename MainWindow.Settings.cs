@@ -116,6 +116,13 @@ namespace DesktopOrganizer
             {
                 if (updateWatchers && IsLoaded && !_isClosing)
                 {
+                    // 安全模式中的手动刷新会更新分类缓存但暂停自动组迁移；先消费这份
+                    // 已验证快照，否则随后相同的扫描会因“无变化”直接返回。
+                    if (_desktopSnapshotInitialized)
+                    {
+                        RebuildDesktopIcons();
+                    }
+
                     StartDesktopWatchers();
                     RequestDesktopRefresh(
                         clearIconCache: false,

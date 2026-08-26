@@ -73,6 +73,44 @@ public sealed class DesktopCategoryClassifierTests
         Assert.AreEqual("folders", category.Key);
     }
 
+    [TestMethod]
+    public void ClassifyWithReliability_OrdinaryDirectory_IsReliable()
+    {
+        using var directory = new TemporaryDirectory();
+
+        DesktopCategoryClassification classification =
+            DesktopCategoryClassifier.ClassifyWithReliability(directory.Path);
+
+        Assert.AreEqual("folders", classification.Category.Key);
+        Assert.IsTrue(classification.IsReliable);
+    }
+
+    [TestMethod]
+    public void ClassifyWithReliability_MissingPath_IsUnreliable()
+    {
+        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".txt");
+
+        DesktopCategoryClassification classification =
+            DesktopCategoryClassifier.ClassifyWithReliability(path);
+
+        Assert.AreEqual("documents", classification.Category.Key);
+        Assert.IsFalse(classification.IsReliable);
+    }
+
+    [TestMethod]
+    public void ClassifyDirectory_WhenMarkerEnumerationFails_IsUnreliable()
+    {
+        using var directory = new TemporaryDirectory();
+
+        DesktopCategoryClassification classification =
+            DesktopCategoryClassifier.ClassifyDirectory(
+                directory.Path,
+                _ => throw new IOException("simulated marker scan failure"));
+
+        Assert.AreEqual("folders", classification.Category.Key);
+        Assert.IsFalse(classification.IsReliable);
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()

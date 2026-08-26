@@ -4,6 +4,14 @@ namespace DesktopOrganizer
     internal sealed record DesktopCategoryDefinition(string Key, string DisplayName, int Order);
 
     /// <summary>
+    /// 单次分类结果。目录标记读取失败时仍提供保守分类，但 IsReliable 为 false，
+    /// 调用方不得据此把已经归类的项目迁往其他自动分类框。
+    /// </summary>
+    internal sealed record DesktopCategoryClassification(
+        DesktopCategoryDefinition Category,
+        bool IsReliable);
+
+    /// <summary>
     /// 纯本地、无网络的桌面项目分类器。
     /// 文件按扩展名分类；文件夹只检查顶层项目标记，不递归扫描内容。
     /// </summary>
@@ -48,39 +56,53 @@ namespace DesktopOrganizer
 
         public static DesktopCategoryDefinition ClassifyShellNamespace() => SystemItems;
 
-        public static DesktopCategoryDefinition Classify(string fullPath)
+        public static DesktopCategoryDefinition Classify(string fullPath) =>
+            ClassifyWithReliability(fullPath).Category;
+
+        public static DesktopCategoryClassification ClassifyWithReliability(string fullPath)
         {
             if (Directory.Exists(fullPath))
             {
-                return IsDevelopmentProjectFolder(fullPath) ? DevelopmentProjects : Folders;
+                return ClassifyDirectory(
+                    fullPath,
+                    pattern => Directory.EnumerateFileSystemEntries(
+                        fullPath,
+                        pattern,
+                        SearchOption.TopDirectoryOnly));
             }
 
             string extension = Path.GetExtension(fullPath).ToLowerInvariant();
-            return ExtensionMap.TryGetValue(extension, out DesktopCategoryDefinition? category)
-                ? category
-                : Other;
+            DesktopCategoryDefinition category =
+                ExtensionMap.TryGetValue(extension, out DesktopCategoryDefinition? mappedCategory)
+                    ? mappedCategory
+                    : Other;
+            // 扫描与分类之间项目可能被删除，Directory.Exists 也会在无权读取时返回 false。
+            // 此时仍返回保守的扩展名分类供显示，但禁止据此迁移已有自动分类成员。
+            return new DesktopCategoryClassification(category, IsReliable: File.Exists(fullPath));
         }
 
-        private static bool IsDevelopmentProjectFolder(string path)
+        internal static DesktopCategoryClassification ClassifyDirectory(
+            string path,
+            Func<string, IEnumerable<string>> enumerateEntries)
         {
             try
             {
                 if (Directory.Exists(Path.Combine(path, ".git")) ||
                     Directory.Exists(Path.Combine(path, ".svn")))
                 {
-                    return true;
+                    return new DesktopCategoryClassification(DevelopmentProjects, IsReliable: true);
                 }
 
                 if (ProjectMarkerFiles.Any(marker => File.Exists(Path.Combine(path, marker))))
                 {
-                    return true;
+                    return new DesktopCategoryClassification(DevelopmentProjects, IsReliable: true);
                 }
 
                 foreach (string pattern in ProjectMarkerPatterns)
                 {
-                    if (Directory.EnumerateFileSystemEntries(path, pattern, SearchOption.TopDirectoryOnly).Any())
+                    if (enumerateEntries(pattern).Any())
                     {
-                        return true;
+                        return new DesktopCategoryClassification(DevelopmentProjects, IsReliable: true);
                     }
                 }
             }
@@ -90,10 +112,11 @@ namespace DesktopOrganizer
                 NotSupportedException or
                 System.Security.SecurityException)
             {
-                // 无权限、路径异常或文件夹正在变化时按普通文件夹处理，下一次刷新会重新识别。
+                // 保守显示为普通文件夹，但不允许本轮结果触发自动分类迁移。
+                return new DesktopCategoryClassification(Folders, IsReliable: false);
             }
 
-            return false;
+            return new DesktopCategoryClassification(Folders, IsReliable: true);
         }
 
         private static Dictionary<string, DesktopCategoryDefinition> BuildExtensionMap()

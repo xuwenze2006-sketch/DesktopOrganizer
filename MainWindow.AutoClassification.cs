@@ -69,9 +69,6 @@ namespace DesktopOrganizer
                     return;
                 }
 
-                _desktopItems = snapshot.Items;
-                _desktopCategories = snapshot.Categories;
-                _desktopSnapshotInitialized = true;
                 Dictionary<string, string> existing = snapshot.Items;
                 var manualGroupedNames = new HashSet<string>(
                     _appLayout.Groups
@@ -90,10 +87,15 @@ namespace DesktopOrganizer
                     return;
                 }
 
+                Dictionary<string, DesktopCategoryDefinition> effectiveCategories =
+                    AutoClassificationCategoryPolicy.BuildEffectiveLookup(
+                        snapshot.Categories,
+                        snapshot.ReliableCategoryNames,
+                        _appLayout.Groups);
                 Dictionary<DesktopCategoryDefinition, List<string>> plan = BuildAutoClassificationPlan(
                     existing,
                     candidateNames,
-                    snapshot.Categories);
+                    effectiveCategories);
 
                 var preview = new StringBuilder();
                 preview.AppendLine($"识别到 {candidateNames.Count} 个可分类项目：");
@@ -120,6 +122,10 @@ namespace DesktopOrganizer
                     return;
                 }
 
+                _desktopItems = snapshot.Items;
+                _desktopCategories = snapshot.Categories;
+                _reliableDesktopCategoryNames = snapshot.ReliableCategoryNames;
+                _desktopSnapshotInitialized = true;
                 ApplyAutoClassification(plan, existing);
             }
             catch (OperationCanceledException) when (_isClosing || _lifetimeCts.IsCancellationRequested)
@@ -444,6 +450,35 @@ namespace DesktopOrganizer
             }
 
             return true;
+        }
+
+        private bool ReconcileAutoCategoryMembership(
+            Dictionary<string, string> existing,
+            IReadOnlyDictionary<string, DesktopCategoryDefinition> categories,
+            IReadOnlySet<string> reliableCategoryNames)
+        {
+            IReadOnlyList<AutoCategoryMembershipMove> moves =
+                AutoCategoryMembershipPlanner.Plan(
+                    _appLayout.Groups,
+                    categories,
+                    reliableCategoryNames,
+                    paused: _isSafeModeActive);
+            if (moves.Count == 0)
+            {
+                return false;
+            }
+
+            AutoCategoryMembershipUpdateResult update = AutoCategoryMembershipPlanner.Apply(
+                _appLayout.Groups,
+                moves,
+                existing.ContainsKey,
+                category => CreateAutoCategoryGroup(category, Array.Empty<string>()));
+            foreach (GroupInfo group in update.AffectedGroups)
+            {
+                UpdateAutoCategoryGroupSize(group);
+            }
+
+            return update.Changed;
         }
 
         private GroupInfo CreateAutoCategoryGroup(

@@ -10,6 +10,7 @@ namespace DesktopOrganizer
                 out bool physicalScanComplete,
                 out bool shellScanComplete);
             var categories = new Dictionary<string, DesktopCategoryDefinition>(StringComparer.OrdinalIgnoreCase);
+            var reliableCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var identities = new Dictionary<string, DesktopItemIdentityInfo>(StringComparer.OrdinalIgnoreCase);
 
             foreach ((string name, string fullPath) in items)
@@ -18,11 +19,19 @@ namespace DesktopOrganizer
                 if (ShellItemLocation.TryDecode(fullPath, out string parsingName, out bool isFolder))
                 {
                     categories[name] = DesktopCategoryClassifier.ClassifyShellNamespace();
+                    reliableCategoryNames.Add(name);
                     identities[name] = CreateShellDesktopItemIdentity(fullPath, parsingName, isFolder);
                 }
                 else
                 {
-                    categories[name] = DesktopCategoryClassifier.Classify(fullPath);
+                    DesktopCategoryClassification classification =
+                        DesktopCategoryClassifier.ClassifyWithReliability(fullPath);
+                    categories[name] = classification.Category;
+                    if (classification.IsReliable)
+                    {
+                        reliableCategoryNames.Add(name);
+                    }
+
                     identities[name] = CreateDesktopItemIdentity(fullPath);
                 }
             }
@@ -30,6 +39,7 @@ namespace DesktopOrganizer
             return new DesktopScanSnapshot(
                 items,
                 categories,
+                reliableCategoryNames,
                 identities,
                 physicalScanComplete,
                 shellScanComplete);
@@ -38,9 +48,12 @@ namespace DesktopOrganizer
         private static bool DesktopSnapshotMatches(
             IReadOnlyDictionary<string, string> currentItems,
             IReadOnlyDictionary<string, DesktopCategoryDefinition> currentCategories,
+            IReadOnlySet<string> currentReliableCategoryNames,
             DesktopScanSnapshot next)
         {
-            if (currentItems.Count != next.Items.Count || currentCategories.Count != next.Categories.Count)
+            if (currentItems.Count != next.Items.Count ||
+                currentCategories.Count != next.Categories.Count ||
+                currentReliableCategoryNames.Count != next.ReliableCategoryNames.Count)
             {
                 return false;
             }
@@ -60,6 +73,12 @@ namespace DesktopOrganizer
                 if (!next.Categories.TryGetValue(name, out DesktopCategoryDefinition? nextCategory) ||
                     !currentCategories.TryGetValue(name, out DesktopCategoryDefinition? currentCategory) ||
                     !string.Equals(currentCategory.Key, nextCategory.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (currentReliableCategoryNames.Contains(name) !=
+                    next.ReliableCategoryNames.Contains(name))
                 {
                     return false;
                 }
@@ -204,6 +223,10 @@ namespace DesktopOrganizer
             var existing = new Dictionary<string, string>(_desktopItems, StringComparer.OrdinalIgnoreCase);
             _selectedItemNames.RemoveWhere(name => !existing.ContainsKey(name));
             bool layoutChanged = RemoveMissingAndDuplicateGroupItems(existing);
+            layoutChanged |= ReconcileAutoCategoryMembership(
+                existing,
+                _desktopCategories,
+                _reliableDesktopCategoryNames);
             layoutChanged |= AutoClassifyNewDesktopItems(
                 existing,
                 _desktopCategories,
@@ -945,6 +968,8 @@ namespace DesktopOrganizer
                         DesktopCategoryClassifier.ClassifyShellNamespace();
                 }
 
+                snapshot.ReliableCategoryNames.Add(displayName);
+
                 if (_appLayout.ItemIdentities.TryGetValue(
                         displayName,
                         out DesktopItemIdentityInfo? currentIdentity) &&
@@ -1065,7 +1090,11 @@ namespace DesktopOrganizer
                     }
 
                     bool snapshotChanged = !_desktopSnapshotInitialized ||
-                        !DesktopSnapshotMatches(_desktopItems, _desktopCategories, snapshot) ||
+                        !DesktopSnapshotMatches(
+                            _desktopItems,
+                            _desktopCategories,
+                            _reliableDesktopCategoryNames,
+                            snapshot) ||
                         !DesktopIdentityMapsEqual(_appLayout.ItemIdentities, snapshot.Identities);
 
                     // 某些 Shell 操作会产生“内容未变化”的通知。没有变化时不要清空并重建
@@ -1115,6 +1144,7 @@ namespace DesktopOrganizer
                     bool identityLayoutChanged = ReconcileDesktopItemIdentities(snapshot);
                     _desktopItems = snapshot.Items;
                     _desktopCategories = snapshot.Categories;
+                    _reliableDesktopCategoryNames = snapshot.ReliableCategoryNames;
                     _desktopSnapshotInitialized = true;
                     RebuildDesktopIcons(newItemNames);
                     if (identityLayoutChanged)

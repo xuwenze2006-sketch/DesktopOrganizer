@@ -89,6 +89,7 @@ namespace DesktopOrganizer
         private DesktopGeometry _desktopGeometry = new([]);
         private Dictionary<string, string> _desktopItems = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, DesktopCategoryDefinition> _desktopCategories = new(StringComparer.OrdinalIgnoreCase);
+        private HashSet<string> _reliableDesktopCategoryNames = new(StringComparer.OrdinalIgnoreCase);
         private bool _desktopSnapshotInitialized;
         private CancellationTokenSource? _refreshDebounceCts;
         private string? _pendingRefreshStatus;
@@ -188,6 +189,7 @@ namespace DesktopOrganizer
         private sealed record DesktopScanSnapshot(
             Dictionary<string, string> Items,
             Dictionary<string, DesktopCategoryDefinition> Categories,
+            HashSet<string> ReliableCategoryNames,
             Dictionary<string, DesktopItemIdentityInfo> Identities,
             bool PhysicalScanComplete,
             bool ShellScanComplete);
