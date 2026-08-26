@@ -539,7 +539,7 @@ namespace DesktopOrganizer
             _appLayout.ReserveTemporaryWorkspace = ReserveWorkspaceToggle.IsChecked == true;
             SaveLayout();
             StatusText.Text = _appLayout.ReserveTemporaryWorkspace
-                ? "智能布局会优先保留下半屏临时区域"
+                ? "智能布局会优先保留主屏底部约三分之一临时区域"
                 : "智能布局可使用整个桌面工作区";
         }
 

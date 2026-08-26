@@ -652,7 +652,7 @@
                                 <Button Content="智能布局"
                                         Style="{StaticResource ToolbarButton}"
                                         Click="SmartArrangeGroupsButton_Click"
-                                        ToolTip="按分类框真实宽高填补空隙；可优先保留下半屏临时区域"/>
+                                        ToolTip="按分类框真实宽高填补空隙；可优先保留主屏底部约三分之一临时区域"/>
                                 <Button Content="适应全部"
                                         Style="{StaticResource ToolbarButton}"
                                         Click="AutoFitAllGroupsButton_Click"
@@ -725,7 +725,7 @@
                                               Content="保留临时区"
                                               Style="{StaticResource ToolbarToggleButton}"
                                               Click="ReserveWorkspaceToggle_Click"
-                                              ToolTip="智能布局优先保留下半屏，方便临时放置新文件"/>
+                                              ToolTip="智能布局优先保留主屏底部约三分之一，方便临时放置新文件"/>
                                 <ToggleButton x:Name="AutoCollapsePanelToggle"
                                               Content="面板自动收起"
                                               Style="{StaticResource ToolbarToggleButton}"

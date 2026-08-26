@@ -64,7 +64,7 @@ namespace DesktopOrganizer
             int newlyCollapsed = ArrangeGroupsSmartly();
             RebuildDesktopIconsAndSaveLayout();
             string workspaceNote = _lastSmartLayoutPreservedWorkspace
-                ? "，已保留下半屏临时区域"
+                ? "，已保留主屏底部约三分之一临时区域"
                 : _appLayout.ReserveTemporaryWorkspace
                     ? "，因空间不足已使用完整工作区"
                     : string.Empty;
@@ -123,7 +123,7 @@ namespace DesktopOrganizer
         }
 
         /// <summary>
-        /// 使用可变宽度的二维瀑布流排列分类框。优先保留下半屏临时区域；
+        /// 使用可变宽度的二维瀑布流排列分类框。优先保留主屏底部约三分之一临时区域；
         /// 若空间不足，先收起自动分类，再在必要时使用完整桌面高度。
         /// </summary>
         private int ArrangeGroupsSmartly()

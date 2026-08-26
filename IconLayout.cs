@@ -104,7 +104,7 @@ namespace DesktopOrganizer
         /// <summary>使用更紧凑的分类框尺寸，并允许大型分类使用四列图标。</summary>
         public bool CompactGroupLayout { get; set; } = true;
 
-        /// <summary>智能布局优先保留下半屏作为临时文件和壁纸留白区域。</summary>
+        /// <summary>智能布局优先保留主屏底部约三分之一，作为临时文件和壁纸留白区域。</summary>
         public bool ReserveTemporaryWorkspace { get; set; } = true;
 
         /// <summary>总控制面板左上角坐标；null 表示首次启动时停靠在右上角。</summary>
