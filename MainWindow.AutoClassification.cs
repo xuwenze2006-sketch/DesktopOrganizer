@@ -215,17 +215,7 @@ namespace DesktopOrganizer
                 }
             }
 
-            _appLayout.Groups.RemoveAll(group => group.IsAutoCategory);
-
-            var occupied = new HashSet<(int Column, int Row)>();
-            foreach ((string name, IconPosition position) in _appLayout.FreeIcons)
-            {
-                if (!preferredPositions.ContainsKey(name) && position != null)
-                {
-                    occupied.Add(GetNearestGridCell(position.X, position.Y));
-                }
-            }
-
+            var restoreRequests = new List<(string Name, IconPosition Requested)>();
             foreach ((string name, IconPosition requested) in preferredPositions
                          .OrderBy(pair => SafeCanvasCoordinate(pair.Value.Y))
                          .ThenBy(pair => SafeCanvasCoordinate(pair.Value.X))
@@ -238,23 +228,47 @@ namespace DesktopOrganizer
 
                 IconPosition restored = ClonePosition(requested);
                 ClampIconPosition(restored);
-                if (_appLayout.SnapToGrid)
+                restoreRequests.Add((name, restored));
+            }
+
+            Dictionary<string, IconPosition> restoredPositions;
+            if (_appLayout.SnapToGrid)
+            {
+                var restoringNames = new HashSet<string>(
+                    restoreRequests.Select(request => request.Name),
+                    StringComparer.OrdinalIgnoreCase);
+                var ignoredGroupIds = new HashSet<string>(
+                    autoGroups.Select(group => group.Id),
+                    StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, IconPosition>? plan = TryPlanAlignedIconPositions(
+                    restoreRequests,
+                    GetOccupiedFreeGridCells(restoringNames),
+                    ignoredGroupIds);
+                if (plan == null)
                 {
-                    (int preferredColumn, int preferredRow) = GetNearestGridCell(restored.X, restored.Y);
-                    (int column, int row) = FindNearestAvailableGridCell(
-                        preferredColumn,
-                        preferredRow,
-                        occupied);
-                    occupied.Add((column, row));
-                    restored = GridCellToPosition(column, row);
+                    StatusText.Text = "没有足够的可用网格，自动分类保持不变";
+                    return;
                 }
 
-                _appLayout.FreeIcons[name] = restored;
+                restoredPositions = plan;
+            }
+            else
+            {
+                restoredPositions = restoreRequests.ToDictionary(
+                    request => request.Name,
+                    request => request.Requested,
+                    StringComparer.OrdinalIgnoreCase);
+            }
+
+            _appLayout.Groups.RemoveAll(group => group.IsAutoCategory);
+            foreach ((string name, IconPosition position) in restoredPositions)
+            {
+                _appLayout.FreeIcons[name] = position;
             }
 
             _appLayout.AutoClassificationOriginalPositions.Clear();
             RebuildDesktopIconsAndSaveLayout();
-            StatusText.Text = $"已取消自动分类，恢复 {preferredPositions.Count} 个自由图标";
+            StatusText.Text = $"已取消自动分类，恢复 {restoredPositions.Count} 个自由图标";
         }
 
         private Dictionary<DesktopCategoryDefinition, List<string>> BuildAutoClassificationPlan(

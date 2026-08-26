@@ -650,33 +650,51 @@ namespace DesktopOrganizer
                     else
                     {
                         CancelPushPreview(restoreVisuals: true);
-
-                        if (sourceGroup != null)
-                        {
-                            foreach (GroupInfo group in _appLayout.Groups)
-                            {
-                                group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
-                            }
-
-                            if (sourceGroup.IsAutoCategory)
-                            {
-                                _appLayout.AutoClassificationOriginalPositions.Remove(name);
-                            }
-                        }
-
-                        var position = new IconPosition { X = left, Y = top };
+                        IconPosition? position = new IconPosition { X = left, Y = top };
                         if (_appLayout.SnapToGrid)
                         {
-                            position = FindAlignedIconPosition(name, position);
-                            Canvas.SetLeft(dragged, position.X);
-                            Canvas.SetTop(dragged, position.Y);
+                            position = FindAlignedIconPosition(
+                                name,
+                                position,
+                                sourceGroup == null
+                                    ? null
+                                    : BuildGroupBoundsAfterRemovingItems([name]));
                         }
 
-                        _appLayout.FreeIcons[name] = position;
-                        if (sourceGroup != null)
+                        if (position == null)
                         {
-                            RebuildDesktopIcons();
-                            StatusText.Text = $"已将“{name}”移出分类，可在桌面自由摆放";
+                            RestoreDraggedIconAfterRejectedDrop(dragged, sourceGroup);
+                            StatusText.Text = sourceGroup == null
+                                ? $"没有可用网格，“{name}”已回到原位"
+                                : $"没有可用网格，“{name}”仍保留在原分类中";
+                        }
+                        else
+                        {
+                            if (_appLayout.SnapToGrid)
+                            {
+                                Canvas.SetLeft(dragged, position.X);
+                                Canvas.SetTop(dragged, position.Y);
+                            }
+
+                            if (sourceGroup != null)
+                            {
+                                foreach (GroupInfo group in _appLayout.Groups)
+                                {
+                                    group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+                                }
+
+                                if (sourceGroup.IsAutoCategory)
+                                {
+                                    _appLayout.AutoClassificationOriginalPositions.Remove(name);
+                                }
+                            }
+
+                            _appLayout.FreeIcons[name] = position;
+                            if (sourceGroup != null)
+                            {
+                                RebuildDesktopIcons();
+                                StatusText.Text = $"已将“{name}”移出分类，可在桌面自由摆放";
+                            }
                         }
                     }
                 }

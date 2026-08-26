@@ -255,29 +255,64 @@ namespace DesktopOrganizer
                 return;
             }
 
-            for (int i = 0; i < group.ItemNames.Count; i++)
+            List<string> releasedNames = group.ItemNames
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(name => _desktopItems.ContainsKey(name))
+                .ToList();
+            var releaseRequests = new List<(string Name, IconPosition Requested)>(releasedNames.Count);
+            for (int i = 0; i < releasedNames.Count; i++)
             {
-                string name = group.ItemNames[i];
-                if (group.IsAutoCategory)
-                {
-                    _appLayout.AutoClassificationOriginalPositions.Remove(name);
-                }
-
+                string name = releasedNames[i];
                 var position = new IconPosition
                 {
                     X = group.X + (i % 4) * IconCellWidth,
                     Y = group.Y + GetGroupDisplayHeight(group) + 10 + (i / 4) * IconCellHeight
                 };
                 ClampIconPosition(position);
+                releaseRequests.Add((name, position));
+            }
+
+            Dictionary<string, IconPosition> releasedPositions;
+            if (_appLayout.SnapToGrid)
+            {
+                var releasedNameSet = new HashSet<string>(releasedNames, StringComparer.OrdinalIgnoreCase);
+                var ignoredGroupIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { group.Id };
+                Dictionary<string, IconPosition>? plan = TryPlanAlignedIconPositions(
+                    releaseRequests,
+                    GetOccupiedFreeGridCells(releasedNameSet),
+                    ignoredGroupIds);
+                if (plan == null)
+                {
+                    StatusText.Text = $"没有足够的可用网格，分组“{group.Name}”未删除";
+                    return;
+                }
+
+                releasedPositions = plan;
+            }
+            else
+            {
+                releasedPositions = releaseRequests.ToDictionary(
+                    request => request.Name,
+                    request => request.Requested,
+                    StringComparer.OrdinalIgnoreCase);
+            }
+
+            foreach ((string name, IconPosition position) in releasedPositions)
+            {
                 _appLayout.FreeIcons[name] = position;
             }
 
-            _appLayout.Groups.Remove(group);
-            if (_appLayout.SnapToGrid)
+            if (group.IsAutoCategory)
             {
-                ApplyGridAlignmentToFreeIcons();
+                foreach (string name in group.ItemNames)
+                {
+                    _appLayout.AutoClassificationOriginalPositions.Remove(name);
+                }
             }
+
+            _appLayout.Groups.Remove(group);
             RebuildDesktopIconsAndSaveLayout();
+            StatusText.Text = $"已删除分组“{group.Name}”，恢复 {releasedPositions.Count} 个自由图标";
         }
 
         private void RenameGroup(GroupInfo group)

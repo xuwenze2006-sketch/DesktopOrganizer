@@ -5,18 +5,22 @@ namespace DesktopOrganizer
     {
         private void AlignFreeIconsToGrid(bool showFeedback)
         {
-            int alignedCount = ApplyGridAlignmentToFreeIcons();
+            (int alignedCount, int skippedCount) = ApplyGridAlignmentToFreeIcons();
             RebuildDesktopIconsAndSaveLayout();
 
             if (showFeedback)
             {
-                StatusText.Text = alignedCount > 0
-                    ? $"已对齐 {alignedCount} 个自由图标"
-                    : "没有可对齐的自由图标";
+                StatusText.Text = (alignedCount, skippedCount) switch
+                {
+                    (> 0, 0) => $"已对齐 {alignedCount} 个自由图标",
+                    (> 0, > 0) => $"已对齐 {alignedCount} 个自由图标；{skippedCount} 个因没有可用网格保持原位",
+                    (0, > 0) => $"没有可用网格，{skippedCount} 个自由图标保持原位",
+                    _ => "没有可对齐的自由图标"
+                };
             }
         }
 
-        private int ApplyGridAlignmentToFreeIcons()
+        private (int AlignedCount, int SkippedCount) ApplyGridAlignmentToFreeIcons()
         {
             NormalizeLayout();
             var existing = new Dictionary<string, string>(_desktopItems, StringComparer.OrdinalIgnoreCase);
@@ -32,17 +36,26 @@ namespace DesktopOrganizer
                 .Select(pair => pair.Key)
                 .ToList();
 
-            var occupied = new HashSet<(int Column, int Row)>();
-            foreach (string name in iconNames)
+            if (iconNames.Count == 0)
             {
-                IconPosition current = _appLayout.FreeIcons[name];
-                (int column, int row) = GetNearestGridCell(current.X, current.Y);
-                (column, row) = FindNearestAvailableGridCell(column, row, occupied);
-                occupied.Add((column, row));
-                _appLayout.FreeIcons[name] = GridCellToPosition(column, row);
+                return (0, 0);
             }
 
-            return iconNames.Count;
+            Dictionary<string, IconPosition>? plan = TryPlanAlignedIconPositions(
+                iconNames.Select(name => (name, _appLayout.FreeIcons[name])),
+                new HashSet<(int Column, int Row)>());
+            if (plan == null)
+            {
+                // 整批保持原位，避免先移动的图标占用后续失败图标的旧位置。
+                return (0, iconNames.Count);
+            }
+
+            foreach ((string name, IconPosition position) in plan)
+            {
+                _appLayout.FreeIcons[name] = position;
+            }
+
+            return (plan.Count, 0);
         }
 
         private void AlignSingleIconToGrid(string name)
@@ -52,38 +65,37 @@ namespace DesktopOrganizer
                 return;
             }
 
-            _appLayout.FreeIcons[name] = FindAlignedIconPosition(name, position);
+            IconPosition? alignedPosition = FindAlignedIconPosition(name, position);
+            if (alignedPosition == null)
+            {
+                StatusText.Text = $"没有可用网格，“{name}”保持原位";
+                return;
+            }
+
+            _appLayout.FreeIcons[name] = alignedPosition;
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = $"“{name}”已对齐到网格";
         }
 
-        private IconPosition FindAlignedIconPosition(string name, IconPosition requestedPosition)
+        private IconPosition? FindAlignedIconPosition(
+            string name,
+            IconPosition requestedPosition,
+            IReadOnlyDictionary<string, Rect>? groupBoundsOverrides = null)
         {
             (int preferredColumn, int preferredRow) = GetNearestGridCell(
                 requestedPosition.X,
                 requestedPosition.Y);
 
-            var groupedNames = new HashSet<string>(
-                _appLayout.Groups.SelectMany(group => group.ItemNames),
-                StringComparer.OrdinalIgnoreCase);
-            var occupied = new HashSet<(int Column, int Row)>();
-            foreach ((string otherName, IconPosition otherPosition) in _appLayout.FreeIcons)
-            {
-                if (otherName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                    groupedNames.Contains(otherName) ||
-                    otherPosition == null)
-                {
-                    continue;
-                }
-
-                occupied.Add(GetNearestGridCell(otherPosition.X, otherPosition.Y));
-            }
-
-            (int column, int row) = FindNearestAvailableGridCell(
+            var excludedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { name };
+            HashSet<(int Column, int Row)> occupied = GetOccupiedFreeGridCells(excludedNames);
+            GridCell? available = FindNearestAvailableGridCell(
                 preferredColumn,
                 preferredRow,
-                occupied);
-            return GridCellToPosition(column, row);
+                occupied,
+                groupBoundsOverrides: groupBoundsOverrides);
+            return available.HasValue
+                ? GridCellToPosition(available.Value.Column, available.Value.Row)
+                : null;
         }
 
         private (int Column, int Row) GetNearestGridCell(double x, double y)
@@ -95,38 +107,146 @@ namespace DesktopOrganizer
             return (Math.Clamp(column, 0, maxColumn), Math.Clamp(row, 0, maxRow));
         }
 
-        private (int Column, int Row) FindNearestAvailableGridCell(
+        private GridCell? FindNearestAvailableGridCell(
             int preferredColumn,
             int preferredRow,
-            HashSet<(int Column, int Row)> occupied)
+            IReadOnlySet<(int Column, int Row)> occupied,
+            IReadOnlySet<string>? ignoredGroupIds = null,
+            IReadOnlyDictionary<string, Rect>? groupBoundsOverrides = null)
         {
             int columns = GetGridColumnCount();
             int rows = GetGridRowCount();
-            preferredColumn = Math.Clamp(preferredColumn, 0, columns - 1);
-            preferredRow = Math.Clamp(preferredRow, 0, rows - 1);
-
-            return Enumerable.Range(0, columns)
-                .SelectMany(column => Enumerable.Range(0, rows).Select(row => (Column: column, Row: row)))
-                .Where(cell =>
-                    !occupied.Contains(cell) &&
-                    !GridCellIntersectsGroup(cell.Column, cell.Row) &&
-                    GridCellFitsUsableDesktop(cell.Column, cell.Row))
-                .OrderBy(cell =>
-                    Math.Pow(cell.Column - preferredColumn, 2) +
-                    Math.Pow(cell.Row - preferredRow, 2))
-                .ThenBy(cell => cell.Row)
-                .ThenBy(cell => cell.Column)
-                .FirstOrDefault((preferredColumn, preferredRow));
+            return GridCellSearch.FindNearest(
+                columns,
+                rows,
+                preferredColumn,
+                preferredRow,
+                (column, row) =>
+                    !occupied.Contains((column, row)) &&
+                    !GridCellIntersectsGroup(
+                        column,
+                        row,
+                        ignoredGroupIds,
+                        groupBoundsOverrides) &&
+                    GridCellFitsUsableDesktop(column, row));
         }
 
-        private bool GridCellIntersectsGroup(int column, int row)
+        private HashSet<(int Column, int Row)> GetOccupiedFreeGridCells(
+            IReadOnlySet<string>? excludedNames = null)
+        {
+            var groupedNames = new HashSet<string>(
+                _appLayout.Groups.SelectMany(group => group.ItemNames),
+                StringComparer.OrdinalIgnoreCase);
+            var occupied = new HashSet<(int Column, int Row)>();
+            foreach ((string name, IconPosition position) in _appLayout.FreeIcons)
+            {
+                if ((excludedNames?.Contains(name) ?? false) ||
+                    groupedNames.Contains(name) ||
+                    position == null)
+                {
+                    continue;
+                }
+
+                occupied.Add(GetNearestGridCell(position.X, position.Y));
+            }
+
+            return occupied;
+        }
+
+        private Dictionary<string, IconPosition>? TryPlanAlignedIconPositions(
+            IEnumerable<(string Name, IconPosition Requested)> requests,
+            IReadOnlySet<(int Column, int Row)> occupied,
+            IReadOnlySet<string>? ignoredGroupIds = null,
+            IReadOnlyDictionary<string, Rect>? groupBoundsOverrides = null)
+        {
+            List<GridPlacementRequest> gridRequests = requests
+                .Select(request =>
+                {
+                    (int column, int row) = GetNearestGridCell(
+                        request.Requested.X,
+                        request.Requested.Y);
+                    return new GridPlacementRequest(request.Name, column, row);
+                })
+                .ToList();
+
+            Dictionary<string, GridCell>? plan = GridPlacementPlanner.TryPlan(
+                GetGridColumnCount(),
+                GetGridRowCount(),
+                gridRequests,
+                occupied.Select(cell => new GridCell(cell.Column, cell.Row)),
+                (column, row) =>
+                    !GridCellIntersectsGroup(
+                        column,
+                        row,
+                        ignoredGroupIds,
+                        groupBoundsOverrides) &&
+                    GridCellFitsUsableDesktop(column, row),
+                StringComparer.OrdinalIgnoreCase);
+            return plan?.ToDictionary(
+                pair => pair.Key,
+                pair => GridCellToPosition(pair.Value.Column, pair.Value.Row),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        private Dictionary<string, Rect> BuildGroupBoundsAfterRemovingItems(
+            IEnumerable<string> removedItemNames)
+        {
+            var removedNames = new HashSet<string>(
+                removedItemNames,
+                StringComparer.OrdinalIgnoreCase);
+            var overrides = new Dictionary<string, Rect>(StringComparer.OrdinalIgnoreCase);
+            foreach (GroupInfo group in _appLayout.Groups)
+            {
+                if (group.IsSizeLocked ||
+                    !group.ItemNames.Any(removedNames.Contains))
+                {
+                    continue;
+                }
+
+                var plannedGroup = new GroupInfo
+                {
+                    Id = group.Id,
+                    Name = group.Name,
+                    X = group.X,
+                    Y = group.Y,
+                    Width = group.Width,
+                    Height = group.Height,
+                    ItemNames = group.ItemNames
+                        .Where(name => !removedNames.Contains(name))
+                        .ToList(),
+                    IsCollapsed = group.IsCollapsed,
+                    IsAutoCategory = group.IsAutoCategory,
+                    AutoCategoryKey = group.AutoCategoryKey,
+                    IsSizeLocked = false,
+                    SortMode = group.SortMode
+                };
+                AutoFitGroup(plannedGroup, clampPosition: false);
+                overrides[group.Id] = GetGroupBounds(plannedGroup);
+            }
+
+            return overrides;
+        }
+
+        private bool GridCellIntersectsGroup(
+            int column,
+            int row,
+            IReadOnlySet<string>? ignoredGroupIds = null,
+            IReadOnlyDictionary<string, Rect>? groupBoundsOverrides = null)
         {
             IconPosition position = GridCellToPosition(column, row);
             var iconBounds = new Rect(position.X, position.Y, IconCellWidth, IconCellHeight);
 
             if (_appLayout.Groups.Any(group =>
                 {
-                    Rect groupBounds = GetGroupBounds(group);
+                    if (ignoredGroupIds?.Contains(group.Id) == true)
+                    {
+                        return false;
+                    }
+
+                    Rect groupBounds = groupBoundsOverrides != null &&
+                                       groupBoundsOverrides.TryGetValue(group.Id, out Rect overrideBounds)
+                        ? overrideBounds
+                        : GetGroupBounds(group);
                     return iconBounds.IntersectsWith(groupBounds);
                 }))
             {
@@ -151,6 +271,26 @@ namespace DesktopOrganizer
                 X = GridOriginX + column * IconCellWidth,
                 Y = GridOriginY + row * IconCellHeight
             };
+            ClampIconPosition(position);
+            return position;
+        }
+
+        private IconPosition CreateTemporaryGridOverflowPosition(int itemIndex, int overflowIndex)
+        {
+            int columns = GetGridColumnCount();
+            int preferredRow = itemIndex / columns;
+            int preferredColumn = itemIndex % columns;
+            var position = new IconPosition
+            {
+                X = GridOriginX + preferredColumn * IconCellWidth,
+                Y = GridOriginY + preferredRow * IconCellHeight
+            };
+
+            // 这是仅用于当前视觉刷新的临时级联位置，不会写入布局。空出有效网格后，
+            // 下一次刷新会重新尝试正式吸附。
+            double cascadeOffset = 12 * ((overflowIndex % 5) + 1);
+            position.X += cascadeOffset;
+            position.Y += cascadeOffset;
             ClampIconPosition(position);
             return position;
         }

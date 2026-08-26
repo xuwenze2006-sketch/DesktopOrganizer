@@ -267,7 +267,8 @@ namespace DesktopOrganizer
             {
                 for (int column = 0; column < columns; column++)
                 {
-                    if (!GridCellIntersectsGroup(column, row))
+                    if (!GridCellIntersectsGroup(column, row) &&
+                        GridCellFitsUsableDesktop(column, row))
                     {
                         cells.Add((column, row));
                     }

@@ -214,34 +214,79 @@ namespace DesktopOrganizer
             int columns = GetGridColumnCount();
             var occupiedGridCells = new HashSet<(int Column, int Row)>();
             var freeTargets = new Dictionary<string, FreeIconVisualTarget>(StringComparer.OrdinalIgnoreCase);
+            List<(string Name, string FullPath)> orderedFreeItems = existing
+                .Where(pair => !groupedNames.Contains(pair.Key))
+                .OrderBy(pair => pair.Key, StringComparer.CurrentCultureIgnoreCase)
+                .Select(pair => (pair.Key, pair.Value))
+                .ToList();
             int index = 0;
+            int gridOverflowCount = 0;
 
-            foreach ((string name, string fullPath) in existing.OrderBy(kv => kv.Key, StringComparer.CurrentCultureIgnoreCase))
+            // 必须先登记所有已有位置，再给新项目找空位；否则名称排序靠前的新项目可能
+            // 在名称靠后的已有图标登记前抢占其网格并把重叠结果持久化。
+            foreach ((string name, _) in orderedFreeItems)
             {
-                if (groupedNames.Contains(name))
+                if (!_appLayout.FreeIcons.TryGetValue(name, out IconPosition? savedPosition) ||
+                    savedPosition == null)
                 {
                     continue;
                 }
 
+                ClampIconPosition(savedPosition);
+                occupiedGridCells.Add(GetNearestGridCell(savedPosition.X, savedPosition.Y));
+            }
+
+            var newItemRequests = new List<GridPlacementRequest>();
+            for (int itemIndex = 0; itemIndex < orderedFreeItems.Count; itemIndex++)
+            {
+                string name = orderedFreeItems[itemIndex].Name;
+                if (_appLayout.FreeIcons.TryGetValue(name, out IconPosition? savedPosition) &&
+                    savedPosition != null)
+                {
+                    continue;
+                }
+
+                newItemRequests.Add(new GridPlacementRequest(
+                    name,
+                    itemIndex % columns,
+                    itemIndex / columns));
+            }
+
+            Dictionary<string, GridCell?> newItemPlacements = GridRefreshPlacementPlanner.Plan(
+                columns,
+                GetGridRowCount(),
+                newItemRequests,
+                occupiedGridCells.Select(cell => new GridCell(cell.Column, cell.Row)),
+                (column, row) =>
+                    !GridCellIntersectsGroup(column, row) &&
+                    GridCellFitsUsableDesktop(column, row),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach ((string name, string fullPath) in orderedFreeItems)
+            {
                 IconPosition position;
                 if (_appLayout.FreeIcons.TryGetValue(name, out IconPosition? savedPosition) && savedPosition != null)
                 {
                     position = savedPosition;
                     ClampIconPosition(position);
-                    occupiedGridCells.Add(GetNearestGridCell(position.X, position.Y));
                 }
                 else
                 {
-                    int preferredRow = index / columns;
-                    int preferredColumn = index % columns;
-                    (int column, int row) = FindNearestAvailableGridCell(
-                        preferredColumn,
-                        preferredRow,
-                        occupiedGridCells);
-                    position = GridCellToPosition(column, row);
-                    occupiedGridCells.Add((column, row));
-                    _appLayout.FreeIcons[name] = position;
-                    layoutChanged = true;
+                    GridCell? available = newItemPlacements[name];
+                    if (available.HasValue)
+                    {
+                        position = GridCellToPosition(
+                            available.Value.Column,
+                            available.Value.Row);
+                        _appLayout.FreeIcons[name] = position;
+                        layoutChanged = true;
+                    }
+                    else
+                    {
+                        // 网格已满时仍显示真实桌面项目，但不把已占用或无效网格冒充为空位持久化。
+                        position = CreateTemporaryGridOverflowPosition(index, gridOverflowCount);
+                        gridOverflowCount++;
+                    }
                 }
 
                 ClampIconPosition(position);
@@ -386,11 +431,18 @@ namespace DesktopOrganizer
             string fileOperationStatus = HasPendingFileOperations
                 ? $" · {_fileOperationCount} 个文件任务"
                 : string.Empty;
-            StatusText.Text = $"{existing.Count} 项 · {_appLayout.Groups.Count} 组 · {editStatus}{fileOperationStatus}";
+            string gridOverflowStatus = gridOverflowCount > 0
+                ? $" · {gridOverflowCount} 个项目等待空网格"
+                : string.Empty;
+            StatusText.Text =
+                $"{existing.Count} 项 · {_appLayout.Groups.Count} 组 · {editStatus}{fileOperationStatus}{gridOverflowStatus}";
             StatusText.ToolTip =
                 $"{existing.Count} 个桌面项目；{_appLayout.Groups.Count} 个分组（自动 {autoGroupCount}）；" +
                 $"{editStatus}；{safeStatus}；{snapStatus}；{pushStatus}；{autoStatus}；{desktopMode}；" +
                 $"后台真实文件任务 {_fileOperationCount} 个；" +
+                (gridOverflowCount > 0
+                    ? $"网格已满，{gridOverflowCount} 个新增项目使用未持久化的临时位置；"
+                    : string.Empty) +
                 $"本次增量刷新复用 {reusedFreeIcons} 个自由图标和 {reusedGroups} 个分组，" +
                 $"新建 {createdFreeIcons} 个自由图标和 {createdGroups} 个分组，移除 {removedVisuals} 个旧视觉";
             UpdateAutoClassificationControls();

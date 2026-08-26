@@ -331,8 +331,10 @@ namespace DesktopOrganizer
                 return;
             }
 
-            int removed = 0;
-            foreach (string name in _selectedItemNames.ToList())
+            var removalRequests = new List<(string Name, GroupInfo Group, IconPosition Requested)>();
+            foreach (string name in _selectedItemNames.OrderBy(
+                         value => value,
+                         StringComparer.CurrentCultureIgnoreCase))
             {
                 GroupInfo? group = _appLayout.Groups.FirstOrDefault(candidate =>
                     candidate.ItemNames.Contains(name, StringComparer.OrdinalIgnoreCase));
@@ -341,28 +343,60 @@ namespace DesktopOrganizer
                     continue;
                 }
 
-                group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
                 var position = new IconPosition
                 {
                     X = group.X + group.Width + 12,
-                    Y = group.Y + removed * 12
+                    Y = group.Y + removalRequests.Count * 12
                 };
                 ClampIconPosition(position);
-                if (_appLayout.SnapToGrid)
+                removalRequests.Add((name, group, position));
+            }
+
+            if (removalRequests.Count == 0)
+            {
+                _selectedItemNames.Clear();
+                StatusText.Text = "所选项目不在分类框中";
+                return;
+            }
+
+            Dictionary<string, IconPosition> plannedPositions;
+            if (_appLayout.SnapToGrid)
+            {
+                var movingNames = new HashSet<string>(
+                    removalRequests.Select(request => request.Name),
+                    StringComparer.OrdinalIgnoreCase);
+                plannedPositions = TryPlanAlignedIconPositions(
+                    removalRequests.Select(request => (request.Name, request.Requested)),
+                    GetOccupiedFreeGridCells(movingNames),
+                    groupBoundsOverrides: BuildGroupBoundsAfterRemovingItems(movingNames))
+                    ?? [];
+                if (plannedPositions.Count != removalRequests.Count)
                 {
-                    position = FindAlignedIconPosition(name, position);
+                    StatusText.Text = "没有足够的可用网格，所选项目仍保留在原分类框中";
+                    return;
                 }
-                _appLayout.FreeIcons[name] = position;
+            }
+            else
+            {
+                plannedPositions = removalRequests.ToDictionary(
+                    request => request.Name,
+                    request => request.Requested,
+                    StringComparer.OrdinalIgnoreCase);
+            }
+
+            foreach ((string name, GroupInfo group, _) in removalRequests)
+            {
+                group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+                _appLayout.FreeIcons[name] = plannedPositions[name];
                 if (group.IsAutoCategory)
                 {
                     _appLayout.AutoClassificationOriginalPositions.Remove(name);
                 }
-                removed++;
             }
 
             _selectedItemNames.Clear();
             RebuildDesktopIconsAndSaveLayout();
-            StatusText.Text = removed > 0 ? $"已将 {removed} 个项目移出分类框" : "所选项目不在分类框中";
+            StatusText.Text = $"已将 {removalRequests.Count} 个项目移出分类框";
         }
 
         private void MoveSelectedItemsToRecycleBin()

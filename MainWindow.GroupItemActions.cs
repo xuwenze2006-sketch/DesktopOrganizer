@@ -197,13 +197,6 @@ namespace DesktopOrganizer
                 return;
             }
 
-            group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
-            if (group.IsAutoCategory)
-            {
-                // 用户明确移出自动分组后，不再让“取消分类”覆盖该项目的新位置。
-                _appLayout.AutoClassificationOriginalPositions.Remove(name);
-            }
-
             var position = new IconPosition
             {
                 X = group.X + group.Width + 12,
@@ -212,7 +205,24 @@ namespace DesktopOrganizer
             ClampIconPosition(position);
             if (_appLayout.SnapToGrid)
             {
-                position = FindAlignedIconPosition(name, position);
+                IconPosition? alignedPosition = FindAlignedIconPosition(
+                    name,
+                    position,
+                    BuildGroupBoundsAfterRemovingItems([name]));
+                if (alignedPosition == null)
+                {
+                    StatusText.Text = $"没有可用网格，“{name}”仍保留在“{group.Name}”";
+                    return;
+                }
+
+                position = alignedPosition;
+            }
+
+            group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (group.IsAutoCategory)
+            {
+                // 用户明确移出自动分组后，不再让“取消分类”覆盖该项目的新位置。
+                _appLayout.AutoClassificationOriginalPositions.Remove(name);
             }
             _appLayout.FreeIcons[name] = position;
 
