@@ -79,7 +79,14 @@ namespace DesktopOrganizer
 
             UpdatePhysicalFolderDropPreview(canvasPosition, _draggedElement as FrameworkElement);
             UpdateGroupDropPreview(canvasPosition, _draggedElement as FrameworkElement);
-            if (_dragAllowsLayoutMove)
+            if (_activePhysicalFolderDropPath != null)
+            {
+                // 真实文件夹投放具有最高优先级。进入文件夹目标后必须立即撤销
+                // 挤压预览，否则目标文件夹本身会被挤走，状态提示也会被
+                // “插入到图标前”覆盖，最终动作可能随动画时机发生变化。
+                CancelPushPreview(restoreVisuals: true);
+            }
+            else if (_dragAllowsLayoutMove)
             {
                 UpdatePushPreview(left, top);
             }
