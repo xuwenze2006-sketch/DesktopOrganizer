@@ -159,6 +159,12 @@ namespace DesktopOrganizer
 
         private void ClearAutoClassificationButton_Click(object sender, RoutedEventArgs e)
         {
+            if (HasPendingFileOperations)
+            {
+                StatusText.Text = "后台真实文件任务完成后再取消分类";
+                return;
+            }
+
             List<GroupInfo> autoGroups = _appLayout.Groups
                 .Where(group => group.IsAutoCategory)
                 .ToList();
@@ -521,10 +527,12 @@ namespace DesktopOrganizer
                 ? "安全模式下已暂停；退出后恢复原设置"
                 : "之后出现的新桌面项目自动进入对应分类";
             bool hasAutoGroups = _appLayout.Groups.Any(group => group.IsAutoCategory);
-            ClearAutoClassificationButton.IsEnabled = hasAutoGroups;
-            ClearAutoClassificationButton.ToolTip = hasAutoGroups
-                ? "解散全部自动分类并尽量恢复分类前的图标位置；手工分组不受影响"
-                : "当前没有自动分类分组";
+            ClearAutoClassificationButton.IsEnabled = hasAutoGroups && !HasPendingFileOperations;
+            ClearAutoClassificationButton.ToolTip = !hasAutoGroups
+                ? "当前没有自动分类分组"
+                : HasPendingFileOperations
+                    ? "后台真实文件任务完成后才能取消分类"
+                    : "解散全部自动分类并尽量恢复分类前的图标位置；手工分组不受影响";
         }
 
         // ==================== 桌面扫描与刷新 ====================
