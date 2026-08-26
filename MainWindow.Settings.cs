@@ -511,10 +511,19 @@ namespace DesktopOrganizer
                 ClampGroupToCanvas(group);
             }
 
+            bool rearranged = GroupLayoutCollisionDetector.HasCollision(
+                _appLayout.Groups.Select(GetGroupBounds).ToList(),
+                GetRecycleBinWidgetObstacle());
+            int collapsed = rearranged ? ArrangeGroupsSmartly() : 0;
             RebuildDesktopIconsAndSaveLayout();
-            StatusText.Text = _appLayout.CompactGroupLayout
+            string modeMessage = _appLayout.CompactGroupLayout
                 ? "紧凑分类框已开启；大型分类可使用四列图标"
                 : "已恢复舒展分类框尺寸";
+            StatusText.Text = rearranged
+                ? collapsed > 0
+                    ? $"{modeMessage}；已重新排列并收起 {collapsed} 个自动分类以避免重叠"
+                    : $"{modeMessage}；已重新排列以避免重叠"
+                : modeMessage;
         }
 
         private void ReserveWorkspaceToggle_Click(object sender, RoutedEventArgs e)
