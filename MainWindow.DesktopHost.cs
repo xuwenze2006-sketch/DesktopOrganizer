@@ -109,7 +109,8 @@ namespace DesktopOrganizer
                 togglePause: () => SetOrganizerPaused(!_organizerPaused),
                 refresh: RefreshDesktop,
                 toggleAutoStart: ToggleAutoStartFromTray,
-                exit: RequestExit);
+                exit: RequestExit,
+                registrationFailed: HandleTrayIconRegistrationFailure);
             _trayIcon.Initialize();
         }
 
@@ -204,10 +205,22 @@ namespace DesktopOrganizer
             _diagnostics.Log($"START version=1.12.15, safeMode={_isSafeModeActive}, monitors={_desktopGeometry.Monitors.Count}, mixedDpi={_desktopGeometry.HasMixedDpi}");
             _trayIcon?.RefreshToolTip();
 
-            if (_startQuietly)
+            if (QuietStartupVisibilityPolicy.ShouldHideControlPanel(
+                    _startQuietly,
+                    _trayIcon?.IsRegistered == true))
             {
                 HideControlPanel(showRestoreButton: false);
             }
+            else if (_startQuietly && ControlPanel.Visibility != Visibility.Visible)
+            {
+                HandleTrayIconRegistrationFailure();
+            }
+        }
+
+        private void HandleTrayIconRegistrationFailure()
+        {
+            _diagnostics.Log("TRAY registration failed; control panel restored");
+            ShowControlPanel("通知区域图标不可用，已显示控制面板");
         }
 
         private void ExternalWindowEventReceived(NativeMethods.ExternalWindowEvent windowEvent)

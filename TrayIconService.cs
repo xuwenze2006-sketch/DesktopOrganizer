@@ -20,6 +20,7 @@ namespace DesktopOrganizer
         private readonly Action _refresh;
         private readonly Action _toggleAutoStart;
         private readonly Action _exit;
+        private readonly Action _registrationFailed;
         private bool _disposed;
 
         public TrayIconService(
@@ -31,7 +32,8 @@ namespace DesktopOrganizer
             Action togglePause,
             Action refresh,
             Action toggleAutoStart,
-            Action exit)
+            Action exit,
+            Action registrationFailed)
         {
             _windowHandle = windowHandle;
             _isControlPanelVisible = isControlPanelVisible;
@@ -42,23 +44,31 @@ namespace DesktopOrganizer
             _refresh = refresh;
             _toggleAutoStart = toggleAutoStart;
             _exit = exit;
+            _registrationFailed = registrationFailed;
             TaskbarCreatedMessage = NativeMethods.GetTaskbarCreatedMessage();
         }
 
         public uint TaskbarCreatedMessage { get; }
+        public bool IsRegistered { get; private set; }
 
-        public void Initialize()
+        public bool Initialize(bool notifyOnFailure = false)
         {
             if (_disposed)
             {
-                return;
+                return false;
             }
 
-            _ = NativeMethods.AddTrayIcon(
+            IsRegistered = NativeMethods.AddTrayIcon(
                 _windowHandle,
                 IconId,
                 CallbackMessage,
                 BuildToolTip());
+            if (!IsRegistered && notifyOnFailure)
+            {
+                _registrationFailed();
+            }
+
+            return IsRegistered;
         }
 
         public void RefreshToolTip()
@@ -68,11 +78,20 @@ namespace DesktopOrganizer
                 return;
             }
 
-            _ = NativeMethods.UpdateTrayIcon(
+            if (!IsRegistered)
+            {
+                return;
+            }
+
+            IsRegistered = NativeMethods.UpdateTrayIcon(
                 _windowHandle,
                 IconId,
                 CallbackMessage,
                 BuildToolTip());
+            if (!IsRegistered)
+            {
+                _registrationFailed();
+            }
         }
 
         public bool HandleWindowMessage(int message, IntPtr lParam)
@@ -85,7 +104,7 @@ namespace DesktopOrganizer
             if ((uint)message == TaskbarCreatedMessage)
             {
                 // Explorer 重启后通知区域会被清空，此时自动重新注册图标。
-                Initialize();
+                Initialize(notifyOnFailure: true);
                 return true;
             }
 
@@ -153,7 +172,11 @@ namespace DesktopOrganizer
             }
 
             _disposed = true;
-            NativeMethods.RemoveTrayIcon(_windowHandle, IconId);
+            if (IsRegistered)
+            {
+                NativeMethods.RemoveTrayIcon(_windowHandle, IconId);
+                IsRegistered = false;
+            }
         }
     }
 }
