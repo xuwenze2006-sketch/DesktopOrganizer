@@ -75,6 +75,7 @@ namespace DesktopOrganizer
         private readonly Dictionary<string, FrameworkElement> _freeIconVisuals = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, FrameworkElement> _allIconVisuals = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _selectedItemNames = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _pendingAutoClassificationCandidates = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, FrameworkElement> _groupDropTargets = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, FrameworkElement> _groupVisuals = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, VirtualizingGroupPanel> _groupItemPanels = new(StringComparer.OrdinalIgnoreCase);

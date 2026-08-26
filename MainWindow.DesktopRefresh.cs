@@ -121,11 +121,16 @@ namespace DesktopOrganizer
             SaveLayout();
         }
 
-        private void RebuildDesktopIcons()
+        private void RebuildDesktopIcons(IReadOnlySet<string>? newItemCandidates = null)
         {
             if (_isClosing)
             {
                 return;
+            }
+
+            if (newItemCandidates != null)
+            {
+                _pendingAutoClassificationCandidates.UnionWith(newItemCandidates);
             }
 
             if (_isRebuildingVisualTree)
@@ -142,7 +147,11 @@ namespace DesktopOrganizer
                 do
                 {
                     _rebuildRequested = false;
-                    RebuildDesktopIconsCore();
+                    var candidatesForPass = new HashSet<string>(
+                        _pendingAutoClassificationCandidates,
+                        StringComparer.OrdinalIgnoreCase);
+                    _pendingAutoClassificationCandidates.Clear();
+                    RebuildDesktopIconsCore(candidatesForPass);
                     passCount++;
                 }
                 while (_rebuildRequested && !_isClosing && passCount < 2);
@@ -177,7 +186,7 @@ namespace DesktopOrganizer
             }
         }
 
-        private void RebuildDesktopIconsCore()
+        private void RebuildDesktopIconsCore(IReadOnlySet<string> newItemCandidates)
         {
             if (_isClosing)
             {
@@ -191,7 +200,10 @@ namespace DesktopOrganizer
             var existing = new Dictionary<string, string>(_desktopItems, StringComparer.OrdinalIgnoreCase);
             _selectedItemNames.RemoveWhere(name => !existing.ContainsKey(name));
             bool layoutChanged = RemoveMissingAndDuplicateGroupItems(existing);
-            layoutChanged |= AutoClassifyNewDesktopItems(existing, _desktopCategories);
+            layoutChanged |= AutoClassifyNewDesktopItems(
+                existing,
+                _desktopCategories,
+                newItemCandidates);
 
             var groupedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var targetGroupFingerprints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1070,11 +1082,14 @@ namespace DesktopOrganizer
                         }
                     }
 
+                    HashSet<string> newItemNames = DesktopNewItemDetector.FindNewItemNames(
+                        _appLayout.ItemIdentities,
+                        snapshot.Identities);
                     bool identityLayoutChanged = ReconcileDesktopItemIdentities(snapshot);
                     _desktopItems = snapshot.Items;
                     _desktopCategories = snapshot.Categories;
                     _desktopSnapshotInitialized = true;
-                    RebuildDesktopIcons();
+                    RebuildDesktopIcons(newItemNames);
                     if (identityLayoutChanged)
                     {
                         SaveLayout();

@@ -390,7 +390,8 @@ namespace DesktopOrganizer
 
         private bool AutoClassifyNewDesktopItems(
             Dictionary<string, string> existing,
-            IReadOnlyDictionary<string, DesktopCategoryDefinition> categories)
+            IReadOnlyDictionary<string, DesktopCategoryDefinition> categories,
+            IReadOnlySet<string> newItemCandidates)
         {
             if (!IsAutoClassificationActive)
             {
@@ -401,7 +402,8 @@ namespace DesktopOrganizer
                 _appLayout.Groups.SelectMany(group => group.ItemNames),
                 StringComparer.OrdinalIgnoreCase);
 
-            List<string> newNames = existing.Keys
+            List<string> newNames = newItemCandidates
+                .Where(name => existing.ContainsKey(name))
                 .Where(name => !groupedNames.Contains(name) && !_appLayout.FreeIcons.ContainsKey(name))
                 .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
