@@ -17,6 +17,7 @@ namespace DesktopOrganizer
             if (!Mouse.Capture(ControlPanelDragHandle, CaptureMode.Element))
             {
                 _isControlPanelDragging = false;
+                ScheduleControlPanelAutoCollapse();
                 return;
             }
             e.Handled = true;
@@ -80,6 +81,8 @@ namespace DesktopOrganizer
                 SaveLayout();
                 StatusText.Text = "总面板位置已保存";
             }
+
+            ScheduleControlPanelAutoCollapse();
         }
 
         private static bool IsPointerOverButton(DependencyObject? source)
