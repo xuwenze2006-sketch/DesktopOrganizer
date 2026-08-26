@@ -67,6 +67,7 @@ namespace DesktopOrganizer
         private readonly object _externalEventLock = new();
         private readonly object _layoutWriteLock = new();
         private readonly SemaphoreSlim _layoutWriteGate = new(1, 1);
+        private volatile bool _preservePendingExitRecovery;
         private readonly List<FileSystemWatcher> _watchers = new();
         private readonly List<DesktopRenameOperation> _pendingDesktopRenames = new();
         private readonly Dictionary<string, BitmapSource?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
@@ -117,6 +118,7 @@ namespace DesktopOrganizer
         private Point _recycleBinWidgetDragStartPosition;
 
         private AppLayoutData _appLayout = new();
+        private long _layoutSaveGeneration;
         private UIElement? _draggedElement;
         private FrameworkElement? _pendingIconDragElement;
         private Point _pendingIconMouseDownCanvasPoint;

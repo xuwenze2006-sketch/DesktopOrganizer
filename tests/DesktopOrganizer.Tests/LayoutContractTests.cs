@@ -28,6 +28,7 @@ public sealed class LayoutContractTests
         var original = new AppLayoutData
         {
             Version = 15,
+            SaveGeneration = 42,
             SnapToGrid = false,
             AutoClassifyNewItems = true,
             ControlPanelX = 123.5,
@@ -90,6 +91,7 @@ public sealed class LayoutContractTests
             ?? throw new AssertFailedException("布局 JSON 反序列化返回 null。");
 
         Assert.AreEqual(15, restored.Version);
+        Assert.AreEqual(42L, restored.SaveGeneration);
         Assert.IsFalse(restored.SnapToGrid);
         Assert.IsTrue(restored.AutoClassifyNewItems);
         Assert.IsTrue(restored.ControlPanelX.HasValue);

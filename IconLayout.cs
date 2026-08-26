@@ -88,6 +88,7 @@ namespace DesktopOrganizer
     internal sealed class AppLayoutData
     {
         public int Version { get; set; } = 15;
+        public long SaveGeneration { get; set; }
         public bool SnapToGrid { get; set; } = true;
         public bool PushReflowEnabled { get; set; } = true;
 

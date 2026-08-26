@@ -3,42 +3,84 @@ namespace DesktopOrganizer
 {
     public partial class MainWindow
     {
-        private void PromotePendingExitLayout()
-        {
-            try
-            {
-                if (!File.Exists(_layoutExitRecoveryPath))
-                {
-                    return;
-                }
-
-                // 上次退出时后台写入超过等待上限，最终快照会保存在恢复文件中。
-                // 启动时先校验 JSON，再原子替换主布局，避免退出过程永久卡住或丢失最后操作。
-                string recoveryJson = File.ReadAllText(_layoutExitRecoveryPath, Encoding.UTF8);
-                using JsonDocument _ = JsonDocument.Parse(recoveryJson);
-                Directory.CreateDirectory(Path.GetDirectoryName(_layoutFilePath)!);
-                File.Move(_layoutExitRecoveryPath, _layoutFilePath, overwrite: true);
-                _diagnostics.Log("LAYOUT recovered pending exit snapshot");
-            }
-            catch (Exception exception)
-            {
-                Debug.WriteLine($"Pending exit layout recovery failed: {exception}");
-                try
-                {
-                    string invalidPath = _layoutExitRecoveryPath + ".invalid";
-                    File.Move(_layoutExitRecoveryPath, invalidPath, overwrite: true);
-                }
-                catch
-                {
-                    // 无法隔离损坏恢复文件时忽略，下次启动仍会保留主布局。
-                }
-            }
-        }
-
         private void LoadLayout()
         {
-            PromotePendingExitLayout();
+            PendingExitLayoutRecoveryResult recovery =
+                PendingExitLayoutRecovery.ReadAndPromote(
+                    _layoutExitRecoveryPath,
+                    _layoutFilePath);
 
+            if (recovery.State == PendingExitLayoutRecoveryState.Promoted)
+            {
+                _diagnostics.Log("LAYOUT recovered pending exit snapshot");
+            }
+            else if (recovery.State == PendingExitLayoutRecoveryState.Deferred)
+            {
+                _diagnostics.Log("LAYOUT pending exit snapshot loaded; promotion deferred");
+            }
+            else if (recovery.State == PendingExitLayoutRecoveryState.Superseded)
+            {
+                _diagnostics.Log("LAYOUT ignored older pending exit snapshot");
+            }
+            else if (recovery.State == PendingExitLayoutRecoveryState.Conflict)
+            {
+                _preservePendingExitRecovery = true;
+                _diagnostics.Log("LAYOUT preserved ambiguous pending exit snapshot");
+            }
+            else if ((recovery.State == PendingExitLayoutRecoveryState.Invalid ||
+                      recovery.State == PendingExitLayoutRecoveryState.Unavailable) &&
+                     File.Exists(_layoutExitRecoveryPath))
+            {
+                _preservePendingExitRecovery = true;
+            }
+
+            if (recovery.Json != null)
+            {
+                try
+                {
+                    ApplyLayoutJson(recovery.Json);
+                    return;
+                }
+                catch (JsonException exception)
+                    when (recovery.State == PendingExitLayoutRecoveryState.Deferred)
+                {
+                    Debug.WriteLine($"Pending exit layout content failed: {exception}");
+                    bool quarantined = PendingExitLayoutRecovery.TryQuarantine(
+                        _layoutExitRecoveryPath,
+                        recovery.PendingIdentity);
+                    if (quarantined)
+                    {
+                        _preservePendingExitRecovery = false;
+                    }
+                    else
+                    {
+                        _preservePendingExitRecovery = true;
+                    }
+
+                    LoadMainLayoutOrDefault();
+                    return;
+                }
+                catch (Exception exception)
+                {
+                    Debug.WriteLine($"Pending exit layout application failed: {exception}");
+                    if (recovery.State == PendingExitLayoutRecoveryState.Deferred)
+                    {
+                        _preservePendingExitRecovery = true;
+                        LoadMainLayoutOrDefault();
+                        return;
+                    }
+
+                    BackupCorruptLayout();
+                    _appLayout = new AppLayoutData();
+                    return;
+                }
+            }
+
+            LoadMainLayoutOrDefault();
+        }
+
+        private void LoadMainLayoutOrDefault()
+        {
             if (!File.Exists(_layoutFilePath))
             {
                 _appLayout = new AppLayoutData();
@@ -47,46 +89,27 @@ namespace DesktopOrganizer
 
             try
             {
-                string json = File.ReadAllText(_layoutFilePath, Encoding.UTF8);
-                using JsonDocument document = JsonDocument.Parse(json);
-                int serializedVersion = 0;
-
-                if (document.RootElement.ValueKind == JsonValueKind.Object &&
-                    document.RootElement.TryGetProperty("FreeIcons", out _))
-                {
-                    if (document.RootElement.TryGetProperty("Version", out JsonElement versionElement) &&
-                        versionElement.ValueKind == JsonValueKind.Number)
-                    {
-                        _ = versionElement.TryGetInt32(out serializedVersion);
-                    }
-
-                    _appLayout = JsonSerializer.Deserialize<AppLayoutData>(json, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    }) ?? new AppLayoutData();
-                    _appLayout.Version = serializedVersion;
-                }
-                else
-                {
-                    Dictionary<string, IconPosition>? oldFormat =
-                        JsonSerializer.Deserialize<Dictionary<string, IconPosition>>(json);
-                    _appLayout = new AppLayoutData
-                    {
-                        Version = 0,
-                        FreeIcons = oldFormat ?? new Dictionary<string, IconPosition>()
-                    };
-                }
-
-                NormalizeLayout();
-                if (ReconcileLoadedLayoutCoordinateSpace(serializedVersion))
-                {
-                    SaveLayout();
-                }
+                ApplyLayoutJson(File.ReadAllText(_layoutFilePath, Encoding.UTF8));
             }
             catch
             {
                 BackupCorruptLayout();
                 _appLayout = new AppLayoutData();
+            }
+        }
+
+        private void ApplyLayoutJson(string json)
+        {
+            LayoutDeserializationResult deserialized = LayoutJsonSerializer.Deserialize(json);
+            _appLayout = deserialized.Layout;
+            _layoutSaveGeneration = Math.Max(
+                _layoutSaveGeneration,
+                _appLayout.SaveGeneration);
+
+            NormalizeLayout();
+            if (ReconcileLoadedLayoutCoordinateSpace(deserialized.SerializedVersion))
+            {
+                SaveLayout();
             }
         }
 
@@ -134,6 +157,7 @@ namespace DesktopOrganizer
             try
             {
                 PrepareLayoutForPersistence();
+                _appLayout.SaveGeneration = ++_layoutSaveGeneration;
                 json = JsonSerializer.Serialize(_appLayout, new JsonSerializerOptions
                 {
                     WriteIndented = true
@@ -232,6 +256,7 @@ namespace DesktopOrganizer
             {
                 _layoutSaveTimer.Stop();
                 PrepareLayoutForPersistence();
+                _appLayout.SaveGeneration = ++_layoutSaveGeneration;
                 string json = JsonSerializer.Serialize(_appLayout, new JsonSerializerOptions
                 {
                     WriteIndented = true
@@ -283,12 +308,18 @@ namespace DesktopOrganizer
 
         private void TryDeletePendingExitLayout()
         {
+            if (_preservePendingExitRecovery)
+            {
+                return;
+            }
+
             try
             {
                 if (File.Exists(_layoutExitRecoveryPath))
                 {
                     File.Delete(_layoutExitRecoveryPath);
                 }
+
             }
             catch
             {
