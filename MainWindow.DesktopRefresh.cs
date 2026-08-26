@@ -459,7 +459,7 @@ namespace DesktopOrganizer
             string snapStatus = _appLayout.SnapToGrid ? "网格吸附开" : "网格吸附关";
             string pushStatus = !_appLayout.PushReflowEnabled || !_appLayout.SnapToGrid
                 ? "挤压关"
-                : _isSafeModeActive ? "挤压暂停" : "挤压开";
+                : _isSafeModeActive || !_appLayout.IsEditMode ? "挤压暂停" : "挤压开";
             int autoGroupCount = _appLayout.Groups.Count(group => group.IsAutoCategory);
             string autoStatus = !_appLayout.AutoClassifyNewItems
                 ? "新项目归类关"

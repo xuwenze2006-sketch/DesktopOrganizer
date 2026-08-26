@@ -57,10 +57,17 @@ namespace DesktopOrganizer
 
         private void PushReflowToggle_Click(object sender, RoutedEventArgs e)
         {
-            if (_isSafeModeActive)
+            if (!PushReflowPolicy.CanConfigure(
+                    _isSafeModeActive,
+                    _appLayout.SnapToGrid,
+                    _appLayout.IsEditMode))
             {
                 PushReflowToggle.IsChecked = _appLayout.PushReflowEnabled;
-                StatusText.Text = "安全模式下挤压排列已暂停，原设置保持不变";
+                StatusText.Text = _isSafeModeActive
+                    ? "安全模式下挤压排列已暂停，原设置保持不变"
+                    : !_appLayout.SnapToGrid
+                        ? "需要先开启网格吸附"
+                        : "需要先进入编辑布局";
                 return;
             }
 
@@ -80,12 +87,17 @@ namespace DesktopOrganizer
         private void UpdatePushReflowAvailability()
         {
             PushReflowToggle.IsChecked = _appLayout.PushReflowEnabled;
-            PushReflowToggle.IsEnabled = !_isSafeModeActive && _appLayout.SnapToGrid;
+            PushReflowToggle.IsEnabled = PushReflowPolicy.CanConfigure(
+                _isSafeModeActive,
+                _appLayout.SnapToGrid,
+                _appLayout.IsEditMode);
             PushReflowToggle.ToolTip = _isSafeModeActive
                 ? "安全模式下已暂停挤压预览；退出后恢复原设置"
-                : _appLayout.SnapToGrid
-                    ? "拖到其它图标位置时，实时把该图标及后续图标向后挤；拖离目标会恢复预览前布局"
-                    : "需要先开启网格吸附";
+                : !_appLayout.SnapToGrid
+                    ? "需要先开启网格吸附"
+                    : !_appLayout.IsEditMode
+                        ? "需要先进入编辑布局"
+                        : "拖到其它图标位置时，实时把该图标及后续图标向后挤；拖离目标会恢复预览前布局";
         }
 
         private void SafeModeToggle_Click(object sender, RoutedEventArgs e)
@@ -332,6 +344,7 @@ namespace DesktopOrganizer
             ResetAllInteractionState(restoreDraggedVisual: true);
             _appLayout.IsEditMode = editMode;
             EditModeToggle.Content = editMode ? "完成编辑" : "编辑布局";
+            UpdatePushReflowAvailability();
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = editMode
                 ? "已进入编辑布局：可拖动、缩放、移出和删除"

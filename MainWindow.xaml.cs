@@ -155,7 +155,11 @@ namespace DesktopOrganizer
         // volatile 确保 FileSystemWatcher 的后台回调能及时看到状态变化。
         private volatile bool _isSafeModeActive;
         private bool IsPushReflowActive =>
-            !_isSafeModeActive && _appLayout.SnapToGrid && _appLayout.PushReflowEnabled;
+            PushReflowPolicy.IsActive(
+                _isSafeModeActive,
+                _appLayout.SnapToGrid,
+                _appLayout.IsEditMode,
+                _appLayout.PushReflowEnabled);
         private bool IsAutoClassificationActive =>
             !_isSafeModeActive && _appLayout.AutoClassifyNewItems;
         private bool _isControlPanelDragging;

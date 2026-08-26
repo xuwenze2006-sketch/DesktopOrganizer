@@ -15,6 +15,7 @@ namespace DesktopOrganizer
             _appLayout.IsEditMode = true;
             EditModeToggle.IsChecked = true;
             EditModeToggle.Content = "完成编辑";
+            UpdatePushReflowAvailability();
 
             var group = new GroupInfo
             {
