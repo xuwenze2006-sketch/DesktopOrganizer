@@ -292,14 +292,26 @@ namespace DesktopOrganizer
 
         public void MouseWheelUp()
         {
-            int lines = Math.Max(1, SystemParameters.WheelScrollLines);
-            SetVerticalOffset(_verticalOffset - lines * _rowHeight);
+            ScrollMouseWheel(direction: -1);
         }
 
         public void MouseWheelDown()
         {
-            int lines = Math.Max(1, SystemParameters.WheelScrollLines);
-            SetVerticalOffset(_verticalOffset + lines * _rowHeight);
+            ScrollMouseWheel(direction: 1);
+        }
+
+        private void ScrollMouseWheel(int direction)
+        {
+            double distance = WheelScrollPolicy.GetVerticalDistance(
+                SystemParameters.WheelScrollLines,
+                _rowHeight,
+                _viewportHeight);
+            if (distance <= 0)
+            {
+                return;
+            }
+
+            SetVerticalOffset(_verticalOffset + direction * distance);
         }
 
         public void MouseWheelLeft()

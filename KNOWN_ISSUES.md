@@ -1,12 +1,5 @@
 # 当前已知问题
 
-## 分类框滚轮忽略 Windows 的整页滚动和禁止滚动设置
-
-- 现象：Windows 设置为“每次滚动一个屏幕”或 0 行时，分类框每个滚轮刻度仍滚动一行。
-- 影响：分类框不遵守系统输入与辅助功能偏好，行为与标准 Windows 滚动控件不一致。
-- 证据或复现方式：`VirtualizingGroupPanel.cs:293-302` 对 `SystemParameters.WheelScrollLines` 统一执行 `Math.Max(1, ...)`，把按页值和 0 都变成 1；`MainWindow.GroupVisuals.cs:448-461` 的 `ScrollViewer` 直接使用该 `IScrollInfo`。Microsoft 的 [`SystemParameters.WheelScrollLines`](https://learn.microsoft.com/en-us/dotnet/api/system.windows.systemparameters.wheelscrolllines) 映射到 `SPI_GETWHEELSCROLLLINES`；[`SPI_SETWHEELSCROLLLINES`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow) 规定 0 不滚动、`WHEEL_PAGESCROLL` 按页滚动。
-- 涉及区域：分类框虚拟化面板、鼠标滚轮、系统辅助功能偏好。
-
 ## 外部删除后在同一路径重建项目会继续显示旧图标
 
 - 现象：路径型图标项目被外部删除并完成界面刷新后，在相同名称和路径创建图标不同的新项目，新项目仍命中旧缓存并显示原图标；手动刷新图标缓存后才恢复。
