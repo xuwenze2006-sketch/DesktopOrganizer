@@ -45,6 +45,16 @@ public sealed class DesktopGeometryTests
     }
 
     [TestMethod]
+    public void FindMonitorForPoint_InSkewedGap_UsesNearestMonitorEdge()
+    {
+        var geometry = CreateSkewedMonitorGeometry();
+
+        DesktopMonitorRegion result = geometry.FindMonitorForPoint(new Point(3841, 547));
+
+        Assert.AreEqual("MAIN", result.DeviceName);
+    }
+
+    [TestMethod]
     public void FindMonitorForRect_ReturnsMonitorWithLargestWorkAreaOverlap()
     {
         var geometry = CreateTwoMonitorGeometry();
@@ -53,6 +63,36 @@ public sealed class DesktopGeometryTests
         DesktopMonitorRegion result = geometry.FindMonitorForRect(item);
 
         Assert.AreEqual("DISPLAY2", result.DeviceName);
+    }
+
+    [TestMethod]
+    public void FindMonitorForRect_InSkewedGap_UsesNearestMonitorEdge()
+    {
+        var geometry = CreateSkewedMonitorGeometry();
+
+        DesktopMonitorRegion result = geometry.FindMonitorForRect(
+            new Rect(3841, 500, 90, 94));
+
+        Assert.AreEqual("MAIN", result.DeviceName);
+    }
+
+    [TestMethod]
+    public void FindMonitorForRect_InsideBoundsBelowWorkArea_StaysOnThatMonitor()
+    {
+        var geometry = new DesktopGeometry(
+        [
+            Monitor(
+                "MAIN",
+                new Rect(0, 0, 1920, 1080),
+                primary: true,
+                workArea: new Rect(0, 0, 1920, 1040)),
+            Monitor("RIGHT", new Rect(2200, 0, 1280, 1024))
+        ]);
+
+        DesktopMonitorRegion result = geometry.FindMonitorForRect(
+            new Rect(800, 1050, 100, 20));
+
+        Assert.AreEqual("MAIN", result.DeviceName);
     }
 
     [TestMethod]
@@ -104,17 +144,25 @@ public sealed class DesktopGeometryTests
             Monitor("DISPLAY2", new Rect(1920, 0, 1280, 1024))
         ]);
 
+    private static DesktopGeometry CreateSkewedMonitorGeometry() =>
+        new(
+        [
+            Monitor("MAIN", new Rect(0, 0, 3840, 2160), primary: true),
+            Monitor("SECONDARY", new Rect(3840, 1500, 1280, 1024))
+        ]);
+
     private static DesktopMonitorRegion Monitor(
         string name,
         Rect bounds,
         bool primary = false,
-        uint dpi = 96)
+        uint dpi = 96,
+        Rect? workArea = null)
     {
         return new DesktopMonitorRegion
         {
             DeviceName = name,
             Bounds = bounds,
-            WorkArea = bounds,
+            WorkArea = workArea ?? bounds,
             IsPrimary = primary,
             DpiX = dpi,
             DpiY = dpi

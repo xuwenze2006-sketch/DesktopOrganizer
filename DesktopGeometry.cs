@@ -53,7 +53,7 @@ namespace DesktopOrganizer
             }
 
             return Monitors
-                .OrderBy(monitor => DistanceSquared(point, Center(monitor.Bounds)))
+                .OrderBy(monitor => DistanceSquared(point, monitor.Bounds))
                 .First();
         }
 
@@ -70,7 +70,9 @@ namespace DesktopOrganizer
                 .Select(result => result.Monitor)
                 .FirstOrDefault();
 
-            return overlapping ?? FindMonitorForPoint(Center(rect));
+            return overlapping ?? Monitors
+                .OrderBy(monitor => DistanceSquared(rect, monitor.Bounds))
+                .First();
         }
 
         public bool IsEquivalentTo(DesktopGeometry other)
@@ -109,14 +111,43 @@ namespace DesktopOrganizer
             };
         }
 
-        private static Point Center(Rect rect) =>
-            new(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
-
-        private static double DistanceSquared(Point first, Point second)
+        private static double DistanceSquared(Point point, Rect rect)
         {
-            double dx = first.X - second.X;
-            double dy = first.Y - second.Y;
+            double dx = DistanceToInterval(point.X, rect.Left, rect.Right);
+            double dy = DistanceToInterval(point.Y, rect.Top, rect.Bottom);
             return dx * dx + dy * dy;
+        }
+
+        private static double DistanceSquared(Rect first, Rect second)
+        {
+            double dx = IntervalDistance(
+                first.Left,
+                first.Right,
+                second.Left,
+                second.Right);
+            double dy = IntervalDistance(
+                first.Top,
+                first.Bottom,
+                second.Top,
+                second.Bottom);
+            return dx * dx + dy * dy;
+        }
+
+        private static double DistanceToInterval(double value, double start, double end) =>
+            value < start ? start - value : value > end ? value - end : 0;
+
+        private static double IntervalDistance(
+            double firstStart,
+            double firstEnd,
+            double secondStart,
+            double secondEnd)
+        {
+            if (firstEnd < secondStart)
+            {
+                return secondStart - firstEnd;
+            }
+
+            return secondEnd < firstStart ? firstStart - secondEnd : 0;
         }
 
         private static double IntersectionArea(Rect first, Rect second)
