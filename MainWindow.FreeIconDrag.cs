@@ -555,10 +555,24 @@ namespace DesktopOrganizer
             UIElement dragged = _draggedElement;
             if (dragged is FrameworkElement draggedFrameworkElement)
             {
-                // MouseUp 前再按最终光标位置计算一次，避免快速移动时沿用上一个 MouseMove 的目标。
+                // MouseUp 前先恢复旧预览，再按最终光标位置更新拖动视觉和全部目标，
+                // 避免快速移动时沿用上一个 MouseMove 的坐标或挤压结果。
                 Point finalPoint = e.GetPosition(IconCanvas);
+                double finalLeft = finalPoint.X - _dragStartOffset.X;
+                double finalTop = finalPoint.Y - _dragStartOffset.Y;
+                ClampIconCoordinates(ref finalLeft, ref finalTop);
+                Canvas.SetLeft(draggedFrameworkElement, finalLeft);
+                Canvas.SetTop(draggedFrameworkElement, finalTop);
+
+                CancelPushPreview(restoreVisuals: true);
                 UpdatePhysicalFolderDropPreview(finalPoint, draggedFrameworkElement);
                 UpdateGroupDropPreview(finalPoint, draggedFrameworkElement);
+                if (_activePhysicalFolderDropPath == null &&
+                    _activeGroupDropTarget == null &&
+                    _dragAllowsLayoutMove)
+                {
+                    UpdatePushPreview(finalLeft, finalTop);
+                }
             }
 
             string? physicalFolderTargetPath = _activePhysicalFolderDropPath;
