@@ -121,6 +121,7 @@ public sealed class ControlPanelUiContractTests
     {
         XDocument document = LoadMainWindowXaml();
         XElement expandedCommands = FindNamedElement(document, "ExpandedCommands");
+        XElement compactHeader = FindNamedElement(document, "CompactControlPanelHeader");
         XElement tabs = FindNamedElement(document, "ControlPanelTabs");
         XElement commonTab = FindNamedElement(document, "CommonCommandTab");
         XElement tabControlStyle = FindKeyedElement(document, "PanelTabControlStyle");
@@ -135,6 +136,8 @@ public sealed class ControlPanelUiContractTests
         double width = double.Parse(widthAttribute.Value, CultureInfo.InvariantCulture);
 
         Assert.IsLessThanOrEqualTo(420, width);
+        Assert.AreEqual("306", compactHeader.Attribute("MinWidth")?.Value);
+        Assert.AreEqual("34", compactHeader.Attribute("Height")?.Value);
         Assert.AreEqual("Collapsed", expandedCommands.Attribute("Visibility")?.Value);
         Assert.AreEqual("0", tabs.Attribute("SelectedIndex")?.Value);
         Assert.AreEqual("4", tabItemsHost.Attribute("Columns")?.Value);
@@ -150,8 +153,12 @@ public sealed class ControlPanelUiContractTests
     {
         var window = new MainWindow(startQuietly: false);
         window.ControlPanel.Visibility = Visibility.Visible;
+        window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+        Assert.AreEqual(324, window.ControlPanel.DesiredSize.Width, 1);
 
         RaiseClick(window.PanelExpanderButton);
+        window.ControlPanel.InvalidateMeasure();
         window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
 
         Assert.AreEqual(Visibility.Visible, window.ExpandedCommands.Visibility);
@@ -161,6 +168,7 @@ public sealed class ControlPanelUiContractTests
             440,
             window.ControlPanel.DesiredSize.Width,
             $"Expanded panel width grew to {window.ControlPanel.DesiredSize.Width:F1} DIP.");
+        Assert.AreEqual(438, window.ControlPanel.DesiredSize.Width, 1);
         Assert.IsLessThanOrEqualTo(
             282,
             window.ControlPanel.DesiredSize.Height,
@@ -178,6 +186,12 @@ public sealed class ControlPanelUiContractTests
         Assert.AreEqual(Visibility.Collapsed, window.ExpandedCommands.Visibility);
         Assert.AreEqual(Visibility.Collapsed, window.ControlPanelRestoreButton.Visibility);
         Assert.AreEqual("整理  ▾", window.PanelExpanderButton.Content);
+        window.ControlPanel.InvalidateMeasure();
+        window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Assert.AreEqual(
+            324,
+            window.ControlPanel.DesiredSize.Width - window.ControlPanel.Margin.Left,
+            1);
     }
 
     [STATestMethod]
@@ -214,6 +228,24 @@ public sealed class ControlPanelUiContractTests
         window.EditModeToggle.RaiseEvent(commandMouseEvent);
 
         Assert.IsFalse(commandMouseEvent.Handled, "Tab selection must not swallow command input.");
+    }
+
+    [STATestMethod]
+    public void LayoutCompletion_CollapsesExpandedCommandsAtContextIdle()
+    {
+        var window = new MainWindow(startQuietly: false);
+        window.ControlPanel.Visibility = Visibility.Visible;
+        RaiseClick(window.PanelExpanderButton);
+
+        Assert.AreEqual(Visibility.Visible, window.ExpandedCommands.Visibility);
+
+        window.ScheduleCommandsCollapseAfterLayout();
+        window.Dispatcher.Invoke(
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+            new Action(() => { }));
+
+        Assert.AreEqual(Visibility.Collapsed, window.ExpandedCommands.Visibility);
+        Assert.AreEqual("整理  ▾", window.PanelExpanderButton.Content);
     }
 
     private static IEnumerable<XElement> GetCommandElements(XElement root) =>

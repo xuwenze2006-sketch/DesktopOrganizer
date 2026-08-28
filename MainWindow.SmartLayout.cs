@@ -60,8 +60,8 @@ namespace DesktopOrganizer
             }
 
             Dictionary<string, GroupLayoutSnapshot> attemptSnapshot = CaptureGroupLayoutSnapshot();
-            int newlyCollapsed = ArrangeGroupsSmartly();
-            if (newlyCollapsed < 0)
+            bool arranged = ArrangeGroupsSmartly();
+            if (!arranged)
             {
                 RestoreGroupLayoutSnapshot(attemptSnapshot);
                 StatusText.Text = "可用桌面空间不足，布局保持不变";
@@ -71,14 +71,13 @@ namespace DesktopOrganizer
             _lastSmartLayoutSnapshot = attemptSnapshot;
             UndoSmartLayoutButton.IsEnabled = true;
             RebuildDesktopIconsAndSaveLayout();
+            ScheduleCommandsCollapseAfterLayout();
             string workspaceNote = _lastSmartLayoutPreservedWorkspace
                 ? "，已保留主屏底部约三分之一临时区域"
                 : _appLayout.ReserveTemporaryWorkspace
                     ? "，因空间不足已使用完整工作区"
                     : string.Empty;
-            StatusText.Text = newlyCollapsed > 0
-                ? $"智能布局完成，收起 {newlyCollapsed} 个自动分类{workspaceNote}"
-                : $"智能布局完成{workspaceNote}；可点击“撤销布局”恢复";
+            StatusText.Text = $"智能布局完成{workspaceNote}；已保持各分类当前展开/收起状态，可点击“撤销布局”恢复";
         }
 
         private Dictionary<string, GroupLayoutSnapshot> CaptureGroupLayoutSnapshot()
@@ -137,10 +136,10 @@ namespace DesktopOrganizer
         }
 
         /// <summary>
-        /// 使用最多三轨的响应式瀑布流排列分类框。优先保留主屏底部约三分之一临时区域；
-        /// 若空间不足，先收起自动分类，再在必要时使用完整桌面高度。
+        /// 使用最多三轨的响应式瀑布流排列分类框。按总面板收起后的局部占位避让，
+        /// 保持各分类当前展开状态；保留区放不下时再使用完整桌面高度。
         /// </summary>
-        private int ArrangeGroupsSmartly()
+        private bool ArrangeGroupsSmartly()
         {
             const double margin = 16;
             const double gap = 12;
@@ -176,27 +175,8 @@ namespace DesktopOrganizer
                 .ThenBy(group => group.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
 
-            int newlyCollapsed = 0;
             bool placed = TryPackGroupLayout(ordered, reservedWorkspaces, gap);
             bool reservedPlacementSucceeded = placed && _appLayout.ReserveTemporaryWorkspace;
-
-            while (!placed)
-            {
-                GroupInfo? collapseCandidate = ordered
-                    .Where(group => group.IsAutoCategory && !group.IsCollapsed)
-                    .OrderByDescending(GetGroupDisplayHeight)
-                    .ThenByDescending(group => group.ItemNames.Count)
-                    .FirstOrDefault();
-                if (collapseCandidate == null)
-                {
-                    break;
-                }
-
-                collapseCandidate.IsCollapsed = true;
-                newlyCollapsed++;
-                placed = TryPackGroupLayout(ordered, reservedWorkspaces, gap);
-                reservedPlacementSucceeded = placed && _appLayout.ReserveTemporaryWorkspace;
-            }
 
             if (!placed && _appLayout.ReserveTemporaryWorkspace)
             {
@@ -211,7 +191,7 @@ namespace DesktopOrganizer
             if (!placed)
             {
                 _lastSmartLayoutPreservedWorkspace = false;
-                return -1;
+                return false;
             }
 
             foreach (GroupInfo group in ordered)
@@ -220,7 +200,7 @@ namespace DesktopOrganizer
             }
 
             _lastSmartLayoutPreservedWorkspace = reservedPlacementSucceeded;
-            return newlyCollapsed;
+            return true;
         }
 
         private List<Rect> GetSmartLayoutWorkspaces(
@@ -233,23 +213,16 @@ namespace DesktopOrganizer
                          .ThenBy(item => item.WorkArea.Left)
                          .ThenBy(item => item.WorkArea.Top))
             {
-                Rect workArea = monitor.WorkArea;
-                double topInset = monitor.IsPrimary ? 70 : margin;
-                double left = workArea.Left + margin;
-                double top = workArea.Top + topInset;
-                double right = workArea.Right - margin;
-                double bottom = workArea.Bottom - margin;
-
-                if (reserveTemporaryWorkspace && monitor.IsPrimary)
+                Rect? workspace = SmartLayoutWorkspacePolicy.TryCreateWorkspace(
+                    monitor.WorkArea,
+                    monitor.IsPrimary,
+                    reserveTemporaryWorkspace,
+                    margin,
+                    GroupMinWidth,
+                    GroupHeaderHeight);
+                if (workspace.HasValue)
                 {
-                    bottom = Math.Min(
-                        bottom,
-                        Math.Max(top + 260, workArea.Top + workArea.Height * 0.66));
-                }
-
-                if (right - left >= GroupMinWidth && bottom - top >= GroupHeaderHeight)
-                {
-                    workspaces.Add(new Rect(left, top, right - left, bottom - top));
+                    workspaces.Add(workspace.Value);
                 }
             }
 
@@ -274,13 +247,7 @@ namespace DesktopOrganizer
             const double compactTrackWidth = 352;
             const int maximumColumns = 3;
 
-            var obstacles = new List<Rect>(_appLayout.FolderPortals.Count + 1);
-            obstacles.AddRange(GetFolderPortalObstacles());
-            Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
-            if (recycleObstacle.HasValue)
-            {
-                obstacles.Add(recycleObstacle.Value);
-            }
+            List<Rect> obstacles = GetSmartLayoutObstacles();
 
             List<CompactGroupGridItem> items = groups
                 .Select(group => new CompactGroupGridItem(
@@ -314,12 +281,7 @@ namespace DesktopOrganizer
             IReadOnlyList<Rect> workspaces,
             double gap)
         {
-            var obstacles = new List<Rect>(GetFolderPortalObstacles());
-            Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
-            if (recycleObstacle.HasValue)
-            {
-                obstacles.Add(recycleObstacle.Value);
-            }
+            List<Rect> obstacles = GetSmartLayoutObstacles();
 
             List<CompactGroupGridItem> items = groups
                 .Select(group => new CompactGroupGridItem(
@@ -347,6 +309,56 @@ namespace DesktopOrganizer
             }
 
             return true;
+        }
+
+        private List<Rect> GetSmartLayoutObstacles()
+        {
+            var obstacles = new List<Rect>(_appLayout.FolderPortals.Count + 2);
+            obstacles.AddRange(GetFolderPortalObstacles());
+
+            Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
+            if (recycleObstacle.HasValue)
+            {
+                obstacles.Add(recycleObstacle.Value);
+            }
+
+            Rect? compactPanelObstacle = GetCompactControlPanelObstacle();
+            if (compactPanelObstacle.HasValue)
+            {
+                obstacles.Add(compactPanelObstacle.Value);
+            }
+
+            return obstacles;
+        }
+
+        private Rect? GetCompactControlPanelObstacle()
+        {
+            if (ControlPanel.Visibility != Visibility.Visible)
+            {
+                return null;
+            }
+
+            return SmartLayoutWorkspacePolicy.TryCreateCompactPanelObstacle(
+                GetControlPanelPosition(),
+                SmartLayoutWorkspacePolicy.CompactPanelHeaderSize,
+                ControlPanel.Padding,
+                ControlPanel.BorderThickness);
+        }
+
+        internal void ScheduleCommandsCollapseAfterLayout()
+        {
+            if (!_commandsExpanded)
+            {
+                return;
+            }
+
+            _ = Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+            {
+                if (!_isClosing)
+                {
+                    SetCommandsExpanded(false);
+                }
+            }));
         }
 
         // ==================== 分组拖拽、缩放、重命名与删除 ====================
