@@ -119,10 +119,8 @@ artifacts\DesktopOrganizer-win-x64.sha256
 
 ## 项目文档
 
-- `ARCHITECTURE.md`：模块职责和兼容边界。
-- `CHANGELOG.md`：版本历史。
-- `TEST_CHECKLIST.md`：Windows 实机回归清单。
-- `STEP_12_RECYCLE_BIN_ONLY_REPORT.md`：Shell 项目白名单与布局清理说明。
-- `STEP_11_WINDOWS_CI_TESTS_REPORT.md`：持续集成与自动化测试说明。
-- `OPEN_SOURCE_REFERENCES.md`：开源设计参考及许可证说明。
-- `CLEANUP_REPORT.md`：v1.12.1 精简范围与验证结果。
+- [`ARCHITECTURE.md`](ARCHITECTURE.md)：模块职责和兼容边界。
+- [`CHANGELOG.md`](CHANGELOG.md)：版本历史。
+- [`TEST_CHECKLIST.md`](TEST_CHECKLIST.md)：Windows 实机回归清单。
+- [`OPEN_SOURCE_REFERENCES.md`](OPEN_SOURCE_REFERENCES.md)：开源设计参考及许可证说明。
+- [`docs/history/`](docs/history/)：各版本的一次性实施、修复与验证报告。
