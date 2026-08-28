@@ -399,9 +399,9 @@ namespace DesktopOrganizer
             Rect primaryWorkArea = GetPrimaryWorkArea();
             double defaultX = Math.Max(
                 primaryWorkArea.Left,
-                primaryWorkArea.Right - panelWidth - 10);
+                primaryWorkArea.Right - panelWidth - 14);
             double x = _appLayout.ControlPanelX ?? defaultX;
-            double y = _appLayout.ControlPanelY ?? (primaryWorkArea.Top + 10);
+            double y = _appLayout.ControlPanelY ?? (primaryWorkArea.Top + 14);
             SetControlPanelPosition(x, y, updateLayout: true);
         }
 
@@ -450,7 +450,19 @@ namespace DesktopOrganizer
                 ControlPanel.ActualHeight,
                 ControlPanel.Height,
                 ControlPanel.DesiredSize.Height);
-            Point clamped = ClampRectToUsableDesktop(x, y, width, height);
+            var requested = new Rect(
+                SafeCanvasCoordinate(x),
+                SafeCanvasCoordinate(y),
+                Math.Max(0, SafeCanvasCoordinate(width)),
+                Math.Max(0, SafeCanvasCoordinate(height)));
+            DesktopMonitorRegion monitor = GetMonitorForItemRect(requested);
+            Point clamped = ControlPanelPlacementPolicy.ClampToWorkArea(
+                monitor.WorkArea,
+                requested.X,
+                requested.Y,
+                requested.Width,
+                requested.Height,
+                edgeInset: 14);
             x = clamped.X;
             y = clamped.Y;
             ControlPanel.Margin = new Thickness(x, y, 0, 0);
