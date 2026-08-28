@@ -90,7 +90,8 @@
                                 <Setter TargetName="Chrome" Property="Background" Value="#FF20324A"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.42"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.54"/>
                                 <Setter TargetName="Depth" Property="Opacity" Value="0"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -163,9 +164,21 @@
                                 <Setter TargetName="Depth" Property="Opacity" Value="0.25"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.42"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.54"/>
                                 <Setter TargetName="Depth" Property="Opacity" Value="0"/>
                             </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsEnabled" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Foreground" Value="#FFD1DBE5"/>
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF2A4057"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#8D7892AC"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.72"/>
+                                <Setter TargetName="ActiveGlow" Property="Opacity" Value="0.18"/>
+                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -624,6 +637,7 @@
                     <Border x:Name="ExpandedCommands"
                             Visibility="Collapsed"
                             Margin="0,7,0,0"
+                            MinWidth="590"
                             Padding="7"
                             CornerRadius="10"
                             Background="{StaticResource PanelInnerBrush}"
@@ -638,7 +652,7 @@
                                 <Border Grid.Column="0" CornerRadius="2" Background="#FF68B5F5"/>
                                 <TextBlock Grid.Column="1" Text="分组与布局" Style="{StaticResource SectionTitleStyle}"/>
                             </Grid>
-                            <WrapPanel MaxWidth="730">
+                            <UniformGrid Columns="5" HorizontalAlignment="Stretch">
                                 <ToggleButton x:Name="EditModeToggle"
                                               Content="编辑布局"
                                               Style="{StaticResource ToolbarToggleButton}"
@@ -685,25 +699,28 @@
                                               IsChecked="True"
                                               Click="RecycleBinWidgetToggle_Click"
                                               ToolTip="显示独立的回收站状态与快捷操作卡片"/>
-                            </WrapPanel>
+                            </UniformGrid>
 
-                            <Separator Margin="6,6" Background="#476A819E"/>
+                            <Separator Margin="6,8,6,7" Background="#476A819E"/>
                             <Grid Margin="2,0,2,1">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="4"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Border Grid.Column="0" CornerRadius="2" Background="#FF6DD8B5"/>
-                                <TextBlock Grid.Column="1" Text="自动化与行为" Style="{StaticResource SectionTitleStyle}"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="自动化与行为"
+                                           Style="{StaticResource SectionTitleStyle}"
+                                           Foreground="#FF8FE2C7"/>
                             </Grid>
-                            <WrapPanel MaxWidth="730">
+                            <UniformGrid Columns="5" HorizontalAlignment="Stretch">
                                 <ToggleButton x:Name="AutoClassifyNewItemsToggle"
                                               Content="新项目归类"
                                               Style="{StaticResource ToolbarToggleButton}"
                                               Click="AutoClassifyNewItemsToggle_Click"
                                               ToolTip="之后出现的新桌面项目自动进入对应分类"/>
                                 <Button x:Name="ClearAutoClassificationButton"
-                                        Content="取消分类"
+                                        Content="取消自动分类…"
                                         Style="{StaticResource ToolbarButton}"
                                         Click="ClearAutoClassificationButton_Click"
                                         ToolTip="解散自动分类并尽量恢复原图标位置"/>
@@ -742,20 +759,40 @@
                                               Style="{StaticResource ToolbarToggleButton}"
                                               Click="SafeModeToggle_Click"
                                               ToolTip="仅在本次运行中暂停实时监听、自动归类和挤压预览；不会改变原设置"/>
-                            </WrapPanel>
+                            </UniformGrid>
 
-                            <Separator Margin="6,6" Background="#476A819E"/>
-                            <WrapPanel MaxWidth="730" HorizontalAlignment="Right">
-                                <Button Content="刷新" Style="{StaticResource ToolbarButton}" Click="RefreshButton_Click"/>
+                            <Separator Margin="6,8,6,7" Background="#476A819E"/>
+                            <Grid Margin="2,0,2,1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="2" Background="#FFF0B85A"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="运行与维护"
+                                           Style="{StaticResource SectionTitleStyle}"
+                                           Foreground="#FFFFD28A"/>
+                            </Grid>
+                            <UniformGrid Columns="5" HorizontalAlignment="Stretch">
+                                <Button Content="刷新"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="RefreshButton_Click"
+                                        ToolTip="重新扫描桌面并刷新分类与布局状态"/>
                                 <Button Content="诊断日志" Style="{StaticResource ToolbarButton}" Click="OpenDiagnosticsLogButton_Click" ToolTip="打开运行日志目录"/>
                                 <Button x:Name="PauseButton"
                                         Content="暂停整理"
                                         Style="{StaticResource ToolbarButton}"
                                         Click="PauseButton_Click"
                                         ToolTip="暂停整理并临时恢复系统桌面图标"/>
-                                <Button Content="隐藏面板" Style="{StaticResource ToolbarButton}" Click="HidePanelButton_Click"/>
-                                <Button Content="退出" Style="{StaticResource ToolbarButton}" Click="ExitButton_Click"/>
-                            </WrapPanel>
+                                <Button Content="隐藏面板"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="HidePanelButton_Click"
+                                        ToolTip="隐藏控制条；可点击右上角“显示面板”、双击托盘图标或再次启动恢复"/>
+                                <Button Content="退出"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="ExitButton_Click"
+                                        ToolTip="退出桌面整理；不会删除或移动桌面文件"/>
+                            </UniformGrid>
                         </StackPanel>
                     </Border>
                 </StackPanel>
