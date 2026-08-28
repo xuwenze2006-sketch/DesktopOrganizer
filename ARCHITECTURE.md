@@ -1,9 +1,9 @@
-# DesktopOrganizer v1.12.15 架构说明
+# DesktopOrganizer 架构说明
 
 ## 重构原则
 
-1. v1.12.0 是完整功能基线；v1.12.1 做保守清理；v1.12.2 增加稳定身份；v1.12.3 将安全模式改为运行时覆盖层；v1.12.4 修复不激活窗口快捷键；v1.12.5 引入虚拟桌面、多显示器工作区和 DPI 坐标迁移；v1.12.6 接入 Windows Shell 桌面命名空间；v1.12.7 将桌面视觉刷新改为按键值差异复用；v1.12.8 将 Shell 图标提取迁移到后台优先队列；v1.12.9 对分类框子项实施可视区域虚拟化；v1.12.10 将真实文件移动、回收站删除与撤销迁移到后台 STA 串行队列；v1.12.11 修复该版本首次真实编译发现的 C# 作用域错误和可空性警告；v1.12.12 建立 Windows 持续集成和可自动执行的核心逻辑测试；v1.12.13 将 Shell 桌面项目收敛为只显示回收站的 CLSID 白名单；v1.12.14 收紧显示消息、Z 序巡检和扫描快照提交条件，消除全屏 layered window 与全部图标反复重绘；v1.12.15 将回收站从普通图标体系剥离为独立状态小组件。
-2. 不删除功能，不改变 XAML 事件入口；布局文件升级为 Version 15，并保持 Version 14 及更早格式向后兼容。
+1. v1.12.0 是完整功能基线；v1.12.1 做保守清理；v1.12.2 增加稳定身份；v1.12.3 将安全模式改为运行时覆盖层；v1.12.4 修复不激活窗口快捷键；v1.12.5 引入虚拟桌面、多显示器工作区和 DPI 坐标迁移；v1.12.6 接入 Windows Shell 桌面命名空间；v1.12.7 将桌面视觉刷新改为按键值差异复用；v1.12.8 将 Shell 图标提取迁移到后台优先队列；v1.12.9 对分类框子项实施可视区域虚拟化；v1.12.10 将真实文件移动、回收站删除与撤销迁移到后台 STA 串行队列；v1.12.11 修复该版本首次真实编译发现的 C# 作用域错误和可空性警告；v1.12.12 建立 Windows 持续集成和可自动执行的核心逻辑测试；v1.12.13 将 Shell 桌面项目收敛为只显示回收站的 CLSID 白名单；v1.12.14 收紧显示消息、Z 序巡检和扫描快照提交条件，消除全屏 layered window 与全部图标反复重绘；v1.12.15 将回收站从普通图标体系剥离为独立状态小组件；当前主线继续加入命名工作区、待整理收件箱/搜索、可解释规则/标签、只读 Portal 和跨会话操作账本。
+2. 保留既有 XAML 事件入口，新能力使用独立事件入口；布局文件当前为 Version 18，并保持旧版格式向后兼容。
 3. 不通过复制旧逻辑建立第二套实现；每项行为只有一个实现入口。
 4. UI 事件仍由 `MainWindow` partial class 接收，避免 WPF 事件绑定和状态迁移风险。
 5. 纯 Win32 互操作继续集中在 `NativeMethods` partial class，业务代码不直接新增 P/Invoke。
@@ -27,6 +27,12 @@
 | `VirtualizingGroupPanel.cs` | 固定网格分类子项的可视行实现、回收、滚动范围和拖动取出 |
 | `MainWindow.FreeIconDrag.cs` | 自由图标拖动、分类投放、真实文件夹移动的 UI 验证与排队入口 |
 | `MainWindow.FileOperations.cs` | 真实文件任务预留、后台执行、结果汇总、撤销与布局回填 |
+| `MainWindow.Workspaces.cs` | 命名工作区的创建、预览、切换、覆盖、重命名和删除 |
+| `MainWindow.Inbox.cs` | 待整理收件箱入口、建议审阅和布局应用 |
+| `MainWindow.Search.cs` | 当前桌面搜索、智能视图、定位和分组展开 |
+| `MainWindow.Rules.cs` | 用户规则、标签、预览、执行门禁和 JSON 导入导出 |
+| `MainWindow.FolderPortals.cs` | 只读 Portal 视觉、异步枚举、面包屑和写操作屏障 |
+| `MainWindow.OperationJournal.cs` | 写前账本接线、启动恢复、跨会话撤销历史和操作中心入口 |
 | `MainWindow.PushReflow.cs` | 挤压排列预览、回滚与提交 |
 | `MainWindow.GroupItemActions.cs` | 分类内拖动、回收站与打开操作 |
 | `MainWindow.SmartLayout.cs` | 智能布局、临时区、布局撤销 |
@@ -40,6 +46,11 @@
 |---|---|
 | `ShellIconLoadService.cs` | 后台 STA 优先队列、请求去重、缓存代次取消、HICON 转换与释放 |
 | `FileOperationService.cs` | 后台 STA FIFO 文件任务队列、取消尚未开始任务与进程退出收尾 |
+| `WorkspaceLayoutManager.cs` | 版本化视觉快照、深复制、激活和工作区预览 |
+| `InboxQueueManager.cs` / `DesktopSearchIndex.cs` | 新项目收件箱协调与内存桌面索引 |
+| `OrganizationRuleEngine.cs` / `UserOrganizationRules.cs` | 无副作用预览、规则生命周期、冲突与动作计划 |
+| `FolderPortalService.cs` | 根身份和路径边界核验、TopDirectoryOnly 只读枚举 |
+| `FileOperationJournal.cs` / `FileOperationJournalStore.cs` | 逐项状态机、写前协调、原子独立存储和只读恢复核验 |
 | `TrayIconService.cs` | 通知区域图标、原生菜单与 Explorer 重启恢复 |
 | `AppDiagnostics.cs` | 慢操作和健康状态日志 |
 
@@ -59,6 +70,14 @@
 | `NativeMethods.RecycleBin.cs` | 回收站状态查询与清空 Shell API 封装 |
 
 
+
+## 本地工作台能力边界
+
+- 工作区只保存视觉布局、显示器拓扑和 Portal 配置。切换前先捕获当前快照；真实文件任务、拖动或规则执行期间禁止切换，恢复过程不调用文件系统写 API。
+- 收件箱首次完整扫描只建立基线；后续新项目按稳定身份维护建议。手工分组和低可靠度结果不会被自动规则改写。搜索只投影 `_desktopItems` 及本地布局元数据，不做全盘/正文索引。
+- 用户规则固定为草稿、预览、执行一次、启用自动应用四阶段；动作仅为虚拟分组、标签或收件箱。预览和取消无副作用，执行失败回滚并停止，不自动重试。
+- Portal 根路径先核验稳定身份，只枚举当前目录直属项且最多 500 项。普通目录可在根范围内导航，重解析点仅交给 Shell 外部打开；读取失败保留上次成功内容并标为过期，没有 watcher、拖放写入、删除、移动或重命名入口。
+- 操作账本与 `layout.json` 独立。`Queued` 在进入后台队列前落盘，`Running` 在调用真实操作前落盘；终态保存失败只展示最后持久化状态并进入保护态。启动时只读核验，不自动重试。真实移动快照覆盖全部命名工作区，成功撤销后恢复分组、顺序、坐标、标签和收件箱元数据。
 
 ## v1.12.15 回收站组件边界
 
@@ -82,16 +101,17 @@
 
 - `DesktopOrganizer.slnx` 只包含 WPF 应用和 `DesktopOrganizer.Tests`；CI 不启动桌面宿主，不隐藏 Explorer 图标，也不执行真实文件移动或回收站操作。
 - 测试通过 `InternalsVisibleTo` 访问内部纯逻辑类型，避免为了测试把实现细节改成公共 API。
-- 自动测试覆盖分类扩展映射、开发项目识别、虚拟桌面显示器选择、拓扑等价、Shell parsing name 编解码、布局 JSON 契约和后台 STA FIFO 队列。
-- 需要真实 Explorer、Shell 扩展、全局输入钩子、多显示器热插拔或回收站 UI 的场景仍保留在 `TEST_CHECKLIST.md` 进行 Windows 实机回归。
+- 自动测试覆盖分类扩展映射、开发项目识别、工作区快照、收件箱、桌面搜索、规则/标签门禁、Portal 路径边界、操作账本状态机/存储/恢复、虚拟桌面几何、布局 JSON 契约和后台 STA FIFO 队列。
+- 需要真实 Explorer、Shell 扩展、全局输入钩子、多显示器热插拔、Portal 拖放屏障、崩溃中的原生文件操作或回收站 UI 的场景仍保留在 `TEST_CHECKLIST.md` 进行 Windows 实机回归。
 - `Directory.Build.props` 仅在 `CI=true` 时将编译警告提升为错误；本地开发仍能查看警告，但 `scripts/ci.ps1` 会显式使用 `-warnaserror` 复现 CI 门禁。
 - 发布任务在测试通过后才生成自包含 win-x64 单文件，并同时输出 EXE 与 ZIP 的 SHA-256。
 
 ## 保持不变的兼容边界
 
 - `MainWindow.xaml` 的 `x:Class` 和所有事件处理器名称保持不变；仅移除未使用资源和无引用名称。
-- 布局模型 `AppLayoutData.Version` 当前为 15；Version 14 及更早文件可继续升级。
+- 布局模型 `AppLayoutData.Version` 当前为 18；Version 17 及更早文件可继续升级。
 - `%AppData%\DesktopOrganizer\layout.json` 可直接继续使用；旧 `SafeMode` 字段会被忽略并在后续保存时移除。
+- `%AppData%\DesktopOrganizer\operation-journal.json` 使用独立 Version 1；损坏或不可写时不会用空数据覆盖，并阻止新的真实文件操作。
 - 发布脚本、程序名称、开机启动注册项和单实例名称保持不变。
 - 桌面右键无闪烁、Windows Terminal 启动层级修复及崩溃恢复逻辑保持不变。
 
@@ -141,7 +161,7 @@
 - 手动清理图标缓存会增加 `_iconVisualGeneration`，强制所有包含图标的视觉重新提取图标，不会复用旧图像。
 - 删除或替换视觉时递归注销 `_allIconVisuals` 与真实文件夹投放目标，避免保留已脱离视觉树的事件目标。
 - 每次刷新会验证分类框的完整排序快照；拖拽抑制使面板进入不稳定状态时放弃复用并重建该分类框。
-- 该阶段未引入持久化字段；当前总布局版本由 v1.12.15 升级为 15。
+- 该阶段未引入持久化字段；当前总布局版本由后续工作区、组织元数据和 Portal 演进到 Version 18。
 
 ## v1.12.8 异步图标边界
 
@@ -159,7 +179,7 @@
 - 视口前保留一行、视口后保留两行，减少滚轮滚动时的控件抖动；滚出缓冲区的控件立即注销并允许垃圾回收。
 - `IScrollInfo` 的 Extent、Viewport 和 VerticalOffset 使用 WPF DIP 像素；ScrollViewer 通过 `CanContentScroll=true` 委托滚动。
 - 分类图标开始拖动后，对应虚拟索引进入抑制状态，原分组视觉会在下一次增量刷新中判定为不稳定并重建，避免重复容器。
-- 分类框滚动位置仅保存在当前进程内，不写入 Version 15 布局；重启后从顶部开始，以避免新增持久化迁移。
+- 分类框滚动位置仅保存在当前进程内，不写入布局；重启后从顶部开始，以避免新增持久化迁移。
 
 
 ## v1.12.10 真实文件操作线程边界
@@ -169,4 +189,4 @@
 - 移动任务采用“磁盘成功后提交布局”：失败、取消或目标状态变化时，不删除原布局项。批量回收站任务采用逐项提交，只清理实际成功的项目。
 - 任务完成回调返回 Dispatcher 后才修改 `_desktopItems`、`_appLayout`、选择状态和视觉缓存；后台线程不访问 WPF 控件。
 - 关闭程序时只取消尚未开始的任务。`File.Move`、`Directory.Move` 或 Windows 回收站内部调用一旦进入系统 API，不能通过线程中止安全取消；工作线程设置为后台线程，退出不会无限等待。
-- 布局 Version 15 和最近 20 次会话内移动撤销记录的数据模型保持不变。
+- 文件任务仍由单一 STA 队列串行执行；当前主线在此基础上增加独立写前账本，并从中重建最近 20 次跨会话撤销候选。
