@@ -54,7 +54,8 @@ public sealed class LayoutContractTests
                     ItemNames = ["readme.txt"],
                     SortMode = GroupSortMode.Name,
                     IsAutoCategory = true,
-                    AutoCategoryKey = "documents"
+                    AutoCategoryKey = "documents",
+                    UserRuleId = null
                 }
             ],
             DesktopTopology =
@@ -78,7 +79,8 @@ public sealed class LayoutContractTests
                     Kind = DesktopItemKind.FileSystem,
                     LastKnownPath = @"C:\Users\Test\Desktop\readme.txt",
                     FileId = "volume:file-id",
-                    CreationTimeUtcTicks = 123456789
+                    CreationTimeUtcTicks = 123456789,
+                    LastWriteTimeUtcTicks = 223456789
                 },
                 ["此电脑"] = new DesktopItemIdentityInfo
                 {
@@ -109,7 +111,19 @@ public sealed class LayoutContractTests
             ItemFirstSeenUtcTicks = new Dictionary<string, long>
             {
                 ["readme.txt"] = DateTime.UnixEpoch.Ticks
-            }
+            },
+            UserRules =
+            [
+                new UserOrganizationRuleInfo
+                {
+                    Id = "rule-1",
+                    Name = "重要文档",
+                    Lifecycle = UserRuleLifecycle.Previewed,
+                    Extensions = [".txt"],
+                    ActionKind = OrganizationRuleActionKind.AddTag,
+                    ActionTargetName = "重要"
+                }
+            ]
         };
 
         string json = JsonSerializer.Serialize(original);
@@ -132,6 +146,7 @@ public sealed class LayoutContractTests
         Assert.AreEqual("documents", restored.Groups[0].AutoCategoryKey);
         Assert.AreEqual(96u, restored.DesktopTopology[0].DpiX);
         Assert.AreEqual("volume:file-id", restored.ItemIdentities["readme.txt"].FileId);
+        Assert.AreEqual(223456789L, restored.ItemIdentities["readme.txt"].LastWriteTimeUtcTicks);
         Assert.AreEqual(
             DesktopItemKind.ShellNamespace,
             restored.ItemIdentities["此电脑"].Kind);
@@ -139,5 +154,7 @@ public sealed class LayoutContractTests
         Assert.AreEqual(ClassificationReliability.Reliable, restored.InboxItems["readme.txt"].Reliability);
         CollectionAssert.AreEqual(new[] { "重要", "资料" }, restored.ItemTags["readme.txt"]);
         Assert.AreEqual(DateTime.UnixEpoch.Ticks, restored.ItemFirstSeenUtcTicks["readme.txt"]);
+        Assert.AreEqual("重要文档", restored.UserRules[0].Name);
+        Assert.AreEqual(UserRuleLifecycle.Previewed, restored.UserRules[0].Lifecycle);
     }
 }

@@ -723,6 +723,10 @@
                                         Style="{StaticResource ToolbarButton}"
                                         Click="InboxButton_Click"
                                         ToolTip="新出现的桌面项目会先进入本地待整理收件箱"/>
+                                <Button Content="自定义规则"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="RuleManagerButton_Click"
+                                        ToolTip="规则保存后默认禁用，必须预览、执行一次后才能启用自动应用"/>
                                 <ToggleButton x:Name="AutoClassifyNewItemsToggle"
                                               Content="新项目归类"
                                               Style="{StaticResource ToolbarToggleButton}"

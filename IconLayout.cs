@@ -18,6 +18,7 @@ namespace DesktopOrganizer
         public string? FileId { get; set; }
         public string? ShellParsingName { get; set; }
         public long? CreationTimeUtcTicks { get; set; }
+        public long? LastWriteTimeUtcTicks { get; set; }
         public bool IsDirectory { get; set; }
     }
 
@@ -51,6 +52,9 @@ namespace DesktopOrganizer
 
         /// <summary>稳定的分类键，允许分类名称被用户重命名后仍可继续归类。</summary>
         public string? AutoCategoryKey { get; set; }
+
+        /// <summary>由用户规则维护的虚拟分组 ID；null 表示手工或内置自动分类。</summary>
+        public string? UserRuleId { get; set; }
 
         /// <summary>用户手动缩放后锁定尺寸；为 false 时根据图标数量自动适应。</summary>
         public bool IsSizeLocked { get; set; }
@@ -178,6 +182,9 @@ namespace DesktopOrganizer
 
         /// <summary>最近一次虚拟归组或标签规则操作的 UTC ticks。</summary>
         public Dictionary<string, long> ItemLastMovedUtcTicks { get; set; } = new();
+
+        /// <summary>本地、默认禁用并经过预览/试运行门控的用户规则。</summary>
+        public List<UserOrganizationRuleInfo> UserRules { get; set; } = new();
     }
 
     /// <summary>挂在图标控件 Tag 上的数据。</summary>

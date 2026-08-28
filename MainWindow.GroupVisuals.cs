@@ -278,7 +278,9 @@ namespace DesktopOrganizer
                 Text = group.Name,
                 ToolTip = group.IsAutoCategory
                     ? "自动识别分类；手工拖动和重命名会被保留"
-                    : group.Name,
+                    : !string.IsNullOrWhiteSpace(group.UserRuleId)
+                        ? "用户规则创建的虚拟分组；真实文件未移动"
+                        : group.Name,
                 Foreground = MediaBrushes.White,
                 FontWeight = FontWeights.SemiBold,
                 FontSize = 13,
@@ -326,10 +328,16 @@ namespace DesktopOrganizer
                     Visibility = _appLayout.IsEditMode ? Visibility.Visible : Visibility.Collapsed,
                     Child = new TextBlock
                     {
-                        Text = group.IsAutoCategory ? "自动分类" : "分类",
+                        Text = group.IsAutoCategory
+                            ? "自动分类"
+                            : !string.IsNullOrWhiteSpace(group.UserRuleId)
+                                ? "用户规则"
+                                : "分类",
                         ToolTip = group.IsAutoCategory
                             ? "虚拟自动分类：拖入只改变分类，不移动真实文件"
-                            : "虚拟分类：拖入只改变分类，不移动真实文件",
+                            : !string.IsNullOrWhiteSpace(group.UserRuleId)
+                                ? "用户规则虚拟分组：规则只改变本地布局，不移动真实文件"
+                                : "虚拟分类：拖入只改变分类，不移动真实文件",
                         Foreground = MediaBrushes.White,
                         FontSize = 10.5,
                         FontWeight = FontWeights.SemiBold,

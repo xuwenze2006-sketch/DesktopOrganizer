@@ -244,6 +244,33 @@ public sealed class InboxQueueManagerTests
     }
 
     [TestMethod]
+    public void CreateAcceptancePlan_UserRuleGroupIsNotTreatedAsManualProtection()
+    {
+        DesktopItemIdentityInfo identity = Physical(@"C:\Desktop\rule.txt", "volume:r", 51);
+        Dictionary<string, InboxItemInfo> inbox = CreateInbox(
+            "rule.txt",
+            identity,
+            ClassificationReliability.Reliable);
+        var ruleGroup = new GroupInfo
+        {
+            Id = "rule-group",
+            UserRuleId = "rule-1",
+            ItemNames = ["rule.txt"]
+        };
+
+        InboxActionResult result = InboxQueueManager.TryCreateAcceptancePlan(
+            inbox,
+            Current(("rule.txt", identity)),
+            new[] { ruleGroup },
+            "rule.txt",
+            out InboxAcceptancePlan? plan);
+
+        Assert.AreEqual(InboxActionOutcome.Planned, result.Outcome);
+        Assert.IsNotNull(plan);
+        Assert.AreEqual(1, inbox.Count);
+    }
+
+    [TestMethod]
     public void ReliableAcceptance_PlanIsSideEffectFreeAndCompletionConsumesMatchingEntry()
     {
         DesktopItemIdentityInfo identity = Physical(@"C:\Desktop\accept.txt", "volume:a", 60);

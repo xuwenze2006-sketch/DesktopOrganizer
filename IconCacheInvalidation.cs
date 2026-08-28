@@ -80,6 +80,7 @@ namespace DesktopOrganizer
                    string.Equals(first.FileId, second.FileId, StringComparison.OrdinalIgnoreCase) &&
                    string.Equals(first.ShellParsingName, second.ShellParsingName, StringComparison.OrdinalIgnoreCase) &&
                    first.CreationTimeUtcTicks == second.CreationTimeUtcTicks &&
+                   first.LastWriteTimeUtcTicks == second.LastWriteTimeUtcTicks &&
                    first.IsDirectory == second.IsDirectory;
         }
     }

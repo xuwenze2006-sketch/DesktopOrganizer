@@ -303,6 +303,7 @@ namespace DesktopOrganizer
                 IsCollapsed = group.IsCollapsed,
                 IsAutoCategory = group.IsAutoCategory,
                 AutoCategoryKey = group.AutoCategoryKey,
+                UserRuleId = group.UserRuleId,
                 IsSizeLocked = group.IsSizeLocked,
                 SortMode = group.SortMode,
                 ItemNames = new List<string>()

@@ -1167,13 +1167,16 @@ namespace DesktopOrganizer
                         inboxBaselineWasEstablished,
                         utcNow);
                     bool inboxAutoApplied = ApplyAutomaticInboxAcceptances();
+                    bool userRulesChanged = snapshot.PhysicalScanComplete && snapshot.ShellScanComplete &&
+                        ApplyEnabledOrganizationRules();
                     UpdateInboxButton();
 
                     // 新项目先经过收件箱；只有用户已明确开启“新项目归类”且建议可靠时，
                     // 上面的收件箱接受计划才会把它加入虚拟分类。这里不再绕过审阅队列。
                     RebuildDesktopIcons(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
                     if (identityLayoutChanged || inboxResult.Changed ||
-                        inboxResult.BaselineChanged || organizationMetadataChanged || inboxAutoApplied)
+                        inboxResult.BaselineChanged || organizationMetadataChanged ||
+                        inboxAutoApplied || userRulesChanged)
                     {
                         SaveLayout();
                     }

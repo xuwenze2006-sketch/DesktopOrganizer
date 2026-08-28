@@ -217,6 +217,7 @@ namespace DesktopOrganizer
                     IsCollapsed = group.IsCollapsed,
                     IsAutoCategory = group.IsAutoCategory,
                     AutoCategoryKey = group.AutoCategoryKey,
+                    UserRuleId = group.UserRuleId,
                     IsSizeLocked = false,
                     SortMode = group.SortMode
                 };
@@ -386,7 +387,9 @@ namespace DesktopOrganizer
             _appLayout.ItemTags ??= new Dictionary<string, List<string>>();
             _appLayout.ItemFirstSeenUtcTicks ??= new Dictionary<string, long>();
             _appLayout.ItemLastMovedUtcTicks ??= new Dictionary<string, long>();
+            _appLayout.UserRules ??= new List<UserOrganizationRuleInfo>();
             WorkspaceLayoutManager.Normalize(_appLayout);
+            UserOrganizationRulePolicy.Normalize(_appLayout);
 
             // JSON 反序列化不会保留 Dictionary 的比较器，这里重建为 Windows 友好的大小写不敏感字典。
             var normalizedIcons = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase);
@@ -452,6 +455,10 @@ namespace DesktopOrganizer
                 .ToList();
             _appLayout.Groups = _appLayout.Groups.OfType<GroupInfo>().ToList();
             var groupIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var userRuleGroupIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var validUserRuleIds = new HashSet<string>(
+                _appLayout.UserRules.Select(rule => rule.Id),
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (GroupInfo group in _appLayout.Groups)
             {
@@ -467,6 +474,20 @@ namespace DesktopOrganizer
                 if (group.IsAutoCategory && string.IsNullOrWhiteSpace(group.AutoCategoryKey))
                 {
                     group.AutoCategoryKey = "legacy-" + group.Id;
+                }
+                group.UserRuleId = string.IsNullOrWhiteSpace(group.UserRuleId)
+                    ? null
+                    : group.UserRuleId.Trim();
+                if (group.IsAutoCategory)
+                {
+                    group.UserRuleId = null;
+                }
+                else if (group.UserRuleId != null &&
+                         (!validUserRuleIds.Contains(group.UserRuleId) ||
+                          !userRuleGroupIds.Add(group.UserRuleId)))
+                {
+                    // 孤立或重复的规则分组降级为普通手工分组，保留其中项目。
+                    group.UserRuleId = null;
                 }
 
                 group.ItemNames ??= new List<string>();

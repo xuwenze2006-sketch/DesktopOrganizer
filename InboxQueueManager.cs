@@ -245,6 +245,7 @@ namespace DesktopOrganizer
             if (groups.Any(group =>
                     group is not null &&
                     !group.IsAutoCategory &&
+                    string.IsNullOrWhiteSpace(group.UserRuleId) &&
                     group.ItemNames?.Contains(actualName!, StringComparer.OrdinalIgnoreCase) == true))
             {
                 return new InboxActionResult(
@@ -417,7 +418,8 @@ namespace DesktopOrganizer
                 group is not null &&
                 !string.IsNullOrWhiteSpace(group.Id) &&
                 group.Id.Equals(targetGroupId, StringComparison.OrdinalIgnoreCase));
-            if (target == null || target.IsAutoCategory || target.ItemNames == null ||
+            if (target == null || target.IsAutoCategory ||
+                !string.IsNullOrWhiteSpace(target.UserRuleId) || target.ItemNames == null ||
                 groups.Any(group => group is null || group.ItemNames == null))
             {
                 return new InboxActionResult(
@@ -640,6 +642,7 @@ namespace DesktopOrganizer
             FileId = identity.FileId,
             ShellParsingName = identity.ShellParsingName,
             CreationTimeUtcTicks = identity.CreationTimeUtcTicks,
+            LastWriteTimeUtcTicks = identity.LastWriteTimeUtcTicks,
             IsDirectory = identity.IsDirectory
         };
 
@@ -687,6 +690,7 @@ namespace DesktopOrganizer
             string.Equals(first.FileId, second.FileId, StringComparison.Ordinal) &&
             string.Equals(first.ShellParsingName, second.ShellParsingName, StringComparison.Ordinal) &&
             first.CreationTimeUtcTicks == second.CreationTimeUtcTicks &&
+            first.LastWriteTimeUtcTicks == second.LastWriteTimeUtcTicks &&
             first.IsDirectory == second.IsDirectory;
 
         private static bool TryGetActualEntry<T>(

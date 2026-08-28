@@ -18,6 +18,7 @@ public sealed class WorkspaceLayoutManagerTests
         Assert.AreEqual(workspace.Id, layout.ActiveWorkspaceId);
         Assert.AreEqual(10, workspace.Layout.FreeIcons["one.txt"].X);
         Assert.AreEqual("分组", workspace.Layout.Groups[0].Name);
+        Assert.AreEqual("rule-1", workspace.Layout.Groups[0].UserRuleId);
         Assert.AreEqual(now, workspace.CreatedUtc);
     }
 
@@ -158,6 +159,7 @@ public sealed class WorkspaceLayoutManagerTests
             {
                 Id = "group-1",
                 Name = "分组",
+                UserRuleId = "rule-1",
                 ItemNames = [name]
             }
         ],

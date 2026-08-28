@@ -15,6 +15,7 @@ namespace DesktopOrganizer
             string normalizedPath = NormalizePersistedPath(fullPath);
             bool isDirectory = false;
             long? creationTimeUtcTicks = null;
+            long? lastWriteTimeUtcTicks = null;
 
             try
             {
@@ -24,6 +25,11 @@ namespace DesktopOrganizer
                 if (creationTimeUtc > DateTime.UnixEpoch)
                 {
                     creationTimeUtcTicks = creationTimeUtc.Ticks;
+                }
+                DateTime lastWriteTimeUtc = File.GetLastWriteTimeUtc(fullPath);
+                if (lastWriteTimeUtc > DateTime.UnixEpoch)
+                {
+                    lastWriteTimeUtcTicks = lastWriteTimeUtc.Ticks;
                 }
             }
             catch (Exception exception) when (
@@ -39,6 +45,7 @@ namespace DesktopOrganizer
                 LastKnownPath = normalizedPath,
                 FileId = fileId,
                 CreationTimeUtcTicks = creationTimeUtcTicks,
+                LastWriteTimeUtcTicks = lastWriteTimeUtcTicks,
                 IsDirectory = isDirectory
             };
         }
@@ -589,6 +596,7 @@ namespace DesktopOrganizer
                    string.Equals(first.FileId, second.FileId, StringComparison.OrdinalIgnoreCase) &&
                    string.Equals(first.ShellParsingName, second.ShellParsingName, StringComparison.OrdinalIgnoreCase) &&
                    first.CreationTimeUtcTicks == second.CreationTimeUtcTicks &&
+                   first.LastWriteTimeUtcTicks == second.LastWriteTimeUtcTicks &&
                    first.IsDirectory == second.IsDirectory;
         }
 
@@ -610,6 +618,7 @@ namespace DesktopOrganizer
                     FileId = identity.FileId,
                     ShellParsingName = identity.ShellParsingName,
                     CreationTimeUtcTicks = identity.CreationTimeUtcTicks,
+                    LastWriteTimeUtcTicks = identity.LastWriteTimeUtcTicks,
                     IsDirectory = identity.IsDirectory
                 };
             }

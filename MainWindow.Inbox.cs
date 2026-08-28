@@ -49,7 +49,7 @@ namespace DesktopOrganizer
 
         internal IReadOnlyList<ManualGroupChoice> GetManualInboxGroups() =>
             _appLayout.Groups
-                .Where(group => !group.IsAutoCategory)
+                .Where(group => !group.IsAutoCategory && string.IsNullOrWhiteSpace(group.UserRuleId))
                 .OrderBy(group => group.Name, StringComparer.CurrentCultureIgnoreCase)
                 .Select(group => new ManualGroupChoice(group.Id, group.Name))
                 .ToList();
