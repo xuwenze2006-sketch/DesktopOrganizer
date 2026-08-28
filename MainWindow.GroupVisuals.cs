@@ -21,6 +21,11 @@ namespace DesktopOrganizer
         private double GetGroupedIconRowHeight() =>
             _appLayout.CompactGroupLayout ? 78 : GroupedIconRowHeight;
 
+        private byte GetGroupNormalBorderAlpha(GroupInfo group) =>
+            _appLayout.IsEditMode
+                ? (group.IsAutoCategory ? (byte)176 : (byte)148)
+                : (byte)104;
+
         private bool AutoFitGroup(GroupInfo group, bool clampPosition = true)
         {
             if (group.IsSizeLocked)
@@ -187,23 +192,23 @@ namespace DesktopOrganizer
         {
             double displayHeight = GetGroupDisplayHeight(group);
             Color accentColor = GetGroupAccentColor(group);
-            Color darkSurface = Color.FromArgb(235, 14, 24, 38);
-            Color headerStart = BlendColor(WithAlpha(accentColor, 238), darkSurface, 0.48);
-            Color headerEnd = BlendColor(WithAlpha(accentColor, 226), darkSurface, 0.72);
-            Color hoverHeaderStart = BlendColor(WithAlpha(accentColor, 246), darkSurface, 0.34);
-            Color hoverHeaderEnd = BlendColor(WithAlpha(accentColor, 236), darkSurface, 0.60);
-            Color bodyStart = BlendColor(WithAlpha(accentColor, 150), Color.FromArgb(214, 18, 31, 47), 0.82);
-            Color bodyEnd = Color.FromArgb(180, 13, 23, 36);
+            Color paperSurface = WarmPaperTheme.PanelSurfaceColor;
+            Color headerStart = WithAlpha(BlendColor(accentColor, paperSurface, 0.84), 250);
+            Color headerEnd = WithAlpha(BlendColor(accentColor, paperSurface, 0.92), 250);
+            Color hoverHeaderStart = WithAlpha(BlendColor(accentColor, paperSurface, 0.76), 250);
+            Color hoverHeaderEnd = WithAlpha(BlendColor(accentColor, paperSurface, 0.86), 250);
+            Color bodyStart = WithAlpha(
+                BlendColor(accentColor, WarmPaperTheme.SoftSurfaceColor, 0.96),
+                248);
+            Color bodyEnd = WarmPaperTheme.SoftSurfaceColor;
 
             Brush accentBrush = CreateFrozenBrush(accentColor);
             Brush headerBrush = CreateFrozenGradientBrush(headerStart, headerEnd);
             Brush hoverHeaderBrush = CreateFrozenGradientBrush(hoverHeaderStart, hoverHeaderEnd);
             Brush bodyBrush = CreateFrozenGradientBrush(bodyStart, bodyEnd);
-            byte normalBorderAlpha = _appLayout.IsEditMode
-                ? (group.IsAutoCategory ? (byte)176 : (byte)138)
-                : (byte)82;
+            byte normalBorderAlpha = GetGroupNormalBorderAlpha(group);
             Brush normalBorderBrush = CreateFrozenBrush(WithAlpha(accentColor, normalBorderAlpha));
-            Brush hoverBorderBrush = CreateFrozenBrush(WithAlpha(accentColor, 236));
+            Brush hoverBorderBrush = CreateFrozenBrush(WithAlpha(accentColor, 220));
             Style? headerButtonStyle = TryFindResource("GroupHeaderIconButtonStyle") as Style;
 
             var header = new Border
@@ -220,12 +225,12 @@ namespace DesktopOrganizer
             var headerLayer = new Grid();
             headerLayer.Children.Add(new Border
             {
-                Width = 3,
+                Width = 2,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(0, 6, 0, 6),
+                Margin = new Thickness(0, 8, 0, 8),
                 CornerRadius = new CornerRadius(0, 2, 2, 0),
                 Background = accentBrush,
-                Opacity = 0.95,
+                Opacity = 0.72,
                 IsHitTestVisible = false
             });
             headerLayer.Children.Add(new Border
@@ -233,7 +238,7 @@ namespace DesktopOrganizer
                 Height = 1,
                 Margin = new Thickness(8, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Top,
-                Background = new SolidColorBrush(Color.FromArgb(48, 255, 255, 255)),
+                Background = new SolidColorBrush(WithAlpha(WarmPaperTheme.BorderColor, 112)),
                 IsHitTestVisible = false
             });
 
@@ -281,7 +286,7 @@ namespace DesktopOrganizer
                     : !string.IsNullOrWhiteSpace(group.UserRuleId)
                         ? "用户规则创建的虚拟分组；真实文件未移动"
                         : group.Name,
-                Foreground = MediaBrushes.White,
+                Foreground = WarmPaperTheme.PrimaryTextBrush,
                 FontWeight = FontWeights.SemiBold,
                 FontSize = 13,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -299,13 +304,13 @@ namespace DesktopOrganizer
                 Padding = new Thickness(7, 0, 7, 0),
                 Margin = new Thickness(2, 0, 3, 0),
                 CornerRadius = new CornerRadius(11),
-                Background = new SolidColorBrush(Color.FromArgb(70, 4, 12, 22)),
-                BorderBrush = new SolidColorBrush(WithAlpha(accentColor, 112)),
+                Background = new SolidColorBrush(Color.FromArgb(214, 255, 253, 249)),
+                BorderBrush = new SolidColorBrush(WithAlpha(accentColor, 92)),
                 BorderThickness = new Thickness(1),
                 Child = new TextBlock
                 {
                     Text = $"{group.ItemNames.Count} 项",
-                    Foreground = new SolidColorBrush(Color.FromArgb(235, 241, 247, 253)),
+                    Foreground = WarmPaperTheme.SecondaryTextBrush,
                     FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center
@@ -322,8 +327,10 @@ namespace DesktopOrganizer
                     Padding = new Thickness(7, 0, 7, 0),
                     Margin = new Thickness(0, 0, 3, 0),
                     CornerRadius = new CornerRadius(11),
-                    Background = new SolidColorBrush(WithAlpha(accentColor, 58)),
-                    BorderBrush = new SolidColorBrush(WithAlpha(accentColor, 140)),
+                    Background = new SolidColorBrush(WithAlpha(
+                        BlendColor(accentColor, paperSurface, 0.88),
+                        244)),
+                    BorderBrush = new SolidColorBrush(WithAlpha(accentColor, 116)),
                     BorderThickness = new Thickness(1),
                     Visibility = _appLayout.IsEditMode ? Visibility.Visible : Visibility.Collapsed,
                     Child = new TextBlock
@@ -338,7 +345,7 @@ namespace DesktopOrganizer
                             : !string.IsNullOrWhiteSpace(group.UserRuleId)
                                 ? "用户规则虚拟分组：规则只改变本地布局，不移动真实文件"
                                 : "虚拟分类：拖入只改变分类，不移动真实文件",
-                        Foreground = MediaBrushes.White,
+                        Foreground = WarmPaperTheme.PrimaryTextBrush,
                         FontSize = 10.5,
                         FontWeight = FontWeights.SemiBold,
                         VerticalAlignment = VerticalAlignment.Center,
@@ -476,7 +483,7 @@ namespace DesktopOrganizer
                 Margin = new Thickness(8, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Top,
                 Background = accentBrush,
-                Opacity = 0.52,
+                Opacity = 0.30,
                 IsHitTestVisible = false
             });
 
@@ -523,13 +530,13 @@ namespace DesktopOrganizer
             var container = new Border
             {
                 Child = outer,
-                Background = new SolidColorBrush(Color.FromArgb(20, 0, 0, 0)),
+                Background = MediaBrushes.Transparent,
                 BorderBrush = normalBorderBrush,
                 BorderThickness = new Thickness(1.25),
                 CornerRadius = new CornerRadius(11),
                 ClipToBounds = true,
                 Tag = group,
-                Opacity = _appLayout.IsEditMode ? 0.97 : 0.91,
+                Opacity = 1.0,
                 SnapsToDevicePixels = true
             };
 
@@ -554,14 +561,12 @@ namespace DesktopOrganizer
 
             container.MouseEnter += (_, _) =>
             {
-                container.Opacity = _appLayout.IsEditMode ? 1.0 : 0.96;
                 container.BorderBrush = hoverBorderBrush;
                 header.Background = hoverHeaderBrush;
                 SetHoverActionsVisible(true);
             };
             container.MouseLeave += (_, _) =>
             {
-                container.Opacity = _appLayout.IsEditMode ? 0.97 : 0.91;
                 container.BorderBrush = normalBorderBrush;
                 header.Background = headerBrush;
                 if (!groupMenu.IsOpen)

@@ -118,8 +118,8 @@ namespace DesktopOrganizer
             {
                 Width = portal.Width,
                 Height = displayHeight,
-                Background = new SolidColorBrush(Color.FromArgb(236, 15, 23, 42)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(218, 71, 85, 105)),
+                Background = WarmPaperTheme.PanelSurfaceBrush,
+                BorderBrush = WarmPaperTheme.BorderBrush,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
                 Padding = new Thickness(0),
@@ -150,7 +150,7 @@ namespace DesktopOrganizer
             var rootPathText = new TextBlock
             {
                 Text = portal.RootPath,
-                Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                Foreground = WarmPaperTheme.MutedTextBrush,
                 FontSize = 10.5,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 ToolTip = portal.RootPath
@@ -162,7 +162,7 @@ namespace DesktopOrganizer
             var breadcrumb = new TextBlock
             {
                 Text = FormatFolderPortalBreadcrumb(breadcrumbRelative),
-                Foreground = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+                Foreground = WarmPaperTheme.SecondaryTextBrush,
                 FontSize = 11,
                 Margin = new Thickness(0, 2, 0, 0),
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -190,7 +190,7 @@ namespace DesktopOrganizer
             var header = new Grid
             {
                 Height = 44,
-                Background = new SolidColorBrush(Color.FromArgb(155, 30, 41, 59)),
+                Background = WarmPaperTheme.HeaderSurfaceBrush,
                 Cursor = _appLayout.IsEditMode ? Cursors.SizeAll : Cursors.Arrow,
                 Tag = portal
             };
@@ -206,7 +206,7 @@ namespace DesktopOrganizer
             titlePanel.Children.Add(new TextBlock
             {
                 Text = portal.Name,
-                Foreground = MediaBrushes.White,
+                Foreground = WarmPaperTheme.PrimaryTextBrush,
                 FontWeight = FontWeights.SemiBold,
                 FontSize = 13,
                 MaxWidth = Math.Max(70, portal.Width - 230),
@@ -215,8 +215,8 @@ namespace DesktopOrganizer
             });
             titlePanel.Children.Add(new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(68, 45, 212, 191)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(190, 94, 234, 212)),
+                Background = new SolidColorBrush(Color.FromRgb(229, 239, 232)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(167, 197, 177)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
                 Margin = new Thickness(8, 0, 0, 0),
@@ -224,7 +224,7 @@ namespace DesktopOrganizer
                 Child = new TextBlock
                 {
                     Text = "真实文件夹 · 只读",
-                    Foreground = new SolidColorBrush(Color.FromRgb(153, 246, 228)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(63, 111, 82)),
                     FontSize = 9.5,
                     FontWeight = FontWeights.SemiBold
                 }
@@ -276,9 +276,9 @@ namespace DesktopOrganizer
                 Height = 25,
                 Margin = new Thickness(2, 0, 0, 0),
                 Padding = new Thickness(0),
-                Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
-                Background = new SolidColorBrush(Color.FromArgb(38, 255, 255, 255)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(80, 148, 163, 184)),
+                Foreground = WarmPaperTheme.PrimaryTextBrush,
+                Background = WarmPaperTheme.SoftSurfaceBrush,
+                BorderBrush = WarmPaperTheme.BorderBrush,
                 BorderThickness = new Thickness(1),
                 ToolTip = toolTip,
                 Focusable = false
@@ -300,7 +300,7 @@ namespace DesktopOrganizer
             body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             string? statusMessage = null;
-            Brush statusForeground = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+            Brush statusForeground = WarmPaperTheme.MutedTextBrush;
             if (state.IsLoading)
             {
                 statusMessage = state.LastSuccessfulResult == null
@@ -312,14 +312,14 @@ namespace DesktopOrganizer
                 statusMessage = state.IsStale
                     ? $"读取失败，以下为上次成功内容（已过期）：{state.ErrorMessage}"
                     : $"读取失败：{state.ErrorMessage}";
-                statusForeground = new SolidColorBrush(Color.FromRgb(253, 186, 116));
+                statusForeground = new SolidColorBrush(Color.FromRgb(151, 90, 32));
             }
 
             if (!string.IsNullOrWhiteSpace(statusMessage))
             {
                 var status = new Border
                 {
-                    Background = new SolidColorBrush(Color.FromArgb(55, 251, 146, 60)),
+                    Background = new SolidColorBrush(Color.FromRgb(255, 241, 214)),
                     CornerRadius = new CornerRadius(6),
                     Padding = new Thickness(7, 4, 7, 4),
                     Margin = new Thickness(0, 0, 0, 6),
@@ -369,7 +369,7 @@ namespace DesktopOrganizer
                     Content = new TextBlock
                     {
                         Text = "此文件夹为空",
-                        Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                        Foreground = WarmPaperTheme.MutedTextBrush,
                         Margin = new Thickness(8, 12, 8, 12),
                         HorizontalAlignment = HorizontalAlignment.Center
                     }
@@ -386,7 +386,7 @@ namespace DesktopOrganizer
             var footer = new TextBlock
             {
                 Text = footerText,
-                Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
+                Foreground = WarmPaperTheme.MutedTextBrush,
                 FontSize = 9.5,
                 Margin = new Thickness(2, 5, 0, 0)
             };
@@ -407,7 +407,8 @@ namespace DesktopOrganizer
                 Margin = new Thickness(0, 1, 0, 1),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Background = MediaBrushes.Transparent,
-                Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                Foreground = WarmPaperTheme.PrimaryTextBrush,
+                Style = TryFindResource("FolderPortalListItemStyle") as Style,
                 AllowDrop = false
             };
             var content = new Grid();
@@ -423,7 +424,7 @@ namespace DesktopOrganizer
             var name = new TextBlock
             {
                 Text = entry.Name,
-                Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                Foreground = WarmPaperTheme.PrimaryTextBrush,
                 FontSize = 11.5,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
@@ -435,7 +436,7 @@ namespace DesktopOrganizer
                 var linkBadge = new TextBlock
                 {
                     Text = "链接 · 外部打开",
-                    Foreground = new SolidColorBrush(Color.FromRgb(125, 211, 252)),
+                    Foreground = new SolidColorBrush(Color.FromRgb(60, 113, 135)),
                     FontSize = 9.5,
                     Margin = new Thickness(8, 0, 0, 0),
                     VerticalAlignment = VerticalAlignment.Center
@@ -538,7 +539,7 @@ namespace DesktopOrganizer
             {
                 Header = "移除此入口配置（不会删除文件夹）",
                 IsEnabled = _appLayout.IsEditMode,
-                Foreground = new SolidColorBrush(Color.FromRgb(253, 164, 175))
+                Foreground = new SolidColorBrush(Color.FromRgb(178, 75, 67))
             };
             remove.Click += (_, _) => RemoveFolderPortalConfiguration(portal);
             menu.Items.Add(remove);

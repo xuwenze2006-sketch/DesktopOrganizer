@@ -264,12 +264,10 @@ namespace DesktopOrganizer
                 _activeGroupDropTarget is GroupInfo previousGroup)
             {
                 Color accent = GetGroupAccentColor(previousGroup);
-                byte alpha = _appLayout.IsEditMode
-                    ? (previousGroup.IsAutoCategory ? (byte)176 : (byte)138)
-                    : (byte)82;
+                byte alpha = GetGroupNormalBorderAlpha(previousGroup);
                 previousBorder.BorderBrush = CreateFrozenBrush(WithAlpha(accent, alpha));
                 previousBorder.BorderThickness = new Thickness(1.25);
-                previousBorder.Background = new SolidColorBrush(Color.FromArgb(20, 0, 0, 0));
+                previousBorder.Background = MediaBrushes.Transparent;
             }
 
             _activeGroupDropVisual = null;

@@ -25,13 +25,13 @@ namespace DesktopOrganizer
         private static readonly Brush IconLabelBackgroundBrush = CreateFrozenBrush(Color.FromArgb(105, 0, 0, 0));
         private static readonly Brush FolderDropHighlightBrush = CreateFrozenBrush(Color.FromArgb(72, 67, 214, 135));
         private static readonly Brush FolderDropBorderBrush = CreateFrozenBrush(Color.FromArgb(245, 83, 224, 151));
-        private static readonly Brush GroupDropHighlightBrush = CreateFrozenBrush(Color.FromArgb(58, 72, 160, 255));
-        private static readonly Brush GroupDropBorderBrush = CreateFrozenBrush(Color.FromArgb(238, 105, 190, 255));
-        private static readonly Brush SelectedIconBackgroundBrush = CreateFrozenBrush(Color.FromArgb(78, 83, 170, 255));
-        private static readonly Brush SelectedIconBorderBrush = CreateFrozenBrush(Color.FromArgb(238, 132, 208, 255));
-        private static readonly Brush RecycleBinUnavailableBrush = CreateFrozenBrush(Color.FromRgb(148, 163, 184));
-        private static readonly Brush RecycleBinEmptyBrush = CreateFrozenBrush(Color.FromRgb(94, 234, 212));
-        private static readonly Brush RecycleBinOccupiedBrush = CreateFrozenBrush(Color.FromRgb(251, 191, 36));
+        private static readonly Brush GroupDropHighlightBrush = CreateFrozenBrush(Color.FromArgb(58, 111, 150, 116));
+        private static readonly Brush GroupDropBorderBrush = CreateFrozenBrush(Color.FromArgb(238, 124, 165, 130));
+        private static readonly Brush SelectedIconBackgroundBrush = CreateFrozenBrush(Color.FromArgb(82, 111, 150, 116));
+        private static readonly Brush SelectedIconBorderBrush = CreateFrozenBrush(Color.FromArgb(238, 124, 165, 130));
+        private static readonly Brush RecycleBinUnavailableBrush = CreateFrozenBrush(Color.FromRgb(150, 142, 132));
+        private static readonly Brush RecycleBinEmptyBrush = CreateFrozenBrush(Color.FromRgb(111, 150, 116));
+        private static readonly Brush RecycleBinOccupiedBrush = CreateFrozenBrush(Color.FromRgb(190, 142, 55));
 
         private readonly string _userDesktopPath =
             Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);

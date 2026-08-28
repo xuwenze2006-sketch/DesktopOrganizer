@@ -561,6 +561,8 @@ namespace DesktopOrganizer
 
         private void CompactGroupLayoutToggle_Click(object sender, RoutedEventArgs e)
         {
+            bool previousMode = _appLayout.CompactGroupLayout;
+            Dictionary<string, GroupLayoutSnapshot> previousLayout = CaptureGroupLayoutSnapshot();
             _appLayout.CompactGroupLayout = CompactGroupLayoutToggle.IsChecked == true;
             foreach (GroupInfo group in _appLayout.Groups.Where(group => !group.IsSizeLocked))
             {
@@ -576,6 +578,15 @@ namespace DesktopOrganizer
                 _appLayout.Groups.Select(GetGroupBounds).ToList(),
                 GetRecycleBinWidgetObstacle());
             int collapsed = rearranged ? ArrangeGroupsSmartly() : 0;
+            if (collapsed < 0)
+            {
+                _appLayout.CompactGroupLayout = previousMode;
+                CompactGroupLayoutToggle.IsChecked = previousMode;
+                RestoreGroupLayoutSnapshot(previousLayout);
+                StatusText.Text = "可用桌面空间不足，紧凑分组设置保持不变";
+                return;
+            }
+
             RebuildDesktopIconsAndSaveLayout();
             string modeMessage = _appLayout.CompactGroupLayout
                 ? "紧凑分类框已开启；大型分类可使用四列图标"
@@ -604,14 +615,22 @@ namespace DesktopOrganizer
                 return;
             }
 
-            _lastSmartLayoutSnapshot = CaptureGroupLayoutSnapshot();
-            UndoSmartLayoutButton.IsEnabled = true;
+            Dictionary<string, GroupLayoutSnapshot> attemptSnapshot = CaptureGroupLayoutSnapshot();
             foreach (GroupInfo group in _appLayout.Groups)
             {
                 group.IsSizeLocked = false;
             }
 
             int collapsed = ArrangeGroupsSmartly();
+            if (collapsed < 0)
+            {
+                RestoreGroupLayoutSnapshot(attemptSnapshot);
+                StatusText.Text = "可用桌面空间不足，分类框保持原尺寸和位置";
+                return;
+            }
+
+            _lastSmartLayoutSnapshot = attemptSnapshot;
+            UndoSmartLayoutButton.IsEnabled = true;
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = collapsed > 0
                 ? $"已适应全部分类框，并收起 {collapsed} 个自动分类以避免拥挤"

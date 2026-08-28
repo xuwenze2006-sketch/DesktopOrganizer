@@ -6,6 +6,7 @@ namespace DesktopOrganizer
     {
         private FrameworkElement CreateIconVisual(string fullPath, string displayName, GroupInfo? parentGroup)
         {
+            bool isGroupedIcon = parentGroup != null;
             bool isShellNamespace = ShellItemLocation.TryDecode(
                 fullPath,
                 out string shellParsingName,
@@ -21,7 +22,9 @@ namespace DesktopOrganizer
             var label = new TextBlock
             {
                 Text = displayName,
-                Foreground = MediaBrushes.White,
+                Foreground = isGroupedIcon
+                    ? WarmPaperTheme.PrimaryTextBrush
+                    : MediaBrushes.White,
                 TextAlignment = TextAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -35,16 +38,17 @@ namespace DesktopOrganizer
             // 会在鼠标移动和拖动时触发昂贵的离屏渲染。
             var labelBackground = new Border
             {
-                Background = IconLabelBackgroundBrush,
-                CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(1),
+                Background = isGroupedIcon
+                    ? WarmPaperTheme.GroupedLabelSurfaceBrush
+                    : IconLabelBackgroundBrush,
+                CornerRadius = new CornerRadius(isGroupedIcon ? 4 : 3),
+                Padding = isGroupedIcon ? new Thickness(2, 1, 2, 1) : new Thickness(1),
                 Child = label
             };
 
             content.Children.Add(iconElement);
             content.Children.Add(labelBackground);
 
-            bool isGroupedIcon = parentGroup != null;
             double tileWidth = isGroupedIcon
                 ? GetGroupedIconTileWidth(parentGroup!)
                 : IconCellWidth - 10;
@@ -293,9 +297,12 @@ namespace DesktopOrganizer
             }
 
             bool selected = _selectedItemNames.Contains(displayName);
+            bool isGroupedIcon = border.Tag is IconTag { Group: not null };
             border.Background = selected
                 ? SelectedIconBackgroundBrush
-                : isMouseOver ? IconHoverBrush : MediaBrushes.Transparent;
+                : isMouseOver
+                    ? isGroupedIcon ? WarmPaperTheme.WarmHoverBrush : IconHoverBrush
+                    : MediaBrushes.Transparent;
             border.BorderBrush = selected ? SelectedIconBorderBrush : MediaBrushes.Transparent;
             border.BorderThickness = selected ? new Thickness(1.5) : new Thickness(0);
         }

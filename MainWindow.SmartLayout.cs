@@ -59,9 +59,17 @@ namespace DesktopOrganizer
                 return;
             }
 
-            _lastSmartLayoutSnapshot = CaptureGroupLayoutSnapshot();
-            UndoSmartLayoutButton.IsEnabled = true;
+            Dictionary<string, GroupLayoutSnapshot> attemptSnapshot = CaptureGroupLayoutSnapshot();
             int newlyCollapsed = ArrangeGroupsSmartly();
+            if (newlyCollapsed < 0)
+            {
+                RestoreGroupLayoutSnapshot(attemptSnapshot);
+                StatusText.Text = "可用桌面空间不足，布局保持不变";
+                return;
+            }
+
+            _lastSmartLayoutSnapshot = attemptSnapshot;
+            UndoSmartLayoutButton.IsEnabled = true;
             RebuildDesktopIconsAndSaveLayout();
             string workspaceNote = _lastSmartLayoutPreservedWorkspace
                 ? "，已保留主屏底部约三分之一临时区域"
@@ -90,18 +98,12 @@ namespace DesktopOrganizer
             return snapshot;
         }
 
-        private void UndoSmartLayoutButton_Click(object sender, RoutedEventArgs e)
+        private void RestoreGroupLayoutSnapshot(
+            IReadOnlyDictionary<string, GroupLayoutSnapshot> layoutSnapshot)
         {
-            if (_lastSmartLayoutSnapshot == null)
-            {
-                UndoSmartLayoutButton.IsEnabled = false;
-                StatusText.Text = "没有可撤销的智能布局";
-                return;
-            }
-
             foreach (GroupInfo group in _appLayout.Groups)
             {
-                if (!_lastSmartLayoutSnapshot.TryGetValue(group.Id, out GroupLayoutSnapshot? snapshot) ||
+                if (!layoutSnapshot.TryGetValue(group.Id, out GroupLayoutSnapshot? snapshot) ||
                     snapshot == null)
                 {
                     continue;
@@ -115,6 +117,18 @@ namespace DesktopOrganizer
                 group.IsSizeLocked = snapshot.IsSizeLocked;
                 ClampGroupToCanvas(group);
             }
+        }
+
+        private void UndoSmartLayoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastSmartLayoutSnapshot == null)
+            {
+                UndoSmartLayoutButton.IsEnabled = false;
+                StatusText.Text = "没有可撤销的智能布局";
+                return;
+            }
+
+            RestoreGroupLayoutSnapshot(_lastSmartLayoutSnapshot);
 
             _lastSmartLayoutSnapshot = null;
             UndoSmartLayoutButton.IsEnabled = false;
@@ -123,7 +137,7 @@ namespace DesktopOrganizer
         }
 
         /// <summary>
-        /// 使用可变宽度的二维瀑布流排列分类框。优先保留主屏底部约三分之一临时区域；
+        /// 使用最多三轨的响应式瀑布流排列分类框。优先保留主屏底部约三分之一临时区域；
         /// 若空间不足，先收起自动分类，再在必要时使用完整桌面高度。
         /// </summary>
         private int ArrangeGroupsSmartly()
@@ -191,7 +205,13 @@ namespace DesktopOrganizer
 
             if (!placed)
             {
-                ApplyFallbackGroupFlow(ordered, fullWorkspaces, gap);
+                placed = TryApplyFallbackGroupFlow(ordered, fullWorkspaces, gap);
+            }
+
+            if (!placed)
+            {
+                _lastSmartLayoutPreservedWorkspace = false;
+                return -1;
             }
 
             foreach (GroupInfo group in ordered)
@@ -251,98 +271,45 @@ namespace DesktopOrganizer
             IReadOnlyList<Rect> workspaces,
             double gap)
         {
-            var placedRects = new List<Rect>(
-                groups.Count + _appLayout.FolderPortals.Count + 1);
-            placedRects.AddRange(GetFolderPortalObstacles());
+            const double compactTrackWidth = 352;
+            const int maximumColumns = 3;
+
+            var obstacles = new List<Rect>(_appLayout.FolderPortals.Count + 1);
+            obstacles.AddRange(GetFolderPortalObstacles());
             Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
             if (recycleObstacle.HasValue)
             {
-                placedRects.Add(recycleObstacle.Value);
+                obstacles.Add(recycleObstacle.Value);
             }
-            var placements = new List<(GroupInfo Group, Point Position)>(groups.Count);
 
-            foreach (GroupInfo group in groups)
-            {
-                double height = GetGroupDisplayHeight(group);
-                var candidates = new List<(Point Point, Rect Workspace)>();
-                foreach (Rect workspace in workspaces)
-                {
-                    candidates.Add((new Point(workspace.Left, workspace.Top), workspace));
-                    foreach (Rect placed in placedRects.Where(rect => workspace.IntersectsWith(rect)))
-                    {
-                        candidates.Add((new Point(placed.Right + gap, placed.Top), workspace));
-                        candidates.Add((new Point(placed.Left, placed.Bottom + gap), workspace));
-                        candidates.Add((new Point(workspace.Left, placed.Bottom + gap), workspace));
-                    }
-                }
-
-                (Point Point, Rect Workspace)? selected = null;
-                foreach ((Point point, Rect workspace) in candidates
-                    .Where(candidate =>
-                        double.IsFinite(candidate.Point.X) &&
-                        double.IsFinite(candidate.Point.Y))
-                    .Select(candidate => (
-                        new Point(
-                            Math.Max(candidate.Workspace.Left, Math.Round(candidate.Point.X)),
-                            Math.Max(candidate.Workspace.Top, Math.Round(candidate.Point.Y))),
-                        candidate.Workspace))
-                    .Distinct()
-                    .OrderBy(candidate => candidate.Item2.Top)
-                    .ThenBy(candidate => candidate.Item2.Left)
-                    .ThenBy(candidate => candidate.Item1.Y)
-                    .ThenBy(candidate => candidate.Item1.X))
-                {
-                    double width = Math.Min(group.Width, workspace.Width);
-                    var candidateRect = new Rect(point.X, point.Y, width, height);
-                    if (IsGroupPlacementAvailable(candidateRect, placedRects, workspace, gap))
-                    {
-                        selected = (point, workspace);
-                        break;
-                    }
-                }
-
-                if (selected == null)
-                {
-                    return false;
-                }
-
-                double placedWidth = Math.Min(group.Width, selected.Value.Workspace.Width);
-                group.Width = Math.Max(GroupMinWidth, placedWidth);
-                var rect = new Rect(
-                    selected.Value.Point.X,
-                    selected.Value.Point.Y,
+            List<CompactGroupGridItem> items = groups
+                .Select(group => new CompactGroupGridItem(
+                    group.Id,
                     group.Width,
-                    height);
-                placedRects.Add(rect);
-                placements.Add((group, selected.Value.Point));
-            }
-
-            foreach ((GroupInfo group, Point position) in placements)
-            {
-                group.X = position.X;
-                group.Y = position.Y;
-            }
-
-            return true;
-        }
-
-        private static bool IsGroupPlacementAvailable(
-            Rect candidate,
-            IReadOnlyList<Rect> placedRects,
-            Rect workspace,
-            double gap)
-        {
-            if (!workspace.Contains(candidate))
+                    GetGroupDisplayHeight(group)))
+                .ToList();
+            Dictionary<string, Point>? placements = CompactGroupGridPlanner.TryPlan(
+                items,
+                workspaces,
+                obstacles,
+                compactTrackWidth,
+                gap,
+                maximumColumns);
+            if (placements == null)
             {
                 return false;
             }
 
-            Rect padded = candidate;
-            padded.Inflate(gap / 2, gap / 2);
-            return placedRects.All(existing => !padded.IntersectsWith(existing));
+            foreach (GroupInfo group in groups)
+            {
+                Point position = placements[group.Id];
+                group.X = position.X;
+                group.Y = position.Y;
+            }
+            return true;
         }
 
-        private void ApplyFallbackGroupFlow(
+        private bool TryApplyFallbackGroupFlow(
             IReadOnlyList<GroupInfo> groups,
             IReadOnlyList<Rect> workspaces,
             double gap)
@@ -353,69 +320,33 @@ namespace DesktopOrganizer
             {
                 obstacles.Add(recycleObstacle.Value);
             }
-            int workspaceIndex = 0;
-            Rect workspace = workspaces[workspaceIndex];
-            double x = workspace.Left;
-            double y = workspace.Top;
-            double rowHeight = 0;
+
+            List<CompactGroupGridItem> items = groups
+                .Select(group => new CompactGroupGridItem(
+                    group.Id,
+                    group.Width,
+                    GetGroupDisplayHeight(group)))
+                .ToList();
+            Dictionary<string, Point>? placements = CompactGroupGridPlanner.TryPlan(
+                items,
+                workspaces,
+                obstacles,
+                GroupMinWidth,
+                gap,
+                maximumColumns: int.MaxValue);
+            if (placements == null)
+            {
+                return false;
+            }
 
             foreach (GroupInfo group in groups)
             {
-                double height = GetGroupDisplayHeight(group);
-                group.Width = Math.Min(group.Width, workspace.Width);
-                for (int attempt = 0; attempt < 1000; attempt++)
-                {
-                    if (x + group.Width > workspace.Right && x > workspace.Left)
-                    {
-                        x = workspace.Left;
-                        y += rowHeight + gap;
-                        rowHeight = 0;
-                    }
-
-                    if (y + height > workspace.Bottom && workspaceIndex + 1 < workspaces.Count)
-                    {
-                        workspace = workspaces[++workspaceIndex];
-                        x = workspace.Left;
-                        y = workspace.Top;
-                        rowHeight = 0;
-                        group.Width = Math.Min(group.Width, workspace.Width);
-                    }
-
-                    var candidate = new Rect(x, y, group.Width, height);
-                    Rect padded = candidate;
-                    padded.Inflate(gap / 2, gap / 2);
-                    Rect? collision = obstacles
-                        .Where(obstacle => padded.IntersectsWith(obstacle))
-                        .OrderBy(obstacle => obstacle.Left)
-                        .ThenBy(obstacle => obstacle.Top)
-                        .Select(obstacle => (Rect?)obstacle)
-                        .FirstOrDefault();
-                    if (!collision.HasValue)
-                    {
-                        break;
-                    }
-
-                    double nextX = collision.Value.Right + gap;
-                    if (nextX + group.Width <= workspace.Right)
-                    {
-                        x = nextX;
-                    }
-                    else
-                    {
-                        x = workspace.Left;
-                        y = Math.Max(
-                            y + Math.Max(rowHeight, height) + gap,
-                            collision.Value.Bottom + gap);
-                        rowHeight = 0;
-                    }
-                }
-
-                group.X = x;
-                group.Y = y;
-                obstacles.Add(new Rect(x, y, group.Width, height));
-                x += group.Width + gap;
-                rowHeight = Math.Max(rowHeight, height);
+                Point position = placements[group.Id];
+                group.X = position.X;
+                group.Y = position.Y;
             }
+
+            return true;
         }
 
         // ==================== 分组拖拽、缩放、重命名与删除 ====================
