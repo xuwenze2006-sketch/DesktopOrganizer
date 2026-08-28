@@ -54,6 +54,11 @@ namespace DesktopOrganizer
             "DesktopOrganizer",
             "restore-native-icons.flag");
 
+        private readonly string _fileOperationJournalPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "DesktopOrganizer",
+            "operation-journal.json");
+
         private readonly DispatcherTimer _layoutSaveTimer;
         private readonly DispatcherTimer _nativeIconGuardTimer;
         private readonly DispatcherTimer _controlPanelAutoCollapseTimer;
@@ -63,6 +68,7 @@ namespace DesktopOrganizer
         private readonly CancellationTokenSource _lifetimeCts = new();
         private readonly RefreshCancellationEpoch _refreshCancellationEpoch = new();
         private readonly FileOperationService _fileOperationService;
+        private readonly FileOperationJournalStore _fileOperationJournalStore;
         private readonly object _refreshDebounceLock = new();
         private readonly object _desktopRenameLock = new();
         private readonly object _externalEventLock = new();
@@ -86,6 +92,11 @@ namespace DesktopOrganizer
         private readonly LinkedList<FileMoveUndoRecord> _fileMoveHistory = new();
         private readonly HashSet<string> _pendingFileOperationPaths = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _canceledAutoCategoryGroupIds = new(StringComparer.OrdinalIgnoreCase);
+        private FileOperationJournalData _fileOperationJournal = new();
+        private volatile IReadOnlyList<FileOperationJournalEntry> _fileOperationJournalDisplayEntries =
+            Array.Empty<FileOperationJournalEntry>();
+        private volatile bool _fileOperationJournalProtected;
+        private string? _fileOperationJournalError;
         private DesktopGeometry _desktopGeometry = new([]);
         private Dictionary<string, string> _desktopItems = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, DesktopCategoryDefinition> _desktopCategories = new(StringComparer.OrdinalIgnoreCase);
@@ -233,7 +244,8 @@ namespace DesktopOrganizer
             IconPosition? FreePosition,
             IconPosition? AutoClassificationOriginalPosition,
             string ItemIdentity,
-            DateTime CreatedUtc);
+            DateTime CreatedUtc,
+            string? JournalEntryId);
 
         private enum PhysicalFolderMoveResult
         {
@@ -251,6 +263,8 @@ namespace DesktopOrganizer
             _startQuietly = startQuietly;
             InitializeComponent();
             _fileOperationService = new FileOperationService();
+            _fileOperationJournalStore = new FileOperationJournalStore(
+                _fileOperationJournalPath);
             if (_startQuietly)
             {
                 ControlPanel.Visibility = Visibility.Collapsed;

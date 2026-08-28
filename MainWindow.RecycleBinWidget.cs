@@ -3,6 +3,12 @@ namespace DesktopOrganizer
 {
     public partial class MainWindow
     {
+        private sealed record JournaledRecycleBinEmptyCompletion(
+            int Result,
+            bool Executed,
+            bool JournalPersisted,
+            string? ErrorMessage);
+
         private static readonly string RecycleBinWidgetLocation = ShellItemLocation.Encode(
             ShellDesktopItemPolicy.RecycleBinParsingName,
             isFolder: true);
@@ -184,6 +190,17 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (HasPendingFileOperations)
+            {
+                StatusText.Text = "已有真实文件操作正在进行，请完成后再清空回收站";
+                return;
+            }
+
+            if (!EnsureFileOperationJournalAvailable("清空回收站"))
+            {
+                return;
+            }
+
             MessageBoxResult confirmation = MessageBox.Show(
                 $"确定永久删除回收站中的 {_recycleBinStatus.ItemCount:N0} 个项目吗？\n\n此操作无法通过 DesktopOrganizer 撤销。",
                 "清空回收站",
@@ -195,32 +212,82 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (!TryReserveFileOperation(
+                    [RecycleBinWidgetLocation],
+                    "已有真实文件操作正在进行，请完成后再清空回收站",
+                    out List<string> reservedKeys))
+            {
+                return;
+            }
+
+            var journalEntry = new FileOperationJournalEntry
+            {
+                Kind = FileOperationJournalKind.EmptyRecycleBin,
+                DisplayName = $"回收站中的 {_recycleBinStatus.ItemCount:N0} 个项目",
+                IsAggregate = true
+            };
+            if (!TryPersistQueuedJournalEntries([journalEntry], out string queueError))
+            {
+                ReleaseFileOperation(reservedKeys);
+                StatusText.Text = "未排队清空回收站：操作账本无法安全写入";
+                _diagnostics.Log($"RECYCLE_WIDGET queue journal failed error={queueError}");
+                return;
+            }
+
             _isRecycleBinEmptying = true;
             RecycleBinEmptyButton.IsEnabled = false;
             RecycleBinContextEmptyMenuItem.IsEnabled = false;
             RecycleBinEmptyButton.Content = "清理中…";
             RecycleBinWidgetCountText.Text = "正在清空回收站";
             StatusText.Text = "回收站清理任务已排队";
-            int result;
+            JournaledRecycleBinEmptyCompletion completion;
             try
             {
                 IntPtr owner = new WindowInteropHelper(this).Handle;
-                result = await _fileOperationService.Enqueue(
+                completion = await _fileOperationService.Enqueue(
                     token =>
                     {
-                        token.ThrowIfCancellationRequested();
-                        return NativeMethods.EmptyRecycleBin(owner);
+                        int shellResult = unchecked((int)0x80004005);
+                        FileOperationDispatchResult dispatch = DispatchJournaledOperation(
+                            journalEntry,
+                            () =>
+                            {
+                                token.ThrowIfCancellationRequested();
+                                shellResult = NativeMethods.EmptyRecycleBin(owner);
+                                if (shellResult >= 0)
+                                {
+                                    return FileOperationExecutionOutcome.Success();
+                                }
+
+                                Exception? shellError = Marshal.GetExceptionForHR(shellResult);
+                                return FileOperationExecutionOutcome.Failure(
+                                    $"HRESULT_0x{shellResult:X8}",
+                                    shellError?.Message ?? $"Windows Shell 返回错误 0x{shellResult:X8}。");
+                            });
+                        return new JournaledRecycleBinEmptyCompletion(
+                            shellResult,
+                            dispatch.Executed,
+                            dispatch.JournalPersisted,
+                            dispatch.ErrorMessage);
                     },
                     _lifetimeCts.Token);
             }
             catch (OperationCanceledException)
             {
-                result = unchecked((int)0x800704C7);
+                completion = new JournaledRecycleBinEmptyCompletion(
+                    unchecked((int)0x800704C7),
+                    Executed: false,
+                    JournalPersisted: false,
+                    ErrorMessage: "操作已取消。");
             }
             catch (Exception exception)
             {
                 _diagnostics.Log($"RECYCLE_WIDGET empty failed: {exception}");
-                result = exception.HResult;
+                completion = new JournaledRecycleBinEmptyCompletion(
+                    exception.HResult,
+                    Executed: false,
+                    JournalPersisted: false,
+                    ErrorMessage: exception.Message);
             }
             finally
             {
@@ -228,24 +295,29 @@ namespace DesktopOrganizer
                 RecycleBinEmptyButton.Content = "清空";
             }
 
+            ReleaseFileOperation(reservedKeys);
+
             if (_isClosing || Dispatcher.HasShutdownStarted)
             {
                 return;
             }
 
-            if (result >= 0)
+            if (completion.Executed && completion.Result >= 0)
             {
                 ApplyRecycleBinStatus(new RecycleBinStatus(true, 0, 0, 0));
-                StatusText.Text = "回收站已清空";
-                _diagnostics.Log("RECYCLE_WIDGET empty success");
+                StatusText.Text = completion.JournalPersisted
+                    ? "回收站已清空；该操作不可撤销，结果已记入操作中心"
+                    : "回收站已清空，但账本终态未能保存；请人工核对";
+                _diagnostics.Log($"RECYCLE_WIDGET empty success journalPersisted={completion.JournalPersisted}");
             }
             else
             {
                 ApplyRecycleBinStatus(_recycleBinStatus);
-                Exception? error = Marshal.GetExceptionForHR(result);
+                Exception? error = Marshal.GetExceptionForHR(completion.Result);
                 StatusText.Text = "回收站未能清空";
                 MessageBox.Show(
-                    error?.Message ?? $"Windows Shell 返回错误 0x{result:X8}。",
+                    completion.ErrorMessage ?? error?.Message ??
+                    $"Windows Shell 返回错误 0x{completion.Result:X8}。",
                     "清空回收站失败",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);

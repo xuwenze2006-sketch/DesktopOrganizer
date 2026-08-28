@@ -118,6 +118,7 @@ namespace DesktopOrganizer
         {
             RecoverNativeIconsAfterPreviousCrash();
             LoadLayout();
+            InitializeFileOperationJournal();
             SnapToGridToggle.IsChecked = _appLayout.SnapToGrid;
             PushReflowToggle.IsChecked = _appLayout.PushReflowEnabled;
             AutoClassifyNewItemsToggle.IsChecked = _appLayout.AutoClassifyNewItems;

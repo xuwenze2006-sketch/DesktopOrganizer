@@ -1,0 +1,180 @@
+<Window x:Class="DesktopOrganizer.OperationCenterWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="操作中心"
+        Width="1120"
+        Height="650"
+        MinWidth="860"
+        MinHeight="460"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Padding="12"
+                CornerRadius="8"
+                Background="#FFF0F7FF"
+                BorderBrush="#FF9CC8F2"
+                BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="真实文件操作账本"
+                           FontSize="16"
+                           FontWeight="SemiBold"/>
+                <TextBlock Margin="0,5,0,0"
+                           Foreground="#FF475569"
+                           TextWrapping="Wrap"
+                           Text="这里仅显示已经记录的文件操作及其最终状态。操作中心不会自动重试失败、中断或状态不确定的操作，也不会在此窗口执行任何文件操作。"/>
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="ProtectionWarningBorder"
+                Grid.Row="1"
+                Margin="0,10,0,0"
+                Padding="11"
+                CornerRadius="7"
+                Background="#FFFFF7ED"
+                BorderBrush="#FFF59E0B"
+                BorderThickness="1"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="⚠"
+                           Margin="0,0,8,0"
+                           FontSize="16"
+                           Foreground="#FFB45309"/>
+                <TextBlock x:Name="ProtectionWarningText"
+                           Grid.Column="1"
+                           Foreground="#FF92400E"
+                           TextWrapping="Wrap"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="2,12,2,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="SummaryText"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1"
+                       Foreground="#FF64748B"
+                       VerticalAlignment="Center"
+                       Text="按最近时间排序 · 只读"/>
+        </Grid>
+
+        <Grid Grid.Row="3">
+            <DataGrid x:Name="JournalGrid"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserReorderColumns="True"
+                      SelectionMode="Single"
+                      EnableRowVirtualization="True"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="时间" Width="170">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding TimeText}"
+                                           Margin="4"
+                                           TextWrapping="Wrap"
+                                           ToolTip="{Binding TimeDetails}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="类型" Binding="{Binding KindText}" Width="145"/>
+                    <DataGridTemplateColumn Header="项目" Width="160">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ItemText}"
+                                           Margin="4"
+                                           TextWrapping="Wrap"
+                                           ToolTip="{Binding ItemText}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="来源" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding SourceText}"
+                                           Margin="4"
+                                           TextWrapping="Wrap"
+                                           ToolTip="{Binding SourceText}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="目标" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding TargetText}"
+                                           Margin="4"
+                                           TextWrapping="Wrap"
+                                           ToolTip="{Binding TargetText}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="状态" Binding="{Binding StateText}" Width="100"/>
+                    <DataGridTemplateColumn Header="撤销能力" Width="220">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ReversibilityText}"
+                                           Margin="4"
+                                           TextWrapping="Wrap"
+                                           FontWeight="SemiBold"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="错误 / 说明" Width="220">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding ErrorText}"
+                                           Margin="4"
+                                           Foreground="#FFB91C1C"
+                                           TextWrapping="Wrap"
+                                           ToolTip="{Binding ErrorText}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <TextBlock x:Name="EmptyText"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#FF64748B"
+                       FontSize="15"
+                       Text="尚无真实文件操作记录。"
+                       Visibility="Collapsed"
+                       IsHitTestVisible="False"/>
+        </Grid>
+
+        <Grid Grid.Row="4" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Foreground="#FF64748B"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Text="“部分可撤销”表示需要通过 Windows 回收站恢复；“需人工核对”表示磁盘最终状态不能仅凭账本确认。"/>
+            <Button Grid.Column="1"
+                    Content="关闭"
+                    MinWidth="76"
+                    Margin="12,0,0,0"
+                    IsCancel="True"
+                    Click="Close_Click"/>
+        </Grid>
+    </Grid>
+</Window>

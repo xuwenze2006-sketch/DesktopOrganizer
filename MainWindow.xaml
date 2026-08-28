@@ -800,6 +800,10 @@
                                         Click="RefreshButton_Click"
                                         ToolTip="重新扫描桌面并刷新分类与布局状态"/>
                                 <Button Content="诊断日志" Style="{StaticResource ToolbarButton}" Click="OpenDiagnosticsLogButton_Click" ToolTip="打开运行日志目录"/>
+                                <Button Content="操作中心"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="OperationCenterButton_Click"
+                                        ToolTip="查看逐项真实文件操作、恢复核验结果和撤销能力；不会自动重试"/>
                                 <Button x:Name="PauseButton"
                                         Content="暂停整理"
                                         Style="{StaticResource ToolbarButton}"
