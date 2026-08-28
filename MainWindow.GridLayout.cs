@@ -375,13 +375,17 @@ namespace DesktopOrganizer
         private void NormalizeLayout()
         {
             int loadedVersion = _appLayout.Version;
-            _appLayout.Version = 16;
+            _appLayout.Version = 17;
             _appLayout.FreeIcons ??= new Dictionary<string, IconPosition>();
             _appLayout.Groups ??= new List<GroupInfo>();
             _appLayout.DesktopTopology ??= new List<DesktopMonitorLayoutInfo>();
             _appLayout.ItemIdentities ??= new Dictionary<string, DesktopItemIdentityInfo>();
             _appLayout.RecycleBinWidget ??= new RecycleBinWidgetLayoutInfo();
             _appLayout.AutoClassificationOriginalPositions ??= new Dictionary<string, IconPosition>();
+            _appLayout.InboxItems ??= new Dictionary<string, InboxItemInfo>();
+            _appLayout.ItemTags ??= new Dictionary<string, List<string>>();
+            _appLayout.ItemFirstSeenUtcTicks ??= new Dictionary<string, long>();
+            _appLayout.ItemLastMovedUtcTicks ??= new Dictionary<string, long>();
             WorkspaceLayoutManager.Normalize(_appLayout);
 
             // JSON 反序列化不会保留 Dictionary 的比较器，这里重建为 Windows 友好的大小写不敏感字典。
@@ -432,6 +436,14 @@ namespace DesktopOrganizer
                 }
             }
             _appLayout.AutoClassificationOriginalPositions = normalizedOriginalPositions;
+            _appLayout.InboxItems = NormalizeInboxItems(_appLayout.InboxItems);
+            _appLayout.ItemTags = NormalizeItemTags(_appLayout.ItemTags);
+            _appLayout.ItemFirstSeenUtcTicks = NormalizeItemTimes(_appLayout.ItemFirstSeenUtcTicks);
+            _appLayout.ItemLastMovedUtcTicks = NormalizeItemTimes(_appLayout.ItemLastMovedUtcTicks);
+            if (loadedVersion < 17 && _appLayout.ItemIdentities.Count > 0)
+            {
+                _appLayout.InboxBaselineEstablished = true;
+            }
             _appLayout.DesktopTopology = _appLayout.DesktopTopology
                 .OfType<DesktopMonitorLayoutInfo>()
                 .Where(info => !string.IsNullOrWhiteSpace(info.DeviceName))
@@ -537,6 +549,87 @@ namespace DesktopOrganizer
                     group.IsCollapsed = true;
                 }
             }
+        }
+
+        private static Dictionary<string, InboxItemInfo> NormalizeInboxItems(
+            IEnumerable<KeyValuePair<string, InboxItemInfo>> source)
+        {
+            var result = new Dictionary<string, InboxItemInfo>(StringComparer.OrdinalIgnoreCase);
+            foreach ((string name, InboxItemInfo? item) in source)
+            {
+                if (string.IsNullOrWhiteSpace(name) || item?.Identity == null)
+                {
+                    continue;
+                }
+
+                if (!Enum.IsDefined(item.Reliability))
+                {
+                    item.Reliability = ClassificationReliability.Conservative;
+                }
+                if (!Enum.IsDefined(item.ReviewState))
+                {
+                    item.ReviewState = InboxReviewState.Pending;
+                }
+                if (!Enum.IsDefined(item.Identity.Kind))
+                {
+                    item.Identity.Kind = DesktopItemKind.FileSystem;
+                }
+                item.Identity.LastKnownPath = NormalizePersistedPath(item.Identity.LastKnownPath);
+                item.Identity.FileId = string.IsNullOrWhiteSpace(item.Identity.FileId)
+                    ? null
+                    : item.Identity.FileId.Trim();
+                item.Identity.ShellParsingName = string.IsNullOrWhiteSpace(item.Identity.ShellParsingName)
+                    ? null
+                    : item.Identity.ShellParsingName.Trim();
+                item.SuggestedCategoryKey = item.SuggestedCategoryKey?.Trim() ?? string.Empty;
+                item.SuggestedCategoryName = item.SuggestedCategoryName?.Trim() ?? string.Empty;
+                item.MatchReason = item.MatchReason?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(item.SuggestedCategoryKey))
+                {
+                    item.Reliability = ClassificationReliability.Conservative;
+                }
+                result[name] = item;
+            }
+            return result;
+        }
+
+        private static Dictionary<string, List<string>> NormalizeItemTags(
+            IEnumerable<KeyValuePair<string, List<string>>> source)
+        {
+            var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach ((string name, List<string>? tags) in source)
+            {
+                if (string.IsNullOrWhiteSpace(name) || tags == null)
+                {
+                    continue;
+                }
+                List<string> normalized = tags
+                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                    .Select(tag => tag.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(tag => tag, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+                if (normalized.Count > 0)
+                {
+                    result[name] = normalized;
+                }
+            }
+            return result;
+        }
+
+        private static Dictionary<string, long> NormalizeItemTimes(
+            IEnumerable<KeyValuePair<string, long>> source)
+        {
+            var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            foreach ((string name, long ticks) in source)
+            {
+                if (!string.IsNullOrWhiteSpace(name) && ticks >= DateTime.MinValue.Ticks &&
+                    ticks <= DateTime.MaxValue.Ticks)
+                {
+                    result[name] = ticks;
+                }
+            }
+            return result;
         }
 
     }

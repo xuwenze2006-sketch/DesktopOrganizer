@@ -113,7 +113,7 @@ namespace DesktopOrganizer
     /// <summary>布局持久化根对象。</summary>
     internal sealed class AppLayoutData
     {
-        public int Version { get; set; } = 16;
+        public int Version { get; set; } = 17;
         public long SaveGeneration { get; set; }
         public bool SnapToGrid { get; set; } = true;
         public bool PushReflowEnabled { get; set; } = true;
@@ -163,6 +163,21 @@ namespace DesktopOrganizer
 
         /// <summary>当前工作区 ID；null 表示仍使用兼容的未命名根布局。</summary>
         public string? ActiveWorkspaceId { get; set; }
+
+        /// <summary>首次完整桌面扫描只建立基线，避免升级后把已有项目全部加入收件箱。</summary>
+        public bool InboxBaselineEstablished { get; set; }
+
+        /// <summary>待用户确认的桌面新项目；只保存本地建议和身份，不改变真实文件。</summary>
+        public Dictionary<string, InboxItemInfo> InboxItems { get; set; } = new();
+
+        /// <summary>本地标签；不改文件名，也不在文件旁创建 sidecar。</summary>
+        public Dictionary<string, List<string>> ItemTags { get; set; } = new();
+
+        /// <summary>项目首次作为“新项目”被完整扫描发现的 UTC ticks。</summary>
+        public Dictionary<string, long> ItemFirstSeenUtcTicks { get; set; } = new();
+
+        /// <summary>最近一次虚拟归组或标签规则操作的 UTC ticks。</summary>
+        public Dictionary<string, long> ItemLastMovedUtcTicks { get; set; } = new();
     }
 
     /// <summary>挂在图标控件 Tag 上的数据。</summary>

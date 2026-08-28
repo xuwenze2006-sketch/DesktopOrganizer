@@ -160,7 +160,7 @@ namespace DesktopOrganizer
                           RemapLayoutBetweenGeometries(savedGeometry, _desktopGeometry);
             }
 
-            _appLayout.Version = 16;
+            _appLayout.Version = 17;
             CaptureCurrentDesktopTopology();
             if (serializedVersion < 16 && _appLayout.Workspaces.Count == 0)
             {
@@ -170,7 +170,7 @@ namespace DesktopOrganizer
                     DateTime.UtcNow);
                 changed = true;
             }
-            return changed || serializedVersion < 16;
+            return changed || serializedVersion < 17;
         }
 
         private bool MigrateLegacyPrimaryWorkAreaCoordinates()

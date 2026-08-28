@@ -128,6 +128,10 @@ namespace DesktopOrganizer
 
             _appLayout.FreeIcons.Remove(displayName);
             _appLayout.AutoClassificationOriginalPositions.Remove(displayName);
+            _appLayout.InboxItems.Remove(displayName);
+            _appLayout.ItemTags.Remove(displayName);
+            _appLayout.ItemFirstSeenUtcTicks.Remove(displayName);
+            _appLayout.ItemLastMovedUtcTicks.Remove(displayName);
             WorkspaceLayoutManager.RemoveItemFromSnapshots(_appLayout, displayName);
             _desktopItems.Remove(displayName);
             _desktopCategories.Remove(displayName);

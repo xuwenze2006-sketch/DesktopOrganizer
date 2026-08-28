@@ -718,6 +718,11 @@
                                            Foreground="#FF8FE2C7"/>
                             </Grid>
                             <UniformGrid Columns="5" HorizontalAlignment="Stretch">
+                                <Button x:Name="InboxButton"
+                                        Content="待整理"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="InboxButton_Click"
+                                        ToolTip="新出现的桌面项目会先进入本地待整理收件箱"/>
                                 <ToggleButton x:Name="AutoClassifyNewItemsToggle"
                                               Content="新项目归类"
                                               Style="{StaticResource ToolbarToggleButton}"
@@ -778,6 +783,10 @@
                                            Foreground="#FFFFD28A"/>
                             </Grid>
                             <UniformGrid Columns="5" HorizontalAlignment="Stretch">
+                                <Button Content="快速搜索"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="DesktopSearchButton_Click"
+                                        ToolTip="仅搜索已加载的桌面项目，不扫描其他目录或文件正文"/>
                                 <Button Content="刷新"
                                         Style="{StaticResource ToolbarButton}"
                                         Click="RefreshButton_Click"

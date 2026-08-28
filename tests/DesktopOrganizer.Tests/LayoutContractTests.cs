@@ -11,7 +11,7 @@ public sealed class LayoutContractTests
     {
         var layout = new AppLayoutData();
 
-        Assert.AreEqual(16, layout.Version);
+        Assert.AreEqual(17, layout.Version);
         Assert.IsTrue(layout.SnapToGrid);
         Assert.IsTrue(layout.PushReflowEnabled);
         Assert.IsTrue(layout.AutoCollapseControlPanel);
@@ -29,7 +29,7 @@ public sealed class LayoutContractTests
     {
         var original = new AppLayoutData
         {
-            Version = 16,
+            Version = 17,
             SaveGeneration = 42,
             SnapToGrid = false,
             AutoClassifyNewItems = true,
@@ -85,6 +85,30 @@ public sealed class LayoutContractTests
                     Kind = DesktopItemKind.ShellNamespace,
                     ShellParsingName = "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"
                 }
+            },
+            InboxBaselineEstablished = true,
+            InboxItems = new Dictionary<string, InboxItemInfo>
+            {
+                ["readme.txt"] = new InboxItemInfo
+                {
+                    Identity = new DesktopItemIdentityInfo
+                    {
+                        LastKnownPath = @"C:\Users\Test\Desktop\readme.txt",
+                        FileId = "volume:file-id"
+                    },
+                    SuggestedCategoryKey = "documents",
+                    SuggestedCategoryName = "文档",
+                    MatchReason = "扩展名 .txt",
+                    Reliability = ClassificationReliability.Reliable
+                }
+            },
+            ItemTags = new Dictionary<string, List<string>>
+            {
+                ["readme.txt"] = ["重要", "资料"]
+            },
+            ItemFirstSeenUtcTicks = new Dictionary<string, long>
+            {
+                ["readme.txt"] = DateTime.UnixEpoch.Ticks
             }
         };
 
@@ -92,7 +116,7 @@ public sealed class LayoutContractTests
         AppLayoutData restored = JsonSerializer.Deserialize<AppLayoutData>(json)
             ?? throw new AssertFailedException("布局 JSON 反序列化返回 null。");
 
-        Assert.AreEqual(16, restored.Version);
+        Assert.AreEqual(17, restored.Version);
         Assert.AreEqual(42L, restored.SaveGeneration);
         Assert.IsFalse(restored.SnapToGrid);
         Assert.IsTrue(restored.AutoClassifyNewItems);
@@ -111,5 +135,9 @@ public sealed class LayoutContractTests
         Assert.AreEqual(
             DesktopItemKind.ShellNamespace,
             restored.ItemIdentities["此电脑"].Kind);
+        Assert.IsTrue(restored.InboxBaselineEstablished);
+        Assert.AreEqual(ClassificationReliability.Reliable, restored.InboxItems["readme.txt"].Reliability);
+        CollectionAssert.AreEqual(new[] { "重要", "资料" }, restored.ItemTags["readme.txt"]);
+        Assert.AreEqual(DateTime.UnixEpoch.Ticks, restored.ItemFirstSeenUtcTicks["readme.txt"]);
     }
 }

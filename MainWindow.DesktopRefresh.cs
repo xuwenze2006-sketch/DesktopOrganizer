@@ -1138,16 +1138,42 @@ namespace DesktopOrganizer
                         }
                     }
 
-                    HashSet<string> newItemNames = DesktopNewItemDetector.FindNewItemNames(
+                    var previousIdentities = new Dictionary<string, DesktopItemIdentityInfo>(
                         _appLayout.ItemIdentities,
+                        StringComparer.OrdinalIgnoreCase);
+                    bool inboxBaselineWasEstablished = _appLayout.InboxBaselineEstablished;
+                    HashSet<string> newItemNames = DesktopNewItemDetector.FindNewItemNames(
+                        previousIdentities,
                         snapshot.Identities);
                     bool identityLayoutChanged = ReconcileDesktopItemIdentities(snapshot);
                     _desktopItems = snapshot.Items;
                     _desktopCategories = snapshot.Categories;
                     _reliableDesktopCategoryNames = snapshot.ReliableCategoryNames;
                     _desktopSnapshotInitialized = true;
-                    RebuildDesktopIcons(newItemNames);
-                    if (identityLayoutChanged)
+
+                    DateTime utcNow = DateTime.UtcNow;
+                    InboxReconcileResult inboxResult = InboxQueueManager.Reconcile(
+                        _appLayout.InboxItems,
+                        _appLayout.InboxBaselineEstablished,
+                        completeScan: snapshot.PhysicalScanComplete && snapshot.ShellScanComplete,
+                        previousIdentities,
+                        snapshot.Identities,
+                        BuildInboxSuggestions(snapshot),
+                        utcNow);
+                    _appLayout.InboxBaselineEstablished = inboxResult.BaselineEstablished;
+                    bool organizationMetadataChanged = ReconcileDesktopOrganizationMetadata(
+                        snapshot,
+                        newItemNames,
+                        inboxBaselineWasEstablished,
+                        utcNow);
+                    bool inboxAutoApplied = ApplyAutomaticInboxAcceptances();
+                    UpdateInboxButton();
+
+                    // 新项目先经过收件箱；只有用户已明确开启“新项目归类”且建议可靠时，
+                    // 上面的收件箱接受计划才会把它加入虚拟分类。这里不再绕过审阅队列。
+                    RebuildDesktopIcons(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+                    if (identityLayoutChanged || inboxResult.Changed ||
+                        inboxResult.BaselineChanged || organizationMetadataChanged || inboxAutoApplied)
                     {
                         SaveLayout();
                     }

@@ -131,6 +131,7 @@ namespace DesktopOrganizer
             ApplySafeModeState(showStatus: false, updateWatchers: false);
             UpdatePushReflowAvailability();
             UpdateAutoClassificationControls();
+            UpdateInboxButton();
             InitializeRecycleBinWidget();
             await RefreshDesktopSnapshotAsync(clearIconCache: false, statusMessage: null);
             if (_isClosing || _lifetimeCts.IsCancellationRequested || Dispatcher.HasShutdownStarted)

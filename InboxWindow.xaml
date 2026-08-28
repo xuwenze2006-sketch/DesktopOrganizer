@@ -1,0 +1,69 @@
+<Window x:Class="DesktopOrganizer.InboxWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="待整理收件箱"
+        Width="760"
+        Height="520"
+        MinWidth="640"
+        MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Padding="12" CornerRadius="8" Background="#FFF0FFF8"
+                BorderBrush="#FF84D8B7" BorderThickness="1">
+            <TextBlock TextWrapping="Wrap"
+                       Text="这里的操作只改变本地虚拟分组。可靠建议可以接受；待确认建议保持原位，除非你明确加入手工分组。任何操作都不会移动、重命名或删除真实文件。"/>
+        </Border>
+
+        <ListBox x:Name="InboxList" Grid.Row="1" Margin="0,12,0,12"
+                 SelectionChanged="InboxList_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid Margin="4,6">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="14"/>
+                        <TextBlock Grid.Row="1" Margin="0,3,0,0" Foreground="#FF334155">
+                            <Run Text="建议："/><Run Text="{Binding SuggestedCategory}"/>
+                            <Run Text=" · "/><Run Text="{Binding Reliability}"/>
+                            <Run Text=" · "/><Run Text="{Binding ReviewState}"/>
+                        </TextBlock>
+                        <TextBlock Grid.Row="2" Text="{Binding MatchReason}" Margin="0,3,0,0"
+                                   Foreground="#FF64748B" TextWrapping="Wrap"/>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="AcceptButton" Content="接受建议" MinWidth="88" Margin="0,0,8,0" Click="Accept_Click"/>
+                <Button Content="留在桌面" MinWidth="88" Margin="0,0,8,0" Click="Leave_Click"/>
+                <Button Content="以后再说" MinWidth="88" Margin="0,0,8,0" Click="Defer_Click"/>
+                <ComboBox x:Name="ManualGroupSelector" Width="170" Margin="14,0,8,0" DisplayMemberPath="Name"/>
+                <Button Content="加入手工分组" MinWidth="110" Click="MoveToManualGroup_Click"/>
+            </StackPanel>
+            <Grid Grid.Row="1" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="#FF64748B" TextWrapping="Wrap"/>
+                <Button Grid.Column="1" Content="关闭" MinWidth="76" IsCancel="True" Click="Close_Click"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
