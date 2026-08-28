@@ -339,6 +339,18 @@ namespace DesktopOrganizer
             TransformDictionaryKeys(_appLayout.FreeIcons, renameMap, targetNames);
             TransformDictionaryKeys(_appLayout.AutoClassificationOriginalPositions, renameMap, targetNames);
             TransformDictionaryKeys(_appLayout.ItemIdentities, renameMap, targetNames);
+            foreach (WorkspaceProfileInfo workspace in _appLayout.Workspaces)
+            {
+                TransformDictionaryKeys(workspace.Layout.FreeIcons, renameMap, targetNames);
+                TransformDictionaryKeys(
+                    workspace.Layout.AutoClassificationOriginalPositions,
+                    renameMap,
+                    targetNames);
+                foreach (GroupInfo group in workspace.Layout.Groups)
+                {
+                    group.ItemNames = TransformNameList(group.ItemNames, renameMap, targetNames);
+                }
+            }
             if (_pushPreviewOriginalPositions != null)
             {
                 TransformDictionaryKeys(_pushPreviewOriginalPositions, renameMap, targetNames);

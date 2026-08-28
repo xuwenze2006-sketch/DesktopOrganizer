@@ -5,10 +5,15 @@ namespace DesktopOrganizer
     {
         private void WorkspaceManagerButton_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new WorkspaceManagerWindow(this)
+            var dialog = new WorkspaceManagerWindow(this);
+            if (_isAttachedToDesktop)
             {
-                Owner = this
-            };
+                dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            }
+            else
+            {
+                dialog.Owner = this;
+            }
             dialog.ShowDialog();
         }
 
@@ -98,6 +103,16 @@ namespace DesktopOrganizer
                 error = "真实文件任务正在进行，完成后才能切换工作区。";
                 return false;
             }
+            if (_autoClassifyInProgress)
+            {
+                error = "自动分类正在计算，完成后才能切换工作区。";
+                return false;
+            }
+            if (_draggedElement != null)
+            {
+                error = "请先结束当前拖动，再切换工作区。";
+                return false;
+            }
 
             WorkspaceProfileInfo? target = _appLayout.Workspaces.FirstOrDefault(workspace =>
                 workspace.Id.Equals(workspaceId, StringComparison.OrdinalIgnoreCase));
@@ -113,6 +128,9 @@ namespace DesktopOrganizer
                 return true;
             }
 
+            CancelScheduledDesktopRefresh();
+            CancelActiveDesktopRefresh();
+            _pendingAutoClassificationCandidates.Clear();
             ResetAllInteractionState(restoreDraggedVisual: true);
             PrepareLayoutForPersistence();
             if (!WorkspaceLayoutManager.TryActivate(_appLayout, workspaceId, DateTime.UtcNow))
@@ -140,6 +158,7 @@ namespace DesktopOrganizer
             UpdateRecycleBinWidgetVisibility();
             SaveLayout();
             StatusText.Text = $"已切换到工作区“{target.Name}”；未修改真实文件";
+            RequestDesktopRefresh(clearIconCache: false, statusMessage: null);
             return true;
         }
     }

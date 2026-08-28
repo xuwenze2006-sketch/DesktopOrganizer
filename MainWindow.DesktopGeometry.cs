@@ -162,6 +162,14 @@ namespace DesktopOrganizer
 
             _appLayout.Version = 16;
             CaptureCurrentDesktopTopology();
+            if (serializedVersion < 16 && _appLayout.Workspaces.Count == 0)
+            {
+                _ = WorkspaceLayoutManager.CreateAndActivate(
+                    _appLayout,
+                    "默认",
+                    DateTime.UtcNow);
+                changed = true;
+            }
             return changed || serializedVersion < 16;
         }
 

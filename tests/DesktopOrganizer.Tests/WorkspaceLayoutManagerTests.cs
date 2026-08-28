@@ -104,6 +104,48 @@ public sealed class WorkspaceLayoutManagerTests
                 !group.ItemNames.Contains("one.txt", StringComparer.OrdinalIgnoreCase))));
     }
 
+    [TestMethod]
+    public void Normalize_RepairsDamagedNestedSnapshot()
+    {
+        var layout = new AppLayoutData
+        {
+            Workspaces =
+            [
+                new WorkspaceProfileInfo
+                {
+                    Layout = new WorkspaceLayoutState
+                    {
+                        Groups =
+                        [
+                            new GroupInfo { Id = "same", Name = " ", ItemNames = null! },
+                            new GroupInfo
+                            {
+                                Id = "same",
+                                ItemNames = ["one.txt", "ONE.TXT", " "],
+                                SortMode = (GroupSortMode)999
+                            }
+                        ],
+                        DesktopTopology =
+                        [
+                            new DesktopMonitorLayoutInfo { DeviceName = "DISPLAY1" },
+                            new DesktopMonitorLayoutInfo { DeviceName = "display1" },
+                            new DesktopMonitorLayoutInfo { DeviceName = " " }
+                        ]
+                    }
+                }
+            ]
+        };
+
+        WorkspaceLayoutManager.Normalize(layout);
+
+        WorkspaceLayoutState snapshot = layout.Workspaces[0].Layout;
+        Assert.AreEqual(2, snapshot.Groups.Select(group => group.Id).Distinct().Count());
+        Assert.AreEqual("未命名分组", snapshot.Groups[0].Name);
+        Assert.AreEqual(GroupSortMode.Custom, snapshot.Groups[1].SortMode);
+        CollectionAssert.AreEqual(new[] { "one.txt" }, snapshot.Groups[1].ItemNames);
+        Assert.AreEqual(1, snapshot.DesktopTopology.Count);
+    }
+
     private static AppLayoutData CreateLayout(string name, double x) => new()
     {
         FreeIcons = new Dictionary<string, IconPosition>

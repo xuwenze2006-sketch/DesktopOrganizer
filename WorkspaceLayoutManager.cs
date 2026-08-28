@@ -248,17 +248,53 @@ namespace DesktopOrganizer
             snapshot.Groups ??= new List<GroupInfo>();
             snapshot.DesktopTopology ??= new List<DesktopMonitorLayoutInfo>();
             snapshot.AutoClassificationOriginalPositions ??= new Dictionary<string, IconPosition>();
-            snapshot.FreeIcons = snapshot.FreeIcons
-                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null)
-                .ToDictionary(pair => pair.Key, pair => Clone(pair.Value), StringComparer.OrdinalIgnoreCase);
-            snapshot.Groups = snapshot.Groups.OfType<GroupInfo>().Select(Clone).ToList();
+            snapshot.FreeIcons = NormalizePositions(snapshot.FreeIcons);
+            snapshot.AutoClassificationOriginalPositions = NormalizePositions(
+                snapshot.AutoClassificationOriginalPositions);
+
+            var groupIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var groups = new List<GroupInfo>();
+            foreach (GroupInfo source in snapshot.Groups.OfType<GroupInfo>())
+            {
+                GroupInfo group = Clone(source);
+                group.Id = group.Id?.Trim() ?? string.Empty;
+                while (string.IsNullOrWhiteSpace(group.Id) || !groupIds.Add(group.Id))
+                {
+                    group.Id = Guid.NewGuid().ToString("N");
+                }
+                group.Name = string.IsNullOrWhiteSpace(group.Name)
+                    ? "未命名分组"
+                    : group.Name.Trim();
+                if (!Enum.IsDefined(group.SortMode))
+                {
+                    group.SortMode = GroupSortMode.Custom;
+                }
+                groups.Add(group);
+            }
+            snapshot.Groups = groups;
+
+            var monitorNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             snapshot.DesktopTopology = snapshot.DesktopTopology
                 .OfType<DesktopMonitorLayoutInfo>()
+                .Where(monitor =>
+                    !string.IsNullOrWhiteSpace(monitor.DeviceName) &&
+                    monitorNames.Add(monitor.DeviceName.Trim()))
                 .Select(Clone)
                 .ToList();
-            snapshot.AutoClassificationOriginalPositions = snapshot.AutoClassificationOriginalPositions
-                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null)
-                .ToDictionary(pair => pair.Key, pair => Clone(pair.Value), StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static Dictionary<string, IconPosition> NormalizePositions(
+            IEnumerable<KeyValuePair<string, IconPosition>> positions)
+        {
+            var normalized = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase);
+            foreach ((string name, IconPosition? position) in positions)
+            {
+                if (!string.IsNullOrWhiteSpace(name) && position != null)
+                {
+                    normalized[name] = Clone(position);
+                }
+            }
+            return normalized;
         }
 
         private static WorkspaceProfileInfo? Find(AppLayoutData layout, string? workspaceId) =>
@@ -296,7 +332,10 @@ namespace DesktopOrganizer
             Y = group.Y,
             Width = group.Width,
             Height = group.Height,
-            ItemNames = group.ItemNames.ToList(),
+            ItemNames = (group.ItemNames ?? new List<string>())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList(),
             IsCollapsed = group.IsCollapsed,
             IsAutoCategory = group.IsAutoCategory,
             AutoCategoryKey = group.AutoCategoryKey,
