@@ -160,9 +160,9 @@ namespace DesktopOrganizer
                           RemapLayoutBetweenGeometries(savedGeometry, _desktopGeometry);
             }
 
-            _appLayout.Version = 15;
+            _appLayout.Version = 16;
             CaptureCurrentDesktopTopology();
-            return changed || serializedVersion < 15;
+            return changed || serializedVersion < 16;
         }
 
         private bool MigrateLegacyPrimaryWorkAreaCoordinates()
@@ -434,6 +434,7 @@ namespace DesktopOrganizer
         {
             NormalizeLayout();
             CaptureCurrentDesktopTopology();
+            WorkspaceLayoutManager.UpdateActiveSnapshot(_appLayout, DateTime.UtcNow);
         }
     }
 }

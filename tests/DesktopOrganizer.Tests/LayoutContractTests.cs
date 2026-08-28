@@ -11,7 +11,7 @@ public sealed class LayoutContractTests
     {
         var layout = new AppLayoutData();
 
-        Assert.AreEqual(15, layout.Version);
+        Assert.AreEqual(16, layout.Version);
         Assert.IsTrue(layout.SnapToGrid);
         Assert.IsTrue(layout.PushReflowEnabled);
         Assert.IsTrue(layout.AutoCollapseControlPanel);
@@ -19,6 +19,8 @@ public sealed class LayoutContractTests
         Assert.IsTrue(layout.ReserveTemporaryWorkspace);
         Assert.AreEqual(0, layout.FreeIcons.Count);
         Assert.AreEqual(0, layout.Groups.Count);
+        Assert.AreEqual(0, layout.Workspaces.Count);
+        Assert.IsNull(layout.ActiveWorkspaceId);
         Assert.IsTrue(layout.RecycleBinWidget.IsVisible);
     }
 
@@ -27,7 +29,7 @@ public sealed class LayoutContractTests
     {
         var original = new AppLayoutData
         {
-            Version = 15,
+            Version = 16,
             SaveGeneration = 42,
             SnapToGrid = false,
             AutoClassifyNewItems = true,
@@ -90,7 +92,7 @@ public sealed class LayoutContractTests
         AppLayoutData restored = JsonSerializer.Deserialize<AppLayoutData>(json)
             ?? throw new AssertFailedException("布局 JSON 反序列化返回 null。");
 
-        Assert.AreEqual(15, restored.Version);
+        Assert.AreEqual(16, restored.Version);
         Assert.AreEqual(42L, restored.SaveGeneration);
         Assert.IsFalse(restored.SnapToGrid);
         Assert.IsTrue(restored.AutoClassifyNewItems);

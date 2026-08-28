@@ -84,10 +84,36 @@ namespace DesktopOrganizer
         public bool IsVisible { get; set; } = true;
     }
 
+    /// <summary>
+    /// 一个命名工作区保存的纯视觉布局状态。它不保存文件操作、桌面文件身份或自动化规则，
+    /// 因此恢复工作区只会改变本程序的布局模型，不会移动、重命名或删除真实文件。
+    /// </summary>
+    internal sealed class WorkspaceLayoutState
+    {
+        public int Version { get; set; } = 1;
+        public double? ControlPanelX { get; set; }
+        public double? ControlPanelY { get; set; }
+        public RecycleBinWidgetLayoutInfo RecycleBinWidget { get; set; } = new();
+        public Dictionary<string, IconPosition> FreeIcons { get; set; } = new();
+        public List<GroupInfo> Groups { get; set; } = new();
+        public List<DesktopMonitorLayoutInfo> DesktopTopology { get; set; } = new();
+        public Dictionary<string, IconPosition> AutoClassificationOriginalPositions { get; set; } = new();
+    }
+
+    /// <summary>用户命名的本地工作区及其最近一次保存的视觉快照。</summary>
+    internal sealed class WorkspaceProfileInfo
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public string Name { get; set; } = "新工作区";
+        public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
+        public WorkspaceLayoutState Layout { get; set; } = new();
+    }
+
     /// <summary>布局持久化根对象。</summary>
     internal sealed class AppLayoutData
     {
-        public int Version { get; set; } = 15;
+        public int Version { get; set; } = 16;
         public long SaveGeneration { get; set; }
         public bool SnapToGrid { get; set; } = true;
         public bool PushReflowEnabled { get; set; } = true;
@@ -131,6 +157,12 @@ namespace DesktopOrganizer
         /// 这里只保存布局坐标，不移动、修改或删除真实文件。
         /// </summary>
         public Dictionary<string, IconPosition> AutoClassificationOriginalPositions { get; set; } = new();
+
+        /// <summary>v16 起保存的命名工作区；当前根布局始终表示正在显示的工作区。</summary>
+        public List<WorkspaceProfileInfo> Workspaces { get; set; } = new();
+
+        /// <summary>当前工作区 ID；null 表示仍使用兼容的未命名根布局。</summary>
+        public string? ActiveWorkspaceId { get; set; }
     }
 
     /// <summary>挂在图标控件 Tag 上的数据。</summary>

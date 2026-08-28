@@ -672,6 +672,10 @@
                                         Style="{StaticResource ToolbarButton}"
                                         Click="AutoFitAllGroupsButton_Click"
                                         ToolTip="解除全部尺寸锁定，按内容重新计算并自动排列；可撤销"/>
+                                <Button Content="工作区"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="WorkspaceManagerButton_Click"
+                                        ToolTip="创建、预览和切换只改变视觉布局的命名工作区"/>
                                 <Button x:Name="UndoSmartLayoutButton"
                                         Content="撤销布局"
                                         Style="{StaticResource ToolbarButton}"

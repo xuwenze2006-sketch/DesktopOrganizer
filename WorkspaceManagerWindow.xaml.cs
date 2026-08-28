@@ -1,0 +1,195 @@
+namespace DesktopOrganizer
+{
+    public partial class WorkspaceManagerWindow : Window
+    {
+        private readonly MainWindow _mainWindow;
+
+        private sealed record WorkspaceListItem(
+            string Id,
+            string Name,
+            bool IsActive,
+            int GroupCount,
+            int FreeIconCount,
+            int MonitorCount,
+            DateTime UpdatedUtc)
+        {
+            public string DisplayName => IsActive ? $"● {Name}" : Name;
+        }
+
+        internal WorkspaceManagerWindow(MainWindow mainWindow)
+        {
+            _mainWindow = mainWindow;
+            InitializeComponent();
+            RefreshList();
+        }
+
+        private WorkspaceListItem? Selected => WorkspaceList.SelectedItem as WorkspaceListItem;
+
+        private void RefreshList(string? selectedId = null)
+        {
+            string? activeId = _mainWindow.GetActiveWorkspaceId();
+            List<WorkspaceListItem> items = _mainWindow.GetWorkspacePreviews()
+                .Select(preview => new WorkspaceListItem(
+                    preview.Id,
+                    preview.Name,
+                    string.Equals(preview.Id, activeId, StringComparison.OrdinalIgnoreCase),
+                    preview.GroupCount,
+                    preview.FreeIconCount,
+                    preview.MonitorCount,
+                    preview.UpdatedUtc))
+                .ToList();
+            WorkspaceList.ItemsSource = items;
+            WorkspaceList.SelectedItem = items.FirstOrDefault(item =>
+                item.Id.Equals(selectedId ?? activeId, StringComparison.OrdinalIgnoreCase)) ?? items.FirstOrDefault();
+            UpdatePreview();
+        }
+
+        private void WorkspaceList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+            UpdatePreview();
+
+        private void UpdatePreview()
+        {
+            WorkspaceListItem? item = Selected;
+            PreviewText.Text = item == null
+                ? "尚未创建命名工作区。当前兼容布局仍会照常保存。"
+                : $"名称：{item.Name}\n" +
+                  $"状态：{(item.IsActive ? "当前工作区" : "可恢复快照")}\n" +
+                  $"分组：{item.GroupCount}\n" +
+                  $"自由图标坐标：{item.FreeIconCount}\n" +
+                  $"显示器拓扑：{item.MonitorCount} 个显示器\n" +
+                  $"最近更新：{item.UpdatedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
+        }
+
+        private void Create_Click(object sender, RoutedEventArgs e)
+        {
+            var input = new SimpleInputDialog("请输入工作区名称：", "工作") { Owner = this };
+            if (input.ShowDialog() != true)
+            {
+                return;
+            }
+
+            if (!_mainWindow.TryCreateWorkspace(input.ResultText, out string error))
+            {
+                ShowError(error);
+                return;
+            }
+            RefreshList(_mainWindow.GetActiveWorkspaceId());
+        }
+
+        private void Activate_Click(object sender, RoutedEventArgs e)
+        {
+            WorkspaceListItem? item = RequireSelection();
+            if (item == null || item.IsActive)
+            {
+                return;
+            }
+
+            MessageBoxResult confirmation = MessageBox.Show(
+                $"将恢复工作区“{item.Name}”的视觉布局。\n\n" +
+                $"分组 {item.GroupCount} 个，自由图标坐标 {item.FreeIconCount} 个，" +
+                $"保存时显示器 {item.MonitorCount} 个。\n\n" +
+                "此操作不会移动、重命名或删除任何真实文件。",
+                "切换工作区",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Information);
+            if (confirmation != MessageBoxResult.OK)
+            {
+                return;
+            }
+
+            if (!_mainWindow.TryActivateWorkspace(item.Id, out string error))
+            {
+                ShowError(error);
+                return;
+            }
+            RefreshList(item.Id);
+        }
+
+        private void Overwrite_Click(object sender, RoutedEventArgs e)
+        {
+            WorkspaceListItem? item = RequireSelection();
+            if (item == null)
+            {
+                return;
+            }
+
+            if (MessageBox.Show(
+                    $"使用当前屏幕上的视觉布局覆盖“{item.Name}”的已有快照？\n\n不会修改真实文件。",
+                    "覆盖工作区快照",
+                    MessageBoxButton.OKCancel,
+                    MessageBoxImage.Warning) != MessageBoxResult.OK)
+            {
+                return;
+            }
+
+            if (!_mainWindow.TryOverwriteWorkspace(item.Id, out string error))
+            {
+                ShowError(error);
+                return;
+            }
+            RefreshList(item.Id);
+        }
+
+        private void Rename_Click(object sender, RoutedEventArgs e)
+        {
+            WorkspaceListItem? item = RequireSelection();
+            if (item == null)
+            {
+                return;
+            }
+            var input = new SimpleInputDialog("请输入新的工作区名称：", item.Name) { Owner = this };
+            if (input.ShowDialog() != true)
+            {
+                return;
+            }
+            if (!_mainWindow.TryRenameWorkspace(item.Id, input.ResultText, out string error))
+            {
+                ShowError(error);
+                return;
+            }
+            RefreshList(item.Id);
+        }
+
+        private void Delete_Click(object sender, RoutedEventArgs e)
+        {
+            WorkspaceListItem? item = RequireSelection();
+            if (item == null)
+            {
+                return;
+            }
+            if (MessageBox.Show(
+                    $"删除工作区快照“{item.Name}”？\n\n当前屏幕布局和真实文件都不会改变。",
+                    "删除工作区",
+                    MessageBoxButton.OKCancel,
+                    MessageBoxImage.Warning) != MessageBoxResult.OK)
+            {
+                return;
+            }
+            if (!_mainWindow.TryDeleteWorkspace(item.Id, out string error))
+            {
+                ShowError(error);
+                return;
+            }
+            RefreshList();
+        }
+
+        private WorkspaceListItem? RequireSelection()
+        {
+            WorkspaceListItem? item = Selected;
+            if (item == null)
+            {
+                ShowError("请先选择一个工作区。");
+            }
+            return item;
+        }
+
+        private void ShowError(string message) => MessageBox.Show(
+            this,
+            message,
+            "工作区操作未完成",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+
+        private void Close_Click(object sender, RoutedEventArgs e) => Close();
+    }
+}

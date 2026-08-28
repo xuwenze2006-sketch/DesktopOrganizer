@@ -375,13 +375,14 @@ namespace DesktopOrganizer
         private void NormalizeLayout()
         {
             int loadedVersion = _appLayout.Version;
-            _appLayout.Version = 15;
+            _appLayout.Version = 16;
             _appLayout.FreeIcons ??= new Dictionary<string, IconPosition>();
             _appLayout.Groups ??= new List<GroupInfo>();
             _appLayout.DesktopTopology ??= new List<DesktopMonitorLayoutInfo>();
             _appLayout.ItemIdentities ??= new Dictionary<string, DesktopItemIdentityInfo>();
             _appLayout.RecycleBinWidget ??= new RecycleBinWidgetLayoutInfo();
             _appLayout.AutoClassificationOriginalPositions ??= new Dictionary<string, IconPosition>();
+            WorkspaceLayoutManager.Normalize(_appLayout);
 
             // JSON 反序列化不会保留 Dictionary 的比较器，这里重建为 Windows 友好的大小写不敏感字典。
             var normalizedIcons = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase);

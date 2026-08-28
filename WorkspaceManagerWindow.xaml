@@ -1,0 +1,54 @@
+<Window x:Class="DesktopOrganizer.WorkspaceManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="工作区与布局快照"
+        Width="680"
+        Height="430"
+        MinWidth="600"
+        MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Padding="12" CornerRadius="8" Background="#FFF0F7FF" BorderBrush="#FF9CC8F2" BorderThickness="1">
+            <TextBlock TextWrapping="Wrap"
+                       Text="工作区只保存分组、自由图标、收起状态、面板、回收站组件和显示器拓扑。切换时只恢复视觉布局，不移动、重命名或删除真实文件。"/>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="0,14,0,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+            <ListBox x:Name="WorkspaceList"
+                     DisplayMemberPath="DisplayName"
+                     SelectionChanged="WorkspaceList_SelectionChanged"/>
+            <Border Grid.Column="1" Margin="12,0,0,0" Padding="14" Background="#FFF7F7F7" CornerRadius="8">
+                <StackPanel>
+                    <TextBlock Text="快照预览" FontWeight="SemiBold" FontSize="15"/>
+                    <TextBlock x:Name="PreviewText" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#FF334155"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <WrapPanel>
+                <Button Content="新建当前快照" MinWidth="105" Margin="0,0,8,0" Click="Create_Click"/>
+                <Button Content="切换并恢复…" MinWidth="100" Margin="0,0,8,0" Click="Activate_Click"/>
+                <Button Content="用当前布局覆盖…" MinWidth="115" Margin="0,0,8,0" Click="Overwrite_Click"/>
+                <Button Content="重命名" MinWidth="76" Margin="0,0,8,0" Click="Rename_Click"/>
+                <Button Content="删除…" MinWidth="70" Click="Delete_Click"/>
+            </WrapPanel>
+            <Button Grid.Column="1" Content="关闭" MinWidth="76" IsCancel="True" Click="Close_Click"/>
+        </Grid>
+    </Grid>
+</Window>

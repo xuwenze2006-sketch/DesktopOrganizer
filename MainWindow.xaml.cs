@@ -226,6 +226,7 @@ namespace DesktopOrganizer
             string DisplayName,
             string SourcePath,
             string DestinationPath,
+            string? SourceWorkspaceId,
             string? SourceGroupId,
             GroupInfo? SourceGroupSnapshot,
             int SourceGroupItemIndex,

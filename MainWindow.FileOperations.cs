@@ -128,6 +128,7 @@ namespace DesktopOrganizer
 
             _appLayout.FreeIcons.Remove(displayName);
             _appLayout.AutoClassificationOriginalPositions.Remove(displayName);
+            WorkspaceLayoutManager.RemoveItemFromSnapshots(_appLayout, displayName);
             _desktopItems.Remove(displayName);
             _desktopCategories.Remove(displayName);
             _selectedItemNames.Remove(displayName);
@@ -221,6 +222,7 @@ namespace DesktopOrganizer
                     pending.DisplayName,
                     pending.SourcePath,
                     completion.DestinationPath,
+                    _appLayout.ActiveWorkspaceId,
                     pending.SourceGroupId,
                     pending.SourceGroupSnapshot,
                     pending.SourceGroupItemIndex,
@@ -715,6 +717,21 @@ namespace DesktopOrganizer
             }
             UpdateUndoFileMoveButton();
 
+            if (!string.IsNullOrWhiteSpace(record.SourceWorkspaceId) &&
+                !string.Equals(
+                    record.SourceWorkspaceId,
+                    _appLayout.ActiveWorkspaceId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                WorkspaceProfileInfo? sourceWorkspace = _appLayout.Workspaces.FirstOrDefault(workspace =>
+                    workspace.Id.Equals(record.SourceWorkspaceId, StringComparison.OrdinalIgnoreCase));
+                if (sourceWorkspace != null)
+                {
+                    RestoreWorkspaceSnapshotAfterUndo(record, sourceWorkspace.Layout);
+                    return;
+                }
+            }
+
             bool canceledAutoCategory = record.SourceGroupSnapshot?.IsAutoCategory == true &&
                 !string.IsNullOrWhiteSpace(record.SourceGroupId) &&
                 _canceledAutoCategoryGroupIds.Contains(record.SourceGroupId);
@@ -760,6 +777,52 @@ namespace DesktopOrganizer
                 !_appLayout.AutoClassificationOriginalPositions.ContainsKey(record.DisplayName))
             {
                 _appLayout.AutoClassificationOriginalPositions[record.DisplayName] =
+                    ClonePosition(record.AutoClassificationOriginalPosition);
+            }
+        }
+
+        private void RestoreWorkspaceSnapshotAfterUndo(
+            FileMoveUndoRecord record,
+            WorkspaceLayoutState layout)
+        {
+            bool canceledAutoCategory = record.SourceGroupSnapshot?.IsAutoCategory == true &&
+                !string.IsNullOrWhiteSpace(record.SourceGroupId) &&
+                _canceledAutoCategoryGroupIds.Contains(record.SourceGroupId);
+            GroupInfo? originalGroup = !canceledAutoCategory && !string.IsNullOrWhiteSpace(record.SourceGroupId)
+                ? layout.Groups.FirstOrDefault(group =>
+                    group.Id.Equals(record.SourceGroupId, StringComparison.OrdinalIgnoreCase))
+                : null;
+            if (originalGroup == null && record.SourceGroupSnapshot != null && !canceledAutoCategory)
+            {
+                GroupInfo snapshot = CreateUndoGroupSnapshot(record.SourceGroupSnapshot)!;
+                layout.Groups.Add(snapshot);
+                originalGroup = snapshot;
+            }
+
+            if (originalGroup != null)
+            {
+                if (!originalGroup.ItemNames.Contains(record.DisplayName, StringComparer.OrdinalIgnoreCase))
+                {
+                    int restoreIndex = Math.Clamp(
+                        record.SourceGroupItemIndex,
+                        0,
+                        originalGroup.ItemNames.Count);
+                    originalGroup.ItemNames.Insert(restoreIndex, record.DisplayName);
+                }
+                layout.FreeIcons.Remove(record.DisplayName);
+            }
+            else
+            {
+                layout.FreeIcons[record.DisplayName] = record.FreePosition != null
+                    ? ClonePosition(record.FreePosition)
+                    : record.AutoClassificationOriginalPosition != null
+                        ? ClonePosition(record.AutoClassificationOriginalPosition)
+                        : CreateUndoFallbackPosition(record);
+            }
+
+            if (!canceledAutoCategory && record.AutoClassificationOriginalPosition != null)
+            {
+                layout.AutoClassificationOriginalPositions[record.DisplayName] =
                     ClonePosition(record.AutoClassificationOriginalPosition);
             }
         }
