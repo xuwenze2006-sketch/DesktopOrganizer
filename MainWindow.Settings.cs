@@ -324,7 +324,7 @@ namespace DesktopOrganizer
         {
             FileMoveUndoRecord? next = _fileMoveHistory.First?.Value;
             UndoFileMoveButton.IsEnabled = next != null && !HasPendingFileOperations;
-            UndoFileMoveButton.Content = HasPendingFileOperations ? "文件处理中…" : "撤销文件移动";
+            UndoFileMoveButton.Content = HasPendingFileOperations ? "处理中…" : "撤销移动";
             UndoFileMoveButton.ToolTip = HasPendingFileOperations
                 ? "真实文件移动、删除或撤销正在后台串行执行"
                 : next != null

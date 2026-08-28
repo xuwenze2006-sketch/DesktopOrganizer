@@ -38,17 +38,17 @@
         <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFC2CFDE"/>
 
         <Style x:Key="ToolbarButton" TargetType="Button">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="MinWidth" Value="82"/>
-            <Setter Property="Padding" Value="11,0"/>
-            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Height" Value="29"/>
+            <Setter Property="MinWidth" Value="70"/>
+            <Setter Property="Padding" Value="7,0"/>
+            <Setter Property="Margin" Value="2"/>
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
             <Setter Property="Background" Value="{StaticResource ButtonSurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="#6D6B82A0"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Focusable" Value="False"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -101,17 +101,17 @@
         </Style>
 
         <Style x:Key="ToolbarToggleButton" TargetType="ToggleButton">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="MinWidth" Value="82"/>
-            <Setter Property="Padding" Value="11,0"/>
-            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Height" Value="29"/>
+            <Setter Property="MinWidth" Value="70"/>
+            <Setter Property="Padding" Value="7,0"/>
+            <Setter Property="Margin" Value="2"/>
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
             <Setter Property="Background" Value="{StaticResource ButtonSurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="#6D6B82A0"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Focusable" Value="False"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -186,10 +186,10 @@
         </Style>
 
         <Style x:Key="CompactButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="MinWidth" Value="34"/>
-            <Setter Property="Padding" Value="9,0"/>
-            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="30"/>
+            <Setter Property="Padding" Value="7,0"/>
+            <Setter Property="Margin" Value="1"/>
         </Style>
 
         <Style x:Key="GroupHeaderIconButtonStyle" TargetType="Button">
@@ -393,8 +393,8 @@
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#FF9BCBFA"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Margin" Value="6,2,0,3"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Margin" Value="4,1,0,2"/>
         </Style>
     </Window.Resources>
 
@@ -542,7 +542,7 @@
                 VerticalAlignment="Top"
                 Margin="0"
                 Visibility="Hidden"
-                Padding="7"
+                Padding="5"
                 CornerRadius="13"
                 Background="{StaticResource PanelSurfaceBrush}"
                 BorderBrush="{StaticResource PanelBorderBrush}"
@@ -556,7 +556,7 @@
                         BorderBrush="{StaticResource PanelInnerBorderBrush}"
                         BorderThickness="1"
                         IsHitTestVisible="False"/>
-                <Border Width="84"
+                <Border Width="72"
                         Height="2"
                         Margin="14,0,0,0"
                         HorizontalAlignment="Left"
@@ -566,10 +566,10 @@
                         Opacity="0.9"
                         IsHitTestVisible="False"/>
 
-                <StackPanel Margin="3">
+                <StackPanel Margin="2">
                     <Grid
-                          MinWidth="345"
-                          MinHeight="38"
+                          MinWidth="320"
+                          MinHeight="34"
                           Background="Transparent">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -584,7 +584,7 @@
                                 Grid.Column="0"
                                 Content="☰  整理"
                                 Style="{StaticResource ToolbarButton}"
-                                MinWidth="96"
+                                MinWidth="86"
                                 Click="PanelExpanderButton_Click"
                                 ToolTip="展开或收起整理命令"/>
 
@@ -593,8 +593,8 @@
                                 Grid.Column="1"
                                 HorizontalAlignment="Stretch"
                                 VerticalAlignment="Center"
-                                Margin="10,0,8,0"
-                                Padding="10,4"
+                                Margin="6,0"
+                                Padding="8,3"
                                 CornerRadius="12"
                                 Background="#40121E2E"
                                 BorderBrush="#356E8FB3"
@@ -611,7 +611,6 @@
                                        Foreground="{StaticResource SecondaryTextBrush}"
                                        VerticalAlignment="Center"
                                        HorizontalAlignment="Left"
-                                       MaxWidth="360"
                                        TextTrimming="CharacterEllipsis"
                                        IsHitTestVisible="False"/>
                         </Border>
@@ -626,25 +625,27 @@
 
                         <Button Grid.Column="3"
                                 Content="×"
-                                Width="32"
-                                MinWidth="32"
+                                Width="28"
+                                MinWidth="28"
                                 Style="{StaticResource CompactButton}"
                                 Focusable="False"
                                 Click="HidePanelButton_Click"
                                 ToolTip="隐藏控制条；可点击右上角“显示面板”、双击托盘图标或再次启动恢复"/>
                     </Grid>
 
+                    <!-- 三组命令按 12/12/6 项排成 6 列，共 5 行；
+                         缩短的显示文案由 ToolTip 保留完整语义，避免高 DPI 下再次被最长标签撑宽。 -->
                     <Border x:Name="ExpandedCommands"
                             Visibility="Collapsed"
-                            Margin="0,7,0,0"
-                            MinWidth="590"
-                            Padding="7"
+                            Margin="0,5,0,0"
+                            Width="540"
+                            Padding="5"
                             CornerRadius="10"
                             Background="{StaticResource PanelInnerBrush}"
                             BorderBrush="#5C607897"
                             BorderThickness="1">
                         <StackPanel>
-                            <Grid Margin="2,0,2,1">
+                            <Grid Margin="1,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="4"/>
                                     <ColumnDefinition Width="*"/>
@@ -652,7 +653,7 @@
                                 <Border Grid.Column="0" CornerRadius="2" Background="#FF68B5F5"/>
                                 <TextBlock Grid.Column="1" Text="分组与布局" Style="{StaticResource SectionTitleStyle}"/>
                             </Grid>
-                            <UniformGrid Columns="5" HorizontalAlignment="Stretch">
+                            <UniformGrid Columns="6" HorizontalAlignment="Stretch">
                                 <ToggleButton x:Name="EditModeToggle"
                                               Content="编辑布局"
                                               Style="{StaticResource ToolbarToggleButton}"
@@ -687,7 +688,7 @@
                                         IsEnabled="False"
                                         ToolTip="恢复本次智能布局前的分组位置和尺寸"/>
                                 <Button x:Name="UndoFileMoveButton"
-                                        Content="撤销文件移动"
+                                        Content="撤销移动"
                                         Style="{StaticResource ToolbarButton}"
                                         Click="UndoFileMoveButton_Click"
                                         IsEnabled="False"
@@ -702,15 +703,15 @@
                                         Click="AlignIconsButton_Click"
                                         ToolTip="自由图标对齐到最近的空闲网格，并避开分组"/>
                                 <ToggleButton x:Name="RecycleBinWidgetToggle"
-                                              Content="回收站组件"
+                                              Content="回收站"
                                               Style="{StaticResource ToolbarToggleButton}"
                                               IsChecked="True"
                                               Click="RecycleBinWidgetToggle_Click"
                                               ToolTip="显示独立的回收站状态与快捷操作卡片"/>
                             </UniformGrid>
 
-                            <Separator Margin="6,8,6,7" Background="#476A819E"/>
-                            <Grid Margin="2,0,2,1">
+                            <Separator Margin="4,5,4,4" Background="#476A819E"/>
+                            <Grid Margin="1,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="4"/>
                                     <ColumnDefinition Width="*"/>
@@ -721,7 +722,7 @@
                                            Style="{StaticResource SectionTitleStyle}"
                                            Foreground="#FF8FE2C7"/>
                             </Grid>
-                            <UniformGrid Columns="5" HorizontalAlignment="Stretch">
+                            <UniformGrid Columns="6" HorizontalAlignment="Stretch">
                                 <Button x:Name="InboxButton"
                                         Content="待整理"
                                         Style="{StaticResource ToolbarButton}"
@@ -731,13 +732,17 @@
                                         Style="{StaticResource ToolbarButton}"
                                         Click="RuleManagerButton_Click"
                                         ToolTip="规则保存后默认禁用，必须预览、执行一次后才能启用自动应用"/>
+                                <Button Content="快速搜索"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="DesktopSearchButton_Click"
+                                        ToolTip="仅搜索已加载的桌面项目，不扫描其他目录或文件正文"/>
                                 <ToggleButton x:Name="AutoClassifyNewItemsToggle"
                                               Content="新项目归类"
                                               Style="{StaticResource ToolbarToggleButton}"
                                               Click="AutoClassifyNewItemsToggle_Click"
                                               ToolTip="之后出现的新桌面项目自动进入对应分类"/>
                                 <Button x:Name="ClearAutoClassificationButton"
-                                        Content="取消自动分类…"
+                                        Content="取消分类…"
                                         Style="{StaticResource ToolbarButton}"
                                         Click="ClearAutoClassificationButton_Click"
                                         ToolTip="解散自动分类并尽量恢复原图标位置"/>
@@ -752,7 +757,7 @@
                                               IsChecked="True"
                                               Click="PushReflowToggle_Click"/>
                                 <ToggleButton x:Name="CompactGroupLayoutToggle"
-                                              Content="紧凑分类框"
+                                              Content="紧凑分组"
                                               Style="{StaticResource ToolbarToggleButton}"
                                               Click="CompactGroupLayoutToggle_Click"
                                               ToolTip="按内容数量缩放分类框；大型分类使用四列图标"/>
@@ -762,7 +767,7 @@
                                               Click="ReserveWorkspaceToggle_Click"
                                               ToolTip="智能布局优先保留主屏底部约三分之一，方便临时放置新文件"/>
                                 <ToggleButton x:Name="AutoCollapsePanelToggle"
-                                              Content="面板自动收起"
+                                              Content="自动收起"
                                               Style="{StaticResource ToolbarToggleButton}"
                                               Click="AutoCollapsePanelToggle_Click"
                                               ToolTip="命令面板展开后，鼠标移开 6 秒自动收起"/>
@@ -778,8 +783,8 @@
                                               ToolTip="仅在本次运行中暂停实时监听、自动归类和挤压预览；不会改变原设置"/>
                             </UniformGrid>
 
-                            <Separator Margin="6,8,6,7" Background="#476A819E"/>
-                            <Grid Margin="2,0,2,1">
+                            <Separator Margin="4,5,4,4" Background="#476A819E"/>
+                            <Grid Margin="1,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="4"/>
                                     <ColumnDefinition Width="*"/>
@@ -790,11 +795,7 @@
                                            Style="{StaticResource SectionTitleStyle}"
                                            Foreground="#FFFFD28A"/>
                             </Grid>
-                            <UniformGrid Columns="5" HorizontalAlignment="Stretch">
-                                <Button Content="快速搜索"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="DesktopSearchButton_Click"
-                                        ToolTip="仅搜索已加载的桌面项目，不扫描其他目录或文件正文"/>
+                            <UniformGrid Columns="6" HorizontalAlignment="Stretch">
                                 <Button Content="刷新"
                                         Style="{StaticResource ToolbarButton}"
                                         Click="RefreshButton_Click"

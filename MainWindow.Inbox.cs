@@ -305,7 +305,12 @@ namespace DesktopOrganizer
         private void UpdateInboxButton()
         {
             int count = _appLayout.InboxItems.Count;
-            InboxButton.Content = count == 0 ? "待整理" : $"待整理 ({count})";
+            InboxButton.Content = count switch
+            {
+                0 => "待整理",
+                > 99 => "待整理 99+",
+                _ => $"待整理 {count}"
+            };
             InboxButton.ToolTip = count == 0
                 ? "新出现的桌面项目会先进入本地待整理收件箱"
                 : $"有 {count} 个桌面项目等待确认";
