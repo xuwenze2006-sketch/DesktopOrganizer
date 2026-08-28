@@ -156,6 +156,13 @@ namespace DesktopOrganizer
                     draggedGroup.X = SafeCanvasCoordinate(Canvas.GetLeft(draggedElement));
                     draggedGroup.Y = SafeCanvasCoordinate(Canvas.GetTop(draggedElement));
                     ClampGroupToCanvas(draggedGroup);
+                    if (IntersectsFolderPortal(GetGroupBounds(draggedGroup)))
+                    {
+                        draggedGroup.X = _groupDragStartPosition.X;
+                        draggedGroup.Y = _groupDragStartPosition.Y;
+                        commit = false;
+                        StatusText.Text = "分组不能覆盖只读文件夹入口，已恢复原位置";
+                    }
                 }
                 else
                 {
@@ -220,9 +227,26 @@ namespace DesktopOrganizer
             DesktopMonitorRegion monitor = GetMonitorForItemRect(GetGroupBounds(group));
             double maxWidth = Math.Max(GroupMinWidth, monitor.WorkArea.Right - group.X);
             double maxHeight = Math.Max(GroupMinHeight, monitor.WorkArea.Bottom - group.Y);
+            double proposedWidth = Math.Clamp(
+                group.Width + e.HorizontalChange,
+                GroupMinWidth,
+                maxWidth);
+            double proposedHeight = Math.Clamp(
+                group.Height + e.VerticalChange,
+                GroupMinHeight,
+                maxHeight);
+            if (IntersectsFolderPortal(new Rect(
+                    group.X,
+                    group.Y,
+                    proposedWidth,
+                    group.IsCollapsed ? GroupHeaderHeight : proposedHeight)))
+            {
+                StatusText.Text = "分组不能覆盖只读文件夹入口";
+                return;
+            }
             group.IsSizeLocked = true;
-            group.Width = Math.Clamp(group.Width + e.HorizontalChange, GroupMinWidth, maxWidth);
-            group.Height = Math.Clamp(group.Height + e.VerticalChange, GroupMinHeight, maxHeight);
+            group.Width = proposedWidth;
+            group.Height = proposedHeight;
 
             if (VisualTreeHelper.GetParent(thumb) is Grid grid)
             {

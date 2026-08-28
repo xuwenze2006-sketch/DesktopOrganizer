@@ -190,6 +190,8 @@ namespace DesktopOrganizer
         {
             return _isControlPanelDragging ||
                    _isRecycleBinWidgetDragging ||
+                   _draggedFolderPortal != null ||
+                   _folderPortalDragCaptureElement != null ||
                    _draggedElement != null ||
                    _pendingIconDragElement != null ||
                    _groupDragCaptureElement != null ||
@@ -211,6 +213,7 @@ namespace DesktopOrganizer
             bool hasExpectedCapture =
                 ReferenceEquals(captured, ControlPanelDragHandle) ||
                 ReferenceEquals(captured, RecycleBinWidgetDragHandle) ||
+                ReferenceEquals(captured, _folderPortalDragCaptureElement) ||
                 ReferenceEquals(captured, _groupDragCaptureElement) ||
                 ReferenceEquals(captured, _draggedElement);
 
@@ -276,6 +279,7 @@ namespace DesktopOrganizer
             bool draggedWasGroup = _draggedIsGroup;
             bool groupedIconWasDetached = _groupedIconDragSourceGroup != null;
             bool recycleWidgetWasDragging = _isRecycleBinWidgetDragging;
+            bool folderPortalWasDragging = _draggedFolderPortal != null;
             bool needsVisualRebuild = restoreDraggedVisual && groupedIconWasDetached;
 
             if (restoreDraggedVisual && recycleWidgetWasDragging)
@@ -284,6 +288,11 @@ namespace DesktopOrganizer
                     _recycleBinWidgetDragStartPosition.X,
                     _recycleBinWidgetDragStartPosition.Y,
                     updateLayout: false);
+            }
+
+            if (folderPortalWasDragging)
+            {
+                CancelFolderPortalDrag(commit: false);
             }
 
             // 先清除面板拖动标志，避免释放鼠标捕获时 LostMouseCapture 再次提交拖动。
@@ -299,6 +308,7 @@ namespace DesktopOrganizer
                 bool expectedCapture =
                     ReferenceEquals(captured, ControlPanelDragHandle) ||
                     ReferenceEquals(captured, RecycleBinWidgetDragHandle) ||
+                    ReferenceEquals(captured, _folderPortalDragCaptureElement) ||
                     ReferenceEquals(captured, _groupDragCaptureElement) ||
                     ReferenceEquals(captured, draggedElement);
                 bool staleCaptureInsideWindow =

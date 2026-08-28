@@ -130,6 +130,7 @@ namespace DesktopOrganizer
 
             CancelScheduledDesktopRefresh();
             CancelActiveDesktopRefresh();
+            CancelAllPortalReads();
             _pendingAutoClassificationCandidates.Clear();
             ResetAllInteractionState(restoreDraggedVisual: true);
             PrepareLayoutForPersistence();

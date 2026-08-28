@@ -102,6 +102,7 @@ namespace DesktopOrganizer
         public List<GroupInfo> Groups { get; set; } = new();
         public List<DesktopMonitorLayoutInfo> DesktopTopology { get; set; } = new();
         public Dictionary<string, IconPosition> AutoClassificationOriginalPositions { get; set; } = new();
+        public List<FolderPortalInfo> FolderPortals { get; set; } = new();
     }
 
     /// <summary>用户命名的本地工作区及其最近一次保存的视觉快照。</summary>
@@ -117,7 +118,7 @@ namespace DesktopOrganizer
     /// <summary>布局持久化根对象。</summary>
     internal sealed class AppLayoutData
     {
-        public int Version { get; set; } = 17;
+        public int Version { get; set; } = 18;
         public long SaveGeneration { get; set; }
         public bool SnapToGrid { get; set; } = true;
         public bool PushReflowEnabled { get; set; } = true;
@@ -185,6 +186,9 @@ namespace DesktopOrganizer
 
         /// <summary>本地、默认禁用并经过预览/试运行门控的用户规则。</summary>
         public List<UserOrganizationRuleInfo> UserRules { get; set; } = new();
+
+        /// <summary>当前工作区中的只读真实文件夹入口；内容列表不会写入布局。</summary>
+        public List<FolderPortalInfo> FolderPortals { get; set; } = new();
     }
 
     /// <summary>挂在图标控件 Tag 上的数据。</summary>

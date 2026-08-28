@@ -10,6 +10,7 @@ namespace DesktopOrganizer
             bool IsActive,
             int GroupCount,
             int FreeIconCount,
+            int PortalCount,
             int MonitorCount,
             DateTime UpdatedUtc)
         {
@@ -35,6 +36,7 @@ namespace DesktopOrganizer
                     string.Equals(preview.Id, activeId, StringComparison.OrdinalIgnoreCase),
                     preview.GroupCount,
                     preview.FreeIconCount,
+                    preview.PortalCount,
                     preview.MonitorCount,
                     preview.UpdatedUtc))
                 .ToList();
@@ -56,6 +58,7 @@ namespace DesktopOrganizer
                   $"状态：{(item.IsActive ? "当前工作区" : "可恢复快照")}\n" +
                   $"分组：{item.GroupCount}\n" +
                   $"自由图标坐标：{item.FreeIconCount}\n" +
+                  $"只读文件夹入口：{item.PortalCount}\n" +
                   $"显示器拓扑：{item.MonitorCount} 个显示器\n" +
                   $"最近更新：{item.UpdatedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
         }
@@ -87,7 +90,7 @@ namespace DesktopOrganizer
             MessageBoxResult confirmation = MessageBox.Show(
                 $"将恢复工作区“{item.Name}”的视觉布局。\n\n" +
                 $"分组 {item.GroupCount} 个，自由图标坐标 {item.FreeIconCount} 个，" +
-                $"保存时显示器 {item.MonitorCount} 个。\n\n" +
+                $"只读文件夹入口 {item.PortalCount} 个，保存时显示器 {item.MonitorCount} 个。\n\n" +
                 "此操作不会移动、重命名或删除任何真实文件。",
                 "切换工作区",
                 MessageBoxButton.OKCancel,

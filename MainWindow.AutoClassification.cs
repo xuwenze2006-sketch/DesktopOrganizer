@@ -544,6 +544,7 @@ namespace DesktopOrganizer
                             height + margin * 2);
                         bool overlaps = _appLayout.Groups.Any(group =>
                             candidate.IntersectsWith(GetGroupBounds(group)));
+                        overlaps |= IntersectsFolderPortal(candidate);
                         Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
                         overlaps |= recycleObstacle.HasValue && candidate.IntersectsWith(recycleObstacle.Value);
                         if (!overlaps && IsRectInsideUsableDesktop(new Rect(x, y, width, height)))

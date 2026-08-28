@@ -160,7 +160,7 @@ namespace DesktopOrganizer
                           RemapLayoutBetweenGeometries(savedGeometry, _desktopGeometry);
             }
 
-            _appLayout.Version = 17;
+            _appLayout.Version = 18;
             CaptureCurrentDesktopTopology();
             if (serializedVersion < 16 && _appLayout.Workspaces.Count == 0)
             {
@@ -170,7 +170,7 @@ namespace DesktopOrganizer
                     DateTime.UtcNow);
                 changed = true;
             }
-            return changed || serializedVersion < 17;
+            return changed || serializedVersion < 18;
         }
 
         private bool MigrateLegacyPrimaryWorkAreaCoordinates()
@@ -199,6 +199,12 @@ namespace DesktopOrganizer
             {
                 group.X = SafeCanvasCoordinate(group.X) + offsetX;
                 group.Y = SafeCanvasCoordinate(group.Y) + offsetY;
+            }
+
+            foreach (FolderPortalInfo portal in _appLayout.FolderPortals)
+            {
+                portal.X = SafeCanvasCoordinate(portal.X) + offsetX;
+                portal.Y = SafeCanvasCoordinate(portal.Y) + offsetY;
             }
 
             if (_appLayout.ControlPanelX.HasValue)
@@ -274,6 +280,25 @@ namespace DesktopOrganizer
                     changed = true;
                 }
                 ClampGroupToCanvas(group);
+            }
+
+            foreach (FolderPortalInfo portal in _appLayout.FolderPortals)
+            {
+                Point mapped = MapItemPosition(
+                    portal.X,
+                    portal.Y,
+                    portal.Width,
+                    GetFolderPortalDisplayHeight(portal),
+                    sourceGeometry,
+                    targetGeometry);
+                if (Math.Abs(portal.X - mapped.X) > 0.01 ||
+                    Math.Abs(portal.Y - mapped.Y) > 0.01)
+                {
+                    portal.X = mapped.X;
+                    portal.Y = mapped.Y;
+                    changed = true;
+                }
+                ClampFolderPortalToCanvas(portal);
             }
 
 

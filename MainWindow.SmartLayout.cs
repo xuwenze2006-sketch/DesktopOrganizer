@@ -251,7 +251,9 @@ namespace DesktopOrganizer
             IReadOnlyList<Rect> workspaces,
             double gap)
         {
-            var placedRects = new List<Rect>(groups.Count + 1);
+            var placedRects = new List<Rect>(
+                groups.Count + _appLayout.FolderPortals.Count + 1);
+            placedRects.AddRange(GetFolderPortalObstacles());
             Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
             if (recycleObstacle.HasValue)
             {
@@ -345,6 +347,12 @@ namespace DesktopOrganizer
             IReadOnlyList<Rect> workspaces,
             double gap)
         {
+            var obstacles = new List<Rect>(GetFolderPortalObstacles());
+            Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
+            if (recycleObstacle.HasValue)
+            {
+                obstacles.Add(recycleObstacle.Value);
+            }
             int workspaceIndex = 0;
             Rect workspace = workspaces[workspaceIndex];
             double x = workspace.Left;
@@ -355,24 +363,56 @@ namespace DesktopOrganizer
             {
                 double height = GetGroupDisplayHeight(group);
                 group.Width = Math.Min(group.Width, workspace.Width);
-                if (x + group.Width > workspace.Right && x > workspace.Left)
+                for (int attempt = 0; attempt < 1000; attempt++)
                 {
-                    x = workspace.Left;
-                    y += rowHeight + gap;
-                    rowHeight = 0;
-                }
+                    if (x + group.Width > workspace.Right && x > workspace.Left)
+                    {
+                        x = workspace.Left;
+                        y += rowHeight + gap;
+                        rowHeight = 0;
+                    }
 
-                if (y + height > workspace.Bottom && workspaceIndex + 1 < workspaces.Count)
-                {
-                    workspace = workspaces[++workspaceIndex];
-                    x = workspace.Left;
-                    y = workspace.Top;
-                    rowHeight = 0;
-                    group.Width = Math.Min(group.Width, workspace.Width);
+                    if (y + height > workspace.Bottom && workspaceIndex + 1 < workspaces.Count)
+                    {
+                        workspace = workspaces[++workspaceIndex];
+                        x = workspace.Left;
+                        y = workspace.Top;
+                        rowHeight = 0;
+                        group.Width = Math.Min(group.Width, workspace.Width);
+                    }
+
+                    var candidate = new Rect(x, y, group.Width, height);
+                    Rect padded = candidate;
+                    padded.Inflate(gap / 2, gap / 2);
+                    Rect? collision = obstacles
+                        .Where(obstacle => padded.IntersectsWith(obstacle))
+                        .OrderBy(obstacle => obstacle.Left)
+                        .ThenBy(obstacle => obstacle.Top)
+                        .Select(obstacle => (Rect?)obstacle)
+                        .FirstOrDefault();
+                    if (!collision.HasValue)
+                    {
+                        break;
+                    }
+
+                    double nextX = collision.Value.Right + gap;
+                    if (nextX + group.Width <= workspace.Right)
+                    {
+                        x = nextX;
+                    }
+                    else
+                    {
+                        x = workspace.Left;
+                        y = Math.Max(
+                            y + Math.Max(rowHeight, height) + gap,
+                            collision.Value.Bottom + gap);
+                        rowHeight = 0;
+                    }
                 }
 
                 group.X = x;
                 group.Y = y;
+                obstacles.Add(new Rect(x, y, group.Width, height));
                 x += group.Width + gap;
                 rowHeight = Math.Max(rowHeight, height);
             }

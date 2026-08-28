@@ -254,6 +254,11 @@ namespace DesktopOrganizer
                 return true;
             }
 
+            if (IntersectsFolderPortal(iconBounds))
+            {
+                return true;
+            }
+
             Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
             return recycleObstacle.HasValue && iconBounds.IntersectsWith(recycleObstacle.Value);
         }
@@ -376,7 +381,7 @@ namespace DesktopOrganizer
         private void NormalizeLayout()
         {
             int loadedVersion = _appLayout.Version;
-            _appLayout.Version = 17;
+            _appLayout.Version = 18;
             _appLayout.FreeIcons ??= new Dictionary<string, IconPosition>();
             _appLayout.Groups ??= new List<GroupInfo>();
             _appLayout.DesktopTopology ??= new List<DesktopMonitorLayoutInfo>();
@@ -388,6 +393,8 @@ namespace DesktopOrganizer
             _appLayout.ItemFirstSeenUtcTicks ??= new Dictionary<string, long>();
             _appLayout.ItemLastMovedUtcTicks ??= new Dictionary<string, long>();
             _appLayout.UserRules ??= new List<UserOrganizationRuleInfo>();
+            _appLayout.FolderPortals = FolderPortalLayoutPolicy.Normalize(
+                _appLayout.FolderPortals);
             WorkspaceLayoutManager.Normalize(_appLayout);
             UserOrganizationRulePolicy.Normalize(_appLayout);
 

@@ -250,6 +250,15 @@ namespace DesktopOrganizer
                 targetGroupFingerprints[group.Id] = BuildGroupVisualFingerprint(group, existing);
             }
 
+            foreach (FolderPortalInfo portal in _appLayout.FolderPortals)
+            {
+                double oldX = portal.X;
+                double oldY = portal.Y;
+                ClampFolderPortalToCanvas(portal);
+                layoutChanged |= Math.Abs(oldX - portal.X) > 0.01 ||
+                                 Math.Abs(oldY - portal.Y) > 0.01;
+            }
+
             int columns = GetGridColumnCount();
             var occupiedGridCells = new HashSet<(int Column, int Row)>();
             var freeTargets = new Dictionary<string, FreeIconVisualTarget>(StringComparer.OrdinalIgnoreCase);
@@ -391,10 +400,14 @@ namespace DesktopOrganizer
                 }
             }
 
+            EnsureFolderPortalVisuals();
+
             // 拖拽中断时，分组图标可能已经临时提升到 IconCanvas 顶层；常规刷新只应
-            // 保留缓存字典登记的自由图标和分组卡片，其余孤立视觉全部移除。
+            // 保留缓存字典登记的自由图标、分组卡片和只读 Portal，其余孤立视觉全部移除。
             var registeredTopLevelVisuals = new HashSet<FrameworkElement>(
-                _freeIconVisuals.Values.Concat(_groupVisuals.Values));
+                _freeIconVisuals.Values
+                    .Concat(_groupVisuals.Values)
+                    .Concat(GetFolderPortalVisuals()));
             foreach (FrameworkElement child in IconCanvas.Children.OfType<FrameworkElement>().ToList())
             {
                 if (registeredTopLevelVisuals.Contains(child))
@@ -474,9 +487,10 @@ namespace DesktopOrganizer
                 ? $" · {gridOverflowCount} 个项目等待空网格"
                 : string.Empty;
             StatusText.Text =
-                $"{existing.Count} 项 · {_appLayout.Groups.Count} 组 · {editStatus}{fileOperationStatus}{gridOverflowStatus}";
+                $"{existing.Count} 项 · {_appLayout.Groups.Count} 组 · {_appLayout.FolderPortals.Count} 个只读入口 · {editStatus}{fileOperationStatus}{gridOverflowStatus}";
             StatusText.ToolTip =
                 $"{existing.Count} 个桌面项目；{_appLayout.Groups.Count} 个分组（自动 {autoGroupCount}）；" +
+                $"{_appLayout.FolderPortals.Count} 个真实文件夹只读入口；" +
                 $"{editStatus}；{safeStatus}；{snapStatus}；{pushStatus}；{autoStatus}；{desktopMode}；" +
                 $"后台真实文件任务 {_fileOperationCount} 个；" +
                 (gridOverflowCount > 0

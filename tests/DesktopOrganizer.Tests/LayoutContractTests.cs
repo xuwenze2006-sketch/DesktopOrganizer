@@ -11,7 +11,7 @@ public sealed class LayoutContractTests
     {
         var layout = new AppLayoutData();
 
-        Assert.AreEqual(17, layout.Version);
+        Assert.AreEqual(18, layout.Version);
         Assert.IsTrue(layout.SnapToGrid);
         Assert.IsTrue(layout.PushReflowEnabled);
         Assert.IsTrue(layout.AutoCollapseControlPanel);
@@ -20,6 +20,7 @@ public sealed class LayoutContractTests
         Assert.AreEqual(0, layout.FreeIcons.Count);
         Assert.AreEqual(0, layout.Groups.Count);
         Assert.AreEqual(0, layout.Workspaces.Count);
+        Assert.AreEqual(0, layout.FolderPortals.Count);
         Assert.IsNull(layout.ActiveWorkspaceId);
         Assert.IsTrue(layout.RecycleBinWidget.IsVisible);
     }
@@ -29,7 +30,7 @@ public sealed class LayoutContractTests
     {
         var original = new AppLayoutData
         {
-            Version = 17,
+            Version = 18,
             SaveGeneration = 42,
             SnapToGrid = false,
             AutoClassifyNewItems = true,
@@ -123,6 +124,22 @@ public sealed class LayoutContractTests
                     ActionKind = OrganizationRuleActionKind.AddTag,
                     ActionTargetName = "重要"
                 }
+            ],
+            FolderPortals =
+            [
+                new FolderPortalInfo
+                {
+                    Id = "portal-1",
+                    Name = "资料入口",
+                    RootPath = @"C:\Data",
+                    RootIdentity = "volume:folder-id",
+                    CurrentRelativePath = @"Projects\Current",
+                    X = 500,
+                    Y = 180,
+                    Width = 420,
+                    Height = 360,
+                    IsCollapsed = true
+                }
             ]
         };
 
@@ -130,7 +147,7 @@ public sealed class LayoutContractTests
         AppLayoutData restored = JsonSerializer.Deserialize<AppLayoutData>(json)
             ?? throw new AssertFailedException("布局 JSON 反序列化返回 null。");
 
-        Assert.AreEqual(17, restored.Version);
+        Assert.AreEqual(18, restored.Version);
         Assert.AreEqual(42L, restored.SaveGeneration);
         Assert.IsFalse(restored.SnapToGrid);
         Assert.IsTrue(restored.AutoClassifyNewItems);
@@ -156,5 +173,9 @@ public sealed class LayoutContractTests
         Assert.AreEqual(DateTime.UnixEpoch.Ticks, restored.ItemFirstSeenUtcTicks["readme.txt"]);
         Assert.AreEqual("重要文档", restored.UserRules[0].Name);
         Assert.AreEqual(UserRuleLifecycle.Previewed, restored.UserRules[0].Lifecycle);
+        Assert.AreEqual("portal-1", restored.FolderPortals[0].Id);
+        Assert.AreEqual(@"C:\Data", restored.FolderPortals[0].RootPath);
+        Assert.AreEqual(@"Projects\Current", restored.FolderPortals[0].CurrentRelativePath);
+        Assert.IsTrue(restored.FolderPortals[0].IsCollapsed);
     }
 }

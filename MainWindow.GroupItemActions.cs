@@ -77,6 +77,15 @@ namespace DesktopOrganizer
             ClampIconCoordinates(ref left, ref top);
             Canvas.SetLeft(element, left);
             Canvas.SetTop(element, top);
+            if (IsPointOverFolderPortal(canvasPosition) ||
+                IntersectsFolderPortal(new Rect(left, top, IconCellWidth, IconCellHeight)))
+            {
+                ClearPhysicalFolderDropPreview();
+                ClearGroupDropPreview();
+                StatusText.Text = "真实文件夹入口为只读，不接收拖放";
+                e.Handled = true;
+                return;
+            }
             UpdatePhysicalFolderDropPreview(canvasPosition, element);
             UpdateGroupDropPreview(canvasPosition, element);
             e.Handled = true;

@@ -676,6 +676,10 @@
                                         Style="{StaticResource ToolbarButton}"
                                         Click="WorkspaceManagerButton_Click"
                                         ToolTip="创建、预览和切换只改变视觉布局的命名工作区"/>
+                                <Button Content="文件夹入口"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="FolderPortalButton_Click"
+                                        ToolTip="把指定真实文件夹以只读入口显示在桌面；不开放拖入、删除或重命名"/>
                                 <Button x:Name="UndoSmartLayoutButton"
                                         Content="撤销布局"
                                         Style="{StaticResource ToolbarButton}"

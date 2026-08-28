@@ -5,6 +5,7 @@ namespace DesktopOrganizer
         string Name,
         int GroupCount,
         int FreeIconCount,
+        int PortalCount,
         int MonitorCount,
         DateTime UpdatedUtc);
 
@@ -150,13 +151,14 @@ namespace DesktopOrganizer
                     workspace.Name,
                     workspace.Layout.Groups.Count,
                     workspace.Layout.FreeIcons.Count,
+                    workspace.Layout.FolderPortals.Count,
                     workspace.Layout.DesktopTopology.Count,
                     workspace.UpdatedUtc))
                 .ToList();
 
         public static WorkspaceLayoutState Capture(AppLayoutData layout) => new()
         {
-            Version = 1,
+            Version = 2,
             ControlPanelX = layout.ControlPanelX,
             ControlPanelY = layout.ControlPanelY,
             RecycleBinWidget = Clone(layout.RecycleBinWidget),
@@ -169,7 +171,10 @@ namespace DesktopOrganizer
             AutoClassificationOriginalPositions = layout.AutoClassificationOriginalPositions.ToDictionary(
                 pair => pair.Key,
                 pair => Clone(pair.Value),
-                StringComparer.OrdinalIgnoreCase)
+                StringComparer.OrdinalIgnoreCase),
+            FolderPortals = layout.FolderPortals
+                .Select(FolderPortalLayoutPolicy.Clone)
+                .ToList()
         };
 
         public static void Apply(AppLayoutData layout, WorkspaceLayoutState snapshot)
@@ -189,6 +194,9 @@ namespace DesktopOrganizer
                 pair => pair.Key,
                 pair => Clone(pair.Value),
                 StringComparer.OrdinalIgnoreCase);
+            layout.FolderPortals = snapshot.FolderPortals
+                .Select(FolderPortalLayoutPolicy.Clone)
+                .ToList();
         }
 
         public static void Normalize(AppLayoutData layout)
@@ -242,15 +250,18 @@ namespace DesktopOrganizer
 
         private static void Normalize(WorkspaceLayoutState snapshot)
         {
-            snapshot.Version = 1;
+            snapshot.Version = 2;
             snapshot.RecycleBinWidget ??= new RecycleBinWidgetLayoutInfo();
             snapshot.FreeIcons ??= new Dictionary<string, IconPosition>();
             snapshot.Groups ??= new List<GroupInfo>();
             snapshot.DesktopTopology ??= new List<DesktopMonitorLayoutInfo>();
             snapshot.AutoClassificationOriginalPositions ??= new Dictionary<string, IconPosition>();
+            snapshot.FolderPortals ??= new List<FolderPortalInfo>();
             snapshot.FreeIcons = NormalizePositions(snapshot.FreeIcons);
             snapshot.AutoClassificationOriginalPositions = NormalizePositions(
                 snapshot.AutoClassificationOriginalPositions);
+            snapshot.FolderPortals = FolderPortalLayoutPolicy.Normalize(
+                snapshot.FolderPortals.Select(FolderPortalLayoutPolicy.Clone));
 
             var groupIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var groups = new List<GroupInfo>();

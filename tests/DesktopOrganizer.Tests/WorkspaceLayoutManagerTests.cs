@@ -14,11 +14,13 @@ public sealed class WorkspaceLayoutManagerTests
         WorkspaceProfileInfo workspace = WorkspaceLayoutManager.CreateAndActivate(layout, "工作", now);
         layout.FreeIcons["one.txt"].X = 999;
         layout.Groups[0].Name = "changed";
+        layout.FolderPortals[0].Name = "changed portal";
 
         Assert.AreEqual(workspace.Id, layout.ActiveWorkspaceId);
         Assert.AreEqual(10, workspace.Layout.FreeIcons["one.txt"].X);
         Assert.AreEqual("分组", workspace.Layout.Groups[0].Name);
         Assert.AreEqual("rule-1", workspace.Layout.Groups[0].UserRuleId);
+        Assert.AreEqual("资料入口", workspace.Layout.FolderPortals[0].Name);
         Assert.AreEqual(now, workspace.CreatedUtc);
     }
 
@@ -50,6 +52,7 @@ public sealed class WorkspaceLayoutManagerTests
         Assert.IsTrue(activated);
         Assert.AreEqual(20, layout.FreeIcons["one.txt"].X);
         Assert.AreEqual(30, second.Layout.FreeIcons["one.txt"].X);
+        Assert.AreEqual(120, layout.FolderPortals[0].X);
         Assert.AreEqual("stable-id", layout.ItemIdentities["one.txt"].FileId);
     }
 
@@ -145,6 +148,29 @@ public sealed class WorkspaceLayoutManagerTests
         Assert.AreEqual(GroupSortMode.Custom, snapshot.Groups[1].SortMode);
         CollectionAssert.AreEqual(new[] { "one.txt" }, snapshot.Groups[1].ItemNames);
         Assert.AreEqual(1, snapshot.DesktopTopology.Count);
+        Assert.AreEqual(2, snapshot.Version);
+    }
+
+    [TestMethod]
+    public void CaptureAndApply_DeepClonesFolderPortalsAndPreviewCountsThem()
+    {
+        var layout = CreateLayout("one.txt", 10);
+        WorkspaceProfileInfo workspace = WorkspaceLayoutManager.CreateAndActivate(
+            layout,
+            "工作",
+            DateTime.UnixEpoch);
+        layout.FolderPortals[0].X = 777;
+
+        Assert.AreEqual(120, workspace.Layout.FolderPortals[0].X);
+        WorkspacePreview preview = WorkspaceLayoutManager.GetPreviews(layout).Single();
+        Assert.AreEqual(1, preview.PortalCount);
+
+        Assert.IsTrue(WorkspaceLayoutManager.TryActivate(
+            layout,
+            workspace.Id,
+            DateTime.UnixEpoch.AddMinutes(1)));
+        Assert.AreEqual(777, layout.FolderPortals[0].X,
+            "激活当前工作区不得覆盖尚未保存的当前布局。");
     }
 
     private static AppLayoutData CreateLayout(string name, double x) => new()
@@ -170,6 +196,18 @@ public sealed class WorkspaceLayoutManagerTests
                 DeviceName = "DISPLAY1",
                 WorkWidth = 1920,
                 WorkHeight = 1040
+            }
+        ],
+        FolderPortals =
+        [
+            new FolderPortalInfo
+            {
+                Id = "portal-1",
+                Name = "资料入口",
+                RootPath = @"C:\Data",
+                RootIdentity = "volume:folder-id",
+                X = 120,
+                Y = 160
             }
         ]
     };

@@ -77,6 +77,16 @@ namespace DesktopOrganizer
             Canvas.SetLeft(_draggedElement, left);
             Canvas.SetTop(_draggedElement, top);
 
+            if (IsPointOverFolderPortal(canvasPosition) ||
+                IntersectsFolderPortal(new Rect(left, top, IconCellWidth, IconCellHeight)))
+            {
+                ClearPhysicalFolderDropPreview();
+                ClearGroupDropPreview();
+                CancelPushPreview(restoreVisuals: true);
+                StatusText.Text = "真实文件夹入口为只读，不接收拖放";
+                return;
+            }
+
             UpdatePhysicalFolderDropPreview(canvasPosition, _draggedElement as FrameworkElement);
             UpdateGroupDropPreview(canvasPosition, _draggedElement as FrameworkElement);
             if (_activePhysicalFolderDropPath != null)
@@ -559,6 +569,7 @@ namespace DesktopOrganizer
             }
 
             UIElement dragged = _draggedElement;
+            bool folderPortalBlocked = false;
             if (dragged is FrameworkElement draggedFrameworkElement)
             {
                 // MouseUp 前先恢复旧预览，再按最终光标位置更新拖动视觉和全部目标，
@@ -571,9 +582,24 @@ namespace DesktopOrganizer
                 Canvas.SetTop(draggedFrameworkElement, finalTop);
 
                 CancelPushPreview(restoreVisuals: true);
-                UpdatePhysicalFolderDropPreview(finalPoint, draggedFrameworkElement);
-                UpdateGroupDropPreview(finalPoint, draggedFrameworkElement);
-                if (_activePhysicalFolderDropPath == null &&
+                folderPortalBlocked = IsPointOverFolderPortal(finalPoint) ||
+                    IntersectsFolderPortal(new Rect(
+                        finalLeft,
+                        finalTop,
+                        IconCellWidth,
+                        IconCellHeight));
+                if (folderPortalBlocked)
+                {
+                    ClearPhysicalFolderDropPreview();
+                    ClearGroupDropPreview();
+                }
+                else
+                {
+                    UpdatePhysicalFolderDropPreview(finalPoint, draggedFrameworkElement);
+                    UpdateGroupDropPreview(finalPoint, draggedFrameworkElement);
+                }
+                if (!folderPortalBlocked &&
+                    _activePhysicalFolderDropPath == null &&
                     _activeGroupDropTarget == null &&
                     _dragAllowsLayoutMove)
                 {
@@ -604,6 +630,14 @@ namespace DesktopOrganizer
                 GroupInfo? sourceGroup = tag.Group ?? _groupedIconDragSourceGroup;
                 var center = new Point(left + IconCellWidth / 2, top + IconCellHeight / 2);
                 bool dropHandled = false;
+
+                if (folderPortalBlocked)
+                {
+                    CancelPushPreview(restoreVisuals: true);
+                    RestoreDraggedIconAfterRejectedDrop(dragged, sourceGroup);
+                    StatusText.Text = "真实文件夹入口为只读，不接收拖放；图标已恢复原位";
+                    dropHandled = true;
+                }
 
                 // 真实文件夹投放优先于虚拟分类框。这样即使文件夹图标位于分类框内部，
                 // 把项目准确拖到该文件夹图标上仍会执行真实文件移动。
