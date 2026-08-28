@@ -17,168 +17,53 @@
         PreviewKeyDown="MainWindow_PreviewKeyDown">
 
     <Window.Resources>
-        <!-- 轻量 Fluent/玻璃质感：只用渐变、描边和透明层，不使用大面积模糊。 -->
-        <LinearGradientBrush x:Key="PanelSurfaceBrush" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#F21C2D43" Offset="0"/>
-            <GradientStop Color="#F0132134" Offset="0.62"/>
-            <GradientStop Color="#F20D1828" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="PanelInnerBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#D9253850" Offset="0"/>
-            <GradientStop Color="#D917263A" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="ButtonSurfaceBrush" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#FF344861" Offset="0"/>
-            <GradientStop Color="#FF26384F" Offset="1"/>
-        </LinearGradientBrush>
-        <SolidColorBrush x:Key="PanelBorderBrush" Color="#8B7188A7"/>
-        <SolidColorBrush x:Key="PanelInnerBorderBrush" Color="#28FFFFFF"/>
+        <!-- 控制面板只保留一层实体表面和单一强调色，避免渐变、发光与多重描边叠加。 -->
+        <SolidColorBrush x:Key="PanelSurfaceBrush" Color="#F21A2430"/>
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#52687B90"/>
         <SolidColorBrush x:Key="AccentBrush" Color="#FF68B5F5"/>
-        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF7FAFD"/>
-        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFC2CFDE"/>
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF4F7FA"/>
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFAAB6C3"/>
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#FF7F8F9F"/>
 
         <Style x:Key="ToolbarButton" TargetType="Button">
-            <Setter Property="Height" Value="29"/>
-            <Setter Property="MinWidth" Value="70"/>
-            <Setter Property="Padding" Value="7,0"/>
-            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Margin" Value="0"/>
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
-            <Setter Property="Background" Value="{StaticResource ButtonSurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="#6D6B82A0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Focusable" Value="False"/>
-            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid SnapsToDevicePixels="True">
-                            <Border x:Name="Depth"
-                                    Margin="1,2,1,0"
-                                    CornerRadius="7"
-                                    Background="#45000000"
-                                    IsHitTestVisible="False"/>
-                            <Border x:Name="Chrome"
-                                    Margin="0,0,0,2"
-                                    CornerRadius="7"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}">
-                                <Grid>
-                                    <Border Height="1"
-                                            Margin="6,0"
-                                            VerticalAlignment="Top"
-                                            Background="#34FFFFFF"
-                                            CornerRadius="7"
-                                            IsHitTestVisible="False"/>
-                                    <ContentPresenter HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center"
-                                                      Margin="{TemplateBinding Padding}"
-                                                      RecognizesAccessKey="True"/>
-                                </Grid>
-                            </Border>
-                        </Grid>
+                        <Border x:Name="Chrome"
+                                CornerRadius="8"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF3B526F"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#A58EB6DF"/>
-                                <Setter TargetName="Depth" Property="Background" Value="#5A000000"/>
+                                <Setter TargetName="Chrome" Property="Background" Value="#18FFFFFF"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#2868B5F5"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Margin" Value="0,2,0,0"/>
-                                <Setter TargetName="Depth" Property="Opacity" Value="0.25"/>
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF20324A"/>
+                                <Setter TargetName="Chrome" Property="Background" Value="#2468B5F5"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Cursor" Value="Arrow"/>
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.54"/>
-                                <Setter TargetName="Depth" Property="Opacity" Value="0"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.38"/>
                             </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="ToolbarToggleButton" TargetType="ToggleButton">
-            <Setter Property="Height" Value="29"/>
-            <Setter Property="MinWidth" Value="70"/>
-            <Setter Property="Padding" Value="7,0"/>
-            <Setter Property="Margin" Value="2"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
-            <Setter Property="Background" Value="{StaticResource ButtonSurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="#6D6B82A0"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="FontSize" Value="11.5"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Grid SnapsToDevicePixels="True">
-                            <Border x:Name="Depth"
-                                    Margin="1,2,1,0"
-                                    CornerRadius="7"
-                                    Background="#45000000"
-                                    IsHitTestVisible="False"/>
-                            <Border x:Name="Chrome"
-                                    Margin="0,0,0,2"
-                                    CornerRadius="7"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}">
-                                <Grid>
-                                    <Border x:Name="ActiveGlow"
-                                            Opacity="0"
-                                            Margin="1"
-                                            CornerRadius="6"
-                                            BorderBrush="#7168B5F5"
-                                            BorderThickness="1"
-                                            IsHitTestVisible="False"/>
-                                    <Border Height="1"
-                                            Margin="6,0"
-                                            VerticalAlignment="Top"
-                                            Background="#34FFFFFF"
-                                            CornerRadius="7"
-                                            IsHitTestVisible="False"/>
-                                    <ContentPresenter HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center"
-                                                      Margin="{TemplateBinding Padding}"
-                                                      RecognizesAccessKey="True"/>
-                                </Grid>
-                            </Border>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF3B526F"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#A58EB6DF"/>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF28679B"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#D485CBFF"/>
-                                <Setter TargetName="ActiveGlow" Property="Opacity" Value="1"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Margin" Value="0,2,0,0"/>
-                                <Setter TargetName="Depth" Property="Opacity" Value="0.25"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Cursor" Value="Arrow"/>
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.54"/>
-                                <Setter TargetName="Depth" Property="Opacity" Value="0"/>
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsChecked" Value="True"/>
-                                    <Condition Property="IsEnabled" Value="False"/>
-                                </MultiTrigger.Conditions>
-                                <Setter Property="Foreground" Value="#FFD1DBE5"/>
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF2A4057"/>
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#8D7892AC"/>
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.72"/>
-                                <Setter TargetName="ActiveGlow" Property="Opacity" Value="0.18"/>
-                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -186,10 +71,228 @@
         </Style>
 
         <Style x:Key="CompactButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
-            <Setter Property="Height" Value="28"/>
+            <Setter Property="Height" Value="30"/>
             <Setter Property="MinWidth" Value="30"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+        </Style>
+
+        <Style x:Key="PanelCommandButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="MinWidth" Value="0"/>
             <Setter Property="Padding" Value="7,0"/>
-            <Setter Property="Margin" Value="1"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="#09FFFFFF"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="350"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                CornerRadius="6"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Grid Margin="{TemplateBinding Padding}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="7"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="IconSurface"
+                                        Width="24"
+                                        Height="24"
+                                        CornerRadius="6"
+                                        Background="#1268B5F5">
+                                    <TextBlock Text="{TemplateBinding Tag}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="#FFC4E5FF"
+                                               FontFamily="Segoe UI Symbol"
+                                               FontSize="13"/>
+                                </Border>
+                                <ContentPresenter Grid.Column="2"
+                                                  HorizontalAlignment="Left"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#14FFFFFF"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#2868B5F5"/>
+                                <Setter TargetName="IconSurface" Property="Background" Value="#2468B5F5"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2468B5F5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.38"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PanelCommandToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Padding" Value="7,0"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="#09FFFFFF"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="350"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Chrome"
+                                CornerRadius="6"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Grid Margin="{TemplateBinding Padding}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="7"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="26"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="IconSurface"
+                                        Width="24"
+                                        Height="24"
+                                        CornerRadius="6"
+                                        Background="#1268B5F5">
+                                    <TextBlock Text="{TemplateBinding Tag}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="#FFC4E5FF"
+                                               FontFamily="Segoe UI Symbol"
+                                               FontSize="13"/>
+                                </Border>
+                                <ContentPresenter Grid.Column="2"
+                                                  HorizontalAlignment="Left"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True"/>
+                                <Border x:Name="SwitchTrack"
+                                        Grid.Column="4"
+                                        Width="26"
+                                        Height="14"
+                                        CornerRadius="7"
+                                        Background="#3B718295">
+                                    <Ellipse x:Name="SwitchKnob"
+                                             Width="10"
+                                             Height="10"
+                                             Margin="2"
+                                             HorizontalAlignment="Left"
+                                             Fill="#FFB8C4D0"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#14FFFFFF"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#2868B5F5"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2068B5F5"/>
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#4268B5F5"/>
+                                <Setter TargetName="IconSurface" Property="Background" Value="#2868B5F5"/>
+                                <Setter TargetName="SwitchTrack" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="SwitchKnob" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="SwitchKnob" Property="Fill" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2868B5F5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.38"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PanelTabControlStyle" TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid KeyboardNavigation.TabNavigation="Local">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="34"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Padding="3"
+                                    CornerRadius="8"
+                                    Background="#0CFFFFFF">
+                                <UniformGrid Columns="4"
+                                             IsItemsHost="True"
+                                             KeyboardNavigation.TabIndex="1"
+                                             Panel.ZIndex="1"/>
+                            </Border>
+                            <ContentPresenter x:Name="PART_SelectedContentHost"
+                                              Grid.Row="1"
+                                              Margin="0,6,0,0"
+                                              ContentSource="SelectedContent"
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PanelTabItemStyle" TargetType="TabItem">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Chrome"
+                                Margin="1,0"
+                                CornerRadius="6"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#12FFFFFF"/>
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2068B5F5"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="GroupHeaderIconButtonStyle" TargetType="Button">
@@ -390,12 +493,6 @@
             </Setter>
         </Style>
 
-        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#FF9BCBFA"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="11.5"/>
-            <Setter Property="Margin" Value="4,1,0,2"/>
-        </Style>
     </Window.Resources>
 
     <Grid x:Name="RootGrid"
@@ -542,34 +639,17 @@
                 VerticalAlignment="Top"
                 Margin="0"
                 Visibility="Hidden"
-                Padding="5"
-                CornerRadius="13"
+                Padding="8"
+                CornerRadius="12"
                 Background="{StaticResource PanelSurfaceBrush}"
                 BorderBrush="{StaticResource PanelBorderBrush}"
-                BorderThickness="1.2"
+                BorderThickness="1"
                 PreviewMouseDown="ControlPanel_PreviewMouseDown"
                 MouseEnter="ControlPanel_MouseEnter"
                 MouseLeave="ControlPanel_MouseLeave">
-            <Grid>
-                <Border Margin="1"
-                        CornerRadius="11"
-                        BorderBrush="{StaticResource PanelInnerBorderBrush}"
-                        BorderThickness="1"
-                        IsHitTestVisible="False"/>
-                <Border Width="72"
-                        Height="2"
-                        Margin="14,0,0,0"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        CornerRadius="1"
-                        Background="{StaticResource AccentBrush}"
-                        Opacity="0.9"
-                        IsHitTestVisible="False"/>
-
-                <StackPanel Margin="2">
-                    <Grid
-                          MinWidth="320"
-                          MinHeight="34"
+            <StackPanel>
+                <Grid MinWidth="306"
+                          Height="34"
                           Background="Transparent">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -582,23 +662,22 @@
                              这样展开命令后，按钮的命中区域始终只等于按钮自身。 -->
                         <Button x:Name="PanelExpanderButton"
                                 Grid.Column="0"
-                                Content="☰  整理"
+                                Content="整理  ▾"
                                 Style="{StaticResource ToolbarButton}"
-                                MinWidth="86"
+                                MinWidth="78"
+                                Background="#1468B5F5"
+                                BorderBrush="#2868B5F5"
                                 Click="PanelExpanderButton_Click"
                                 ToolTip="展开或收起整理命令"/>
 
-                        <!-- 只有状态胶囊是总面板拖动区，按钮和命令区域永不参与鼠标捕获。 -->
+                        <!-- 状态文字兼作拖动区；命令、页签和按钮永不参与鼠标捕获。 -->
                         <Border x:Name="ControlPanelDragHandle"
                                 Grid.Column="1"
                                 HorizontalAlignment="Stretch"
                                 VerticalAlignment="Center"
-                                Margin="6,0"
-                                Padding="8,3"
-                                CornerRadius="12"
-                                Background="#40121E2E"
-                                BorderBrush="#356E8FB3"
-                                BorderThickness="1"
+                                Margin="8,0"
+                                Padding="2,0"
+                                Background="Transparent"
                                 Cursor="SizeAll"
                                 ToolTip="{Binding Text, ElementName=StatusText}"
                                 ToolTipService.InitialShowDelay="350"
@@ -606,13 +685,29 @@
                                 PreviewMouseLeftButtonUp="ControlPanelDragHandle_PreviewMouseLeftButtonUp"
                                 PreviewMouseMove="ControlPanelDragHandle_PreviewMouseMove"
                                 LostMouseCapture="ControlPanelDragHandle_LostMouseCapture">
-                            <TextBlock x:Name="StatusText"
-                                       Text="正在加载…"
-                                       Foreground="{StaticResource SecondaryTextBrush}"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Left"
-                                       TextTrimming="CharacterEllipsis"
-                                       IsHitTestVisible="False"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="⠿"
+                                           Margin="0,0,6,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource MutedTextBrush}"
+                                           FontFamily="Segoe UI Symbol"
+                                           FontSize="11"
+                                           IsHitTestVisible="False"/>
+                                <TextBlock x:Name="StatusText"
+                                           Grid.Column="1"
+                                           Text="正在加载…"
+                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Left"
+                                           FontFamily="Microsoft YaHei UI"
+                                           FontSize="11.5"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsHitTestVisible="False"/>
+                            </Grid>
                         </Border>
 
                         <Button x:Name="QuickPauseButton"
@@ -631,198 +726,280 @@
                                 Focusable="False"
                                 Click="HidePanelButton_Click"
                                 ToolTip="隐藏控制条；可点击右上角“显示面板”、双击托盘图标或再次启动恢复"/>
-                    </Grid>
+                </Grid>
 
-                    <!-- 三组命令按 12/12/6 项排成 6 列，共 5 行；
-                         缩短的显示文案由 ToolTip 保留完整语义，避免高 DPI 下再次被最长标签撑宽。 -->
+                    <!-- 四个单页按需呈现 30 个命令；同一时刻最多显示八项。 -->
                     <Border x:Name="ExpandedCommands"
                             Visibility="Collapsed"
-                            Margin="0,5,0,0"
-                            Width="540"
-                            Padding="5"
-                            CornerRadius="10"
-                            Background="{StaticResource PanelInnerBrush}"
-                            BorderBrush="#5C607897"
-                            BorderThickness="1">
-                        <StackPanel>
-                            <Grid Margin="1,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="4"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="2" Background="#FF68B5F5"/>
-                                <TextBlock Grid.Column="1" Text="分组与布局" Style="{StaticResource SectionTitleStyle}"/>
-                            </Grid>
-                            <UniformGrid Columns="6" HorizontalAlignment="Stretch">
-                                <ToggleButton x:Name="EditModeToggle"
-                                              Content="编辑布局"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              Click="EditModeToggle_Click"
-                                              ToolTip="开启后才允许移动、缩放、删除分组及拖动图标"/>
-                                <Button Content="新建分组" Style="{StaticResource ToolbarButton}" Click="NewGroupButton_Click"/>
-                                <Button x:Name="AutoClassifyButton"
-                                        Content="识别分类"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="AutoClassifyButton_Click"
-                                        ToolTip="本地识别文件类型和开发项目；不会移动真实文件"/>
-                                <Button Content="智能布局"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="SmartArrangeGroupsButton_Click"
-                                        ToolTip="按分类框真实宽高填补空隙；可优先保留主屏底部约三分之一临时区域"/>
-                                <Button Content="适应全部"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="AutoFitAllGroupsButton_Click"
-                                        ToolTip="解除全部尺寸锁定，按内容重新计算并自动排列；可撤销"/>
-                                <Button Content="工作区"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="WorkspaceManagerButton_Click"
-                                        ToolTip="创建、预览和切换只改变视觉布局的命名工作区"/>
-                                <Button Content="文件夹入口"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="FolderPortalButton_Click"
-                                        ToolTip="把指定真实文件夹以只读入口显示在桌面；不开放拖入、删除或重命名"/>
-                                <Button x:Name="UndoSmartLayoutButton"
-                                        Content="撤销布局"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="UndoSmartLayoutButton_Click"
-                                        IsEnabled="False"
-                                        ToolTip="恢复本次智能布局前的分组位置和尺寸"/>
-                                <Button x:Name="UndoFileMoveButton"
-                                        Content="撤销移动"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="UndoFileMoveButton_Click"
-                                        IsEnabled="False"
-                                        ToolTip="把最近一次拖入真实文件夹的项目移回原位置"/>
-                                <Button x:Name="CollapseGroupsButton"
-                                        Content="全部收起"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="CollapseGroupsButton_Click"
-                                        ToolTip="一键收起或展开全部分组"/>
-                                <Button Content="对齐图标"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="AlignIconsButton_Click"
-                                        ToolTip="自由图标对齐到最近的空闲网格，并避开分组"/>
-                                <ToggleButton x:Name="RecycleBinWidgetToggle"
-                                              Content="回收站"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              IsChecked="True"
-                                              Click="RecycleBinWidgetToggle_Click"
-                                              ToolTip="显示独立的回收站状态与快捷操作卡片"/>
-                            </UniformGrid>
+                            Margin="0,8,0,0"
+                            Width="420"
+                            Background="Transparent">
+                        <TabControl x:Name="ControlPanelTabs"
+                                    SelectedIndex="0"
+                                    PreviewMouseLeftButtonDown="ControlPanelTabs_PreviewMouseLeftButtonDown"
+                                    Style="{StaticResource PanelTabControlStyle}">
+                            <TabItem x:Name="CommonCommandTab"
+                                     Header="常用"
+                                     IsSelected="True"
+                                     Style="{StaticResource PanelTabItemStyle}">
+                                <StackPanel>
+                                    <TextBlock Margin="4,0,4,3"
+                                               Text="高频入口 · 整理只改变本地桌面状态"
+                                               Foreground="{StaticResource MutedTextBrush}"
+                                               FontFamily="Microsoft YaHei UI"
+                                               FontSize="11.5"/>
+                                    <UniformGrid Height="152" Columns="2" VerticalAlignment="Top">
+                                        <Button Content="搜索桌面"
+                                                Tag="⌕"
+                                                AutomationProperties.AutomationId="desktop-search"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="DesktopSearchButton_Click"
+                                                ToolTip="仅搜索已加载的桌面项目，不扫描其他目录或文件正文"/>
+                                        <Button x:Name="InboxButton"
+                                                Content="待整理"
+                                                Tag="◎"
+                                                AutomationProperties.AutomationId="inbox"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="InboxButton_Click"
+                                                ToolTip="新出现的桌面项目会先进入本地待整理收件箱"/>
+                                        <Button Content="新建分组"
+                                                Tag="＋"
+                                                AutomationProperties.AutomationId="new-group"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="NewGroupButton_Click"
+                                                ToolTip="创建不会移动真实文件的手工分组"/>
+                                        <Button x:Name="AutoClassifyButton"
+                                                Content="识别分类"
+                                                Tag="◈"
+                                                AutomationProperties.AutomationId="auto-classify"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="AutoClassifyButton_Click"
+                                                ToolTip="本地识别文件类型和开发项目；不会移动真实文件"/>
+                                        <Button Content="智能布局"
+                                                Tag="▦"
+                                                AutomationProperties.AutomationId="smart-layout"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="SmartArrangeGroupsButton_Click"
+                                                ToolTip="按分类框真实宽高填补空隙；可优先保留主屏底部约三分之一临时区域"/>
+                                        <Button Content="工作区"
+                                                Tag="▤"
+                                                AutomationProperties.AutomationId="workspaces"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="WorkspaceManagerButton_Click"
+                                                ToolTip="创建、预览和切换只改变视觉布局的命名工作区"/>
+                                        <Button Content="文件夹入口"
+                                                Tag="▣"
+                                                AutomationProperties.AutomationId="folder-portals"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="FolderPortalButton_Click"
+                                                ToolTip="把指定真实文件夹以只读入口显示在桌面；不开放拖入、删除或重命名"/>
+                                        <Button x:Name="PauseButton"
+                                                Content="暂停整理"
+                                                Tag="Ⅱ"
+                                                AutomationProperties.AutomationId="pause"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="PauseButton_Click"
+                                                ToolTip="暂停整理并临时恢复系统桌面图标"/>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </TabItem>
 
-                            <Separator Margin="4,5,4,4" Background="#476A819E"/>
-                            <Grid Margin="1,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="4"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="2" Background="#FF6DD8B5"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="自动化与行为"
-                                           Style="{StaticResource SectionTitleStyle}"
-                                           Foreground="#FF8FE2C7"/>
-                            </Grid>
-                            <UniformGrid Columns="6" HorizontalAlignment="Stretch">
-                                <Button x:Name="InboxButton"
-                                        Content="待整理"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="InboxButton_Click"
-                                        ToolTip="新出现的桌面项目会先进入本地待整理收件箱"/>
-                                <Button Content="自定义规则"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="RuleManagerButton_Click"
-                                        ToolTip="规则保存后默认禁用，必须预览、执行一次后才能启用自动应用"/>
-                                <Button Content="快速搜索"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="DesktopSearchButton_Click"
-                                        ToolTip="仅搜索已加载的桌面项目，不扫描其他目录或文件正文"/>
-                                <ToggleButton x:Name="AutoClassifyNewItemsToggle"
-                                              Content="新项目归类"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              Click="AutoClassifyNewItemsToggle_Click"
-                                              ToolTip="之后出现的新桌面项目自动进入对应分类"/>
-                                <Button x:Name="ClearAutoClassificationButton"
-                                        Content="取消分类…"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="ClearAutoClassificationButton_Click"
-                                        ToolTip="解散自动分类并尽量恢复原图标位置"/>
-                                <ToggleButton x:Name="SnapToGridToggle"
-                                              Content="网格吸附"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              IsChecked="True"
-                                              Click="SnapToGridToggle_Click"/>
-                                <ToggleButton x:Name="PushReflowToggle"
-                                              Content="挤压排列"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              IsChecked="True"
-                                              Click="PushReflowToggle_Click"/>
-                                <ToggleButton x:Name="CompactGroupLayoutToggle"
-                                              Content="紧凑分组"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              Click="CompactGroupLayoutToggle_Click"
-                                              ToolTip="按内容数量缩放分类框；大型分类使用四列图标"/>
-                                <ToggleButton x:Name="ReserveWorkspaceToggle"
-                                              Content="保留临时区"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              Click="ReserveWorkspaceToggle_Click"
-                                              ToolTip="智能布局优先保留主屏底部约三分之一，方便临时放置新文件"/>
-                                <ToggleButton x:Name="AutoCollapsePanelToggle"
-                                              Content="自动收起"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              Click="AutoCollapsePanelToggle_Click"
-                                              ToolTip="命令面板展开后，鼠标移开 6 秒自动收起"/>
-                                <ToggleButton x:Name="AutoStartToggle"
-                                              Content="开机自启"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              Click="AutoStartToggle_Click"
-                                              ToolTip="Windows 登录后安静启动到通知区域"/>
-                                <ToggleButton x:Name="SafeModeToggle"
-                                              Content="安全模式"
-                                              Style="{StaticResource ToolbarToggleButton}"
-                                              Click="SafeModeToggle_Click"
-                                              ToolTip="仅在本次运行中暂停实时监听、自动归类和挤压预览；不会改变原设置"/>
-                            </UniformGrid>
+                            <TabItem x:Name="LayoutCommandTab"
+                                     Header="布局"
+                                     Style="{StaticResource PanelTabItemStyle}">
+                                <StackPanel>
+                                    <TextBlock Margin="4,0,4,3"
+                                               Text="调整分组与图标，不移动真实文件"
+                                               Foreground="{StaticResource MutedTextBrush}"
+                                               FontFamily="Microsoft YaHei UI"
+                                               FontSize="11.5"/>
+                                    <UniformGrid Height="152" Columns="2" VerticalAlignment="Top">
+                                        <ToggleButton x:Name="EditModeToggle"
+                                                      Content="编辑布局"
+                                                      Tag="✎"
+                                                      AutomationProperties.AutomationId="edit-layout"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      Click="EditModeToggle_Click"
+                                                      ToolTip="开启后才允许移动、缩放、删除分组及拖动图标"/>
+                                        <Button Content="适应全部"
+                                                Tag="↔"
+                                                AutomationProperties.AutomationId="fit-all"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="AutoFitAllGroupsButton_Click"
+                                                ToolTip="解除全部尺寸锁定，按内容重新计算并自动排列；可撤销"/>
+                                        <Button x:Name="UndoSmartLayoutButton"
+                                                Content="撤销布局"
+                                                Tag="↶"
+                                                AutomationProperties.AutomationId="undo-layout"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="UndoSmartLayoutButton_Click"
+                                                IsEnabled="False"
+                                                ToolTip="恢复本次智能布局前的分组位置和尺寸"/>
+                                        <Button x:Name="UndoFileMoveButton"
+                                                Content="撤销移动"
+                                                Tag="↩"
+                                                AutomationProperties.AutomationId="undo-file-move"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="UndoFileMoveButton_Click"
+                                                IsEnabled="False"
+                                                ToolTip="把最近一次拖入真实文件夹的项目移回原位置"/>
+                                        <Button x:Name="CollapseGroupsButton"
+                                                Content="全部收起"
+                                                Tag="⌃"
+                                                AutomationProperties.AutomationId="collapse-groups"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="CollapseGroupsButton_Click"
+                                                ToolTip="一键收起或展开全部分组"/>
+                                        <Button Content="对齐图标"
+                                                Tag="⊞"
+                                                AutomationProperties.AutomationId="align-icons"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="AlignIconsButton_Click"
+                                                ToolTip="自由图标对齐到最近的空闲网格，并避开分组"/>
+                                        <ToggleButton x:Name="CompactGroupLayoutToggle"
+                                                      Content="紧凑分组"
+                                                      Tag="≋"
+                                                      AutomationProperties.AutomationId="compact-groups"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      Click="CompactGroupLayoutToggle_Click"
+                                                      ToolTip="按内容数量缩放分类框；大型分类使用四列图标"/>
+                                        <ToggleButton x:Name="RecycleBinWidgetToggle"
+                                                      Content="回收站"
+                                                      Tag="♻"
+                                                      AutomationProperties.AutomationId="recycle-bin-widget"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      IsChecked="True"
+                                                      Click="RecycleBinWidgetToggle_Click"
+                                                      ToolTip="显示独立的回收站状态与快捷操作卡片"/>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </TabItem>
 
-                            <Separator Margin="4,5,4,4" Background="#476A819E"/>
-                            <Grid Margin="1,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="4"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="2" Background="#FFF0B85A"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="运行与维护"
-                                           Style="{StaticResource SectionTitleStyle}"
-                                           Foreground="#FFFFD28A"/>
-                            </Grid>
-                            <UniformGrid Columns="6" HorizontalAlignment="Stretch">
-                                <Button Content="刷新"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="RefreshButton_Click"
-                                        ToolTip="重新扫描桌面并刷新分类与布局状态"/>
-                                <Button Content="诊断日志" Style="{StaticResource ToolbarButton}" Click="OpenDiagnosticsLogButton_Click" ToolTip="打开运行日志目录"/>
-                                <Button Content="操作中心"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="OperationCenterButton_Click"
-                                        ToolTip="查看逐项真实文件操作、恢复核验结果和撤销能力；不会自动重试"/>
-                                <Button x:Name="PauseButton"
-                                        Content="暂停整理"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="PauseButton_Click"
-                                        ToolTip="暂停整理并临时恢复系统桌面图标"/>
-                                <Button Content="隐藏面板"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="HidePanelButton_Click"
-                                        ToolTip="隐藏控制条；可点击右上角“显示面板”、双击托盘图标或再次启动恢复"/>
-                                <Button Content="退出"
-                                        Style="{StaticResource ToolbarButton}"
-                                        Click="ExitButton_Click"
-                                        ToolTip="退出桌面整理；不会删除或移动桌面文件"/>
-                            </UniformGrid>
-                        </StackPanel>
+                            <TabItem x:Name="AutomationCommandTab"
+                                     Header="自动化"
+                                     Style="{StaticResource PanelTabItemStyle}">
+                                <StackPanel>
+                                    <TextBlock Margin="4,0,4,3"
+                                               Text="规则默认禁用，自动结果保持可解释"
+                                               Foreground="{StaticResource MutedTextBrush}"
+                                               FontFamily="Microsoft YaHei UI"
+                                               FontSize="11.5"/>
+                                    <UniformGrid Height="152" Columns="2" VerticalAlignment="Top">
+                                        <Button Content="自定义规则"
+                                                Tag="⌘"
+                                                AutomationProperties.AutomationId="rules"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="RuleManagerButton_Click"
+                                                ToolTip="规则保存后默认禁用，必须预览、执行一次后才能启用自动应用"/>
+                                        <ToggleButton x:Name="AutoClassifyNewItemsToggle"
+                                                      Content="新项目归类"
+                                                      Tag="◇"
+                                                      AutomationProperties.AutomationId="auto-classify-new"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      Click="AutoClassifyNewItemsToggle_Click"
+                                                      ToolTip="之后出现的新桌面项目自动进入对应分类"/>
+                                        <Button x:Name="ClearAutoClassificationButton"
+                                                Content="取消自动分类"
+                                                Tag="⊘"
+                                                AutomationProperties.AutomationId="clear-auto-classification"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="ClearAutoClassificationButton_Click"
+                                                ToolTip="解散自动分类并尽量恢复原图标位置"/>
+                                        <ToggleButton x:Name="SnapToGridToggle"
+                                                      Content="网格吸附"
+                                                      Tag="#"
+                                                      AutomationProperties.AutomationId="snap-to-grid"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      IsChecked="True"
+                                                      Click="SnapToGridToggle_Click"
+                                                      ToolTip="拖动图标时对齐到桌面网格"/>
+                                        <ToggleButton x:Name="PushReflowToggle"
+                                                      Content="挤压排列"
+                                                      Tag="⇥"
+                                                      AutomationProperties.AutomationId="push-reflow"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      IsChecked="True"
+                                                      Click="PushReflowToggle_Click"
+                                                      ToolTip="拖动图标时预览并提交同组项目挤压排列"/>
+                                        <ToggleButton x:Name="ReserveWorkspaceToggle"
+                                                      Content="保留临时区"
+                                                      Tag="▱"
+                                                      AutomationProperties.AutomationId="reserve-workspace"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      Click="ReserveWorkspaceToggle_Click"
+                                                      ToolTip="智能布局优先保留主屏底部约三分之一，方便临时放置新文件"/>
+                                        <ToggleButton x:Name="AutoCollapsePanelToggle"
+                                                      Content="自动收起"
+                                                      Tag="⌄"
+                                                      AutomationProperties.AutomationId="auto-collapse-panel"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      Click="AutoCollapsePanelToggle_Click"
+                                                      ToolTip="命令面板展开后，鼠标移开 6 秒自动收起"/>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </TabItem>
+
+                            <TabItem x:Name="SystemCommandTab"
+                                     Header="系统"
+                                     Style="{StaticResource PanelTabItemStyle}">
+                                <StackPanel>
+                                    <TextBlock Margin="4,0,4,3"
+                                               Text="运行状态、日志与安全退出"
+                                               Foreground="{StaticResource MutedTextBrush}"
+                                               FontFamily="Microsoft YaHei UI"
+                                               FontSize="11.5"/>
+                                    <UniformGrid Height="152" Columns="2" VerticalAlignment="Top">
+                                        <ToggleButton x:Name="AutoStartToggle"
+                                                      Content="开机自启"
+                                                      Tag="↗"
+                                                      AutomationProperties.AutomationId="auto-start"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      Click="AutoStartToggle_Click"
+                                                      ToolTip="Windows 登录后安静启动到通知区域"/>
+                                        <ToggleButton x:Name="SafeModeToggle"
+                                                      Content="安全模式"
+                                                      Tag="◆"
+                                                      AutomationProperties.AutomationId="safe-mode"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      Click="SafeModeToggle_Click"
+                                                      ToolTip="仅在本次运行中暂停实时监听、自动归类和挤压预览；不会改变原设置"/>
+                                        <Button Content="刷新"
+                                                Tag="↻"
+                                                AutomationProperties.AutomationId="refresh"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="RefreshButton_Click"
+                                                ToolTip="重新扫描桌面并刷新分类与布局状态"/>
+                                        <Button Content="诊断日志"
+                                                Tag="≡"
+                                                AutomationProperties.AutomationId="diagnostics"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="OpenDiagnosticsLogButton_Click"
+                                                ToolTip="打开运行日志目录"/>
+                                        <Button Content="操作中心"
+                                                Tag="☷"
+                                                AutomationProperties.AutomationId="operation-center"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="OperationCenterButton_Click"
+                                                ToolTip="查看逐项真实文件操作、恢复核验结果和撤销能力；不会自动重试"/>
+                                        <Button x:Name="HidePanelCommandButton"
+                                                Content="隐藏面板"
+                                                Tag="—"
+                                                AutomationProperties.AutomationId="hide-panel"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="HidePanelButton_Click"
+                                                ToolTip="隐藏控制条；可点击右上角“显示面板”、双击托盘图标或再次启动恢复"/>
+                                        <Button Content="退出"
+                                                Tag="×"
+                                                AutomationProperties.AutomationId="exit"
+                                                Style="{StaticResource PanelCommandButtonStyle}"
+                                                Click="ExitButton_Click"
+                                                ToolTip="退出桌面整理；不会删除或移动桌面文件"/>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </TabItem>
+                        </TabControl>
                     </Border>
                 </StackPanel>
-            </Grid>
         </Border>
 
         <!-- 总面板被隐藏后保留一个独立、固定的恢复入口。
@@ -831,12 +1008,14 @@
                 Panel.ZIndex="10001"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
-                Width="112"
-                Height="36"
+                Width="104"
+                Height="34"
                 Margin="0,14,14,0"
                 Padding="8,0"
                 Visibility="Collapsed"
-                Content="☰  显示面板"
+                Content="显示面板"
+                Background="{StaticResource PanelSurfaceBrush}"
+                BorderBrush="{StaticResource PanelBorderBrush}"
                 Style="{StaticResource ToolbarButton}"
                 Click="ControlPanelRestoreButton_Click"
                 ToolTip="重新显示总控制面板"/>

@@ -466,6 +466,41 @@ namespace DesktopOrganizer
             }
         }
 
+        private void ControlPanelTabs_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // 主窗口使用 MA_NOACTIVATE，TabItem 不能依赖键盘焦点来完成选择。
+            // 只在命中页签标题时显式切页；内容区按钮继续接收自己的鼠标事件。
+            DependencyObject? current = e.OriginalSource as DependencyObject;
+            while (current != null && !ReferenceEquals(current, ControlPanelTabs))
+            {
+                if (current is TabItem tab)
+                {
+                    if (!tab.IsSelected)
+                    {
+                        ControlPanelTabs.SelectedItem = tab;
+                        ScheduleControlPanelClamp(DispatcherPriority.ContextIdle);
+                    }
+
+                    _controlPanelAutoCollapseTimer.Stop();
+                    e.Handled = true;
+                    return;
+                }
+
+                try
+                {
+                    current = VisualTreeHelper.GetParent(current);
+                }
+                catch (InvalidOperationException)
+                {
+                    current = LogicalTreeHelper.GetParent(current);
+                }
+                catch (ArgumentException)
+                {
+                    current = LogicalTreeHelper.GetParent(current);
+                }
+            }
+        }
+
         private void SetCommandsExpanded(bool expanded)
         {
             if (_commandsExpanded == expanded &&
@@ -476,7 +511,7 @@ namespace DesktopOrganizer
 
             _commandsExpanded = expanded;
             ExpandedCommands.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
-            PanelExpanderButton.Content = expanded ? "▴  收起" : "☰  整理";
+            PanelExpanderButton.Content = expanded ? "整理  ▴" : "整理  ▾";
             PanelExpanderButton.ToolTip = expanded ? "收起整理命令" : "展开整理命令";
 
             // 展开状态不属于持久化布局，不能在每次点击时排队写 layout.json。
