@@ -4,12 +4,6 @@ namespace DesktopOrganizer
 {
     internal static class SmartLayoutWorkspacePolicy
     {
-        public const double CompactPanelHeaderWidth = 306;
-        public const double CompactPanelHeaderHeight = 34;
-
-        public static Size CompactPanelHeaderSize =>
-            new(CompactPanelHeaderWidth, CompactPanelHeaderHeight);
-
         public static Rect? TryCreateWorkspace(
             Rect workArea,
             bool isPrimary,
@@ -45,31 +39,6 @@ namespace DesktopOrganizer
                 : null;
         }
 
-        public static Rect? TryCreateCompactPanelObstacle(
-            Point position,
-            Size compactHeaderSize,
-            Thickness padding,
-            Thickness borderThickness)
-        {
-            if (!IsFinitePoint(position) ||
-                !IsFinitePositiveSize(compactHeaderSize) ||
-                !IsFiniteNonNegativeThickness(padding) ||
-                !IsFiniteNonNegativeThickness(borderThickness))
-            {
-                return null;
-            }
-
-            double width = compactHeaderSize.Width +
-                           padding.Left + padding.Right +
-                           borderThickness.Left + borderThickness.Right;
-            double height = compactHeaderSize.Height +
-                            padding.Top + padding.Bottom +
-                            borderThickness.Top + borderThickness.Bottom;
-            return double.IsFinite(width) && double.IsFinite(height) && width > 0 && height > 0
-                ? new Rect(position, new Size(width, height))
-                : null;
-        }
-
         private static bool IsFiniteUsableRect(Rect rect) =>
             !rect.IsEmpty &&
             IsFinitePoint(rect.TopLeft) &&
@@ -80,18 +49,5 @@ namespace DesktopOrganizer
 
         private static bool IsFinitePoint(Point point) =>
             double.IsFinite(point.X) && double.IsFinite(point.Y);
-
-        private static bool IsFinitePositiveSize(Size size) =>
-            !size.IsEmpty &&
-            double.IsFinite(size.Width) &&
-            double.IsFinite(size.Height) &&
-            size.Width > 0 &&
-            size.Height > 0;
-
-        private static bool IsFiniteNonNegativeThickness(Thickness thickness) =>
-            double.IsFinite(thickness.Left) && thickness.Left >= 0 &&
-            double.IsFinite(thickness.Top) && thickness.Top >= 0 &&
-            double.IsFinite(thickness.Right) && thickness.Right >= 0 &&
-            double.IsFinite(thickness.Bottom) && thickness.Bottom >= 0;
     }
 }

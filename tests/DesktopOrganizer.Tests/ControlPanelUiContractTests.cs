@@ -230,24 +230,6 @@ public sealed class ControlPanelUiContractTests
         Assert.IsFalse(commandMouseEvent.Handled, "Tab selection must not swallow command input.");
     }
 
-    [STATestMethod]
-    public void LayoutCompletion_CollapsesExpandedCommandsAtContextIdle()
-    {
-        var window = new MainWindow(startQuietly: false);
-        window.ControlPanel.Visibility = Visibility.Visible;
-        RaiseClick(window.PanelExpanderButton);
-
-        Assert.AreEqual(Visibility.Visible, window.ExpandedCommands.Visibility);
-
-        window.ScheduleCommandsCollapseAfterLayout();
-        window.Dispatcher.Invoke(
-            System.Windows.Threading.DispatcherPriority.ApplicationIdle,
-            new Action(() => { }));
-
-        Assert.AreEqual(Visibility.Collapsed, window.ExpandedCommands.Visibility);
-        Assert.AreEqual("整理  ▾", window.PanelExpanderButton.Content);
-    }
-
     private static IEnumerable<XElement> GetCommandElements(XElement root) =>
         root.Descendants()
             .Where(element => element.Attribute("AutomationProperties.AutomationId") != null);

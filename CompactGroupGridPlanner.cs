@@ -21,7 +21,8 @@ namespace DesktopOrganizer
             IReadOnlyList<Rect> obstacles,
             double trackWidth,
             double gap,
-            int maximumColumns)
+            int maximumColumns,
+            bool preserveInputVerticalOrder = false)
         {
             ArgumentNullException.ThrowIfNull(items);
             ArgumentNullException.ThrowIfNull(workspaces);
@@ -66,6 +67,15 @@ namespace DesktopOrganizer
                 .Where(IsFiniteUsableRect)
                 .ToList();
 
+            if (preserveInputVerticalOrder)
+            {
+                return TryPlanPreservingInputVerticalOrder(
+                    items,
+                    workspaceStates,
+                    occupied,
+                    gap);
+            }
+
             foreach (CompactGroupGridItem item in items)
             {
                 PlacementCandidate? selected = null;
@@ -75,7 +85,8 @@ namespace DesktopOrganizer
                         item,
                         workspace,
                         occupied,
-                        gap);
+                        gap,
+                        workspace.Bounds.Top);
                     if (candidate.HasValue)
                     {
                         // 工作区列表已经按产品优先级排序；只有当前工作区放不下时才使用下一块。
@@ -106,18 +117,120 @@ namespace DesktopOrganizer
             return result;
         }
 
+        private static Dictionary<string, Point>? TryPlanPreservingInputVerticalOrder(
+            IReadOnlyList<CompactGroupGridItem> items,
+            IReadOnlyList<WorkspaceState> workspaces,
+            List<Rect> occupied,
+            double gap)
+        {
+            const int maximumSearchStates = 25_000;
+            var result = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
+            int visitedStates = 0;
+            bool searchLimitReached = false;
+
+            bool TryPlaceItem(int itemIndex)
+            {
+                if (itemIndex >= items.Count)
+                {
+                    return true;
+                }
+
+                if (++visitedStates > maximumSearchStates)
+                {
+                    searchLimitReached = true;
+                    return false;
+                }
+
+                CompactGroupGridItem item = items[itemIndex];
+                foreach (WorkspaceState workspace in workspaces)
+                {
+                    List<PlacementCandidate> candidates = FindPlacementCandidates(
+                        item,
+                        workspace,
+                        occupied,
+                        gap,
+                        workspace.MinimumPlacementY);
+                    foreach (PlacementCandidate placement in candidates)
+                    {
+                        double previousMinimumY = placement.Workspace.MinimumPlacementY;
+                        double[] previousColumnBottoms = new double[placement.ColumnSpan];
+                        for (int offset = 0; offset < placement.ColumnSpan; offset++)
+                        {
+                            previousColumnBottoms[offset] = placement.Workspace.ColumnBottoms[
+                                placement.StartColumn + offset];
+                        }
+
+                        result[item.Id] = new Point(placement.Bounds.X, placement.Bounds.Y);
+                        occupied.Add(placement.Bounds);
+                        placement.Workspace.MinimumPlacementY = Math.Max(
+                            placement.Workspace.MinimumPlacementY,
+                            placement.Bounds.Y);
+                        double nextBottom = placement.Bounds.Bottom + gap;
+                        for (int column = placement.StartColumn;
+                             column < placement.StartColumn + placement.ColumnSpan;
+                             column++)
+                        {
+                            placement.Workspace.ColumnBottoms[column] = Math.Max(
+                                placement.Workspace.ColumnBottoms[column],
+                                nextBottom);
+                        }
+
+                        if (TryPlaceItem(itemIndex + 1))
+                        {
+                            return true;
+                        }
+
+                        result.Remove(item.Id);
+                        occupied.RemoveAt(occupied.Count - 1);
+                        placement.Workspace.MinimumPlacementY = previousMinimumY;
+                        for (int offset = 0; offset < placement.ColumnSpan; offset++)
+                        {
+                            placement.Workspace.ColumnBottoms[placement.StartColumn + offset] =
+                                previousColumnBottoms[offset];
+                        }
+
+                        if (searchLimitReached)
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            return TryPlaceItem(0) ? result : null;
+        }
+
         private static PlacementCandidate? FindBestCandidate(
             CompactGroupGridItem item,
             WorkspaceState workspace,
             IReadOnlyList<Rect> occupied,
-            double gap)
+            double gap,
+            double minimumPlacementY)
+        {
+            List<PlacementCandidate> candidates = FindPlacementCandidates(
+                item,
+                workspace,
+                occupied,
+                gap,
+                minimumPlacementY);
+            return candidates.Count == 0 ? null : candidates[0];
+        }
+
+        private static List<PlacementCandidate> FindPlacementCandidates(
+            CompactGroupGridItem item,
+            WorkspaceState workspace,
+            IReadOnlyList<Rect> occupied,
+            double gap,
+            double minimumPlacementY)
         {
             int span = GetRequiredColumnSpan(item.Width, workspace.TrackWidth, gap);
             if (span > workspace.ColumnCount)
             {
                 if (item.Width > workspace.Bounds.Width + CoordinateTolerance)
                 {
-                    return null;
+                    return [];
                 }
 
                 // 固定轨道右侧可能留有不足一轨的余量。允许能完整放入工作区的
@@ -132,15 +245,20 @@ namespace DesktopOrganizer
             if (!canUseTrailingWorkspaceRemainder &&
                 item.Width > trackSpanWidth + CoordinateTolerance)
             {
-                return null;
+                return [];
             }
 
-            PlacementCandidate? best = null;
+            List<Rect> workspaceOccupied = FilterOccupiedForWorkspace(
+                occupied,
+                workspace.Bounds,
+                gap);
+
+            var candidates = new List<PlacementCandidate>(workspace.ColumnCount - span + 1);
             for (int startColumn = 0;
                  startColumn + span <= workspace.ColumnCount;
                  startColumn++)
             {
-                double initialY = workspace.Bounds.Top;
+                double initialY = Math.Max(workspace.Bounds.Top, minimumPlacementY);
                 for (int column = startColumn; column < startColumn + span; column++)
                 {
                     initialY = Math.Max(initialY, workspace.ColumnBottoms[column]);
@@ -150,7 +268,7 @@ namespace DesktopOrganizer
                            startColumn * (workspace.TrackWidth + gap);
                 double? y = FindFirstAvailableY(
                     workspace.Bounds,
-                    occupied,
+                    workspaceOccupied,
                     x,
                     initialY,
                     item.Width,
@@ -161,21 +279,29 @@ namespace DesktopOrganizer
                     continue;
                 }
 
-                var candidate = new PlacementCandidate(
+                candidates.Add(new PlacementCandidate(
                     workspace,
                     startColumn,
                     span,
-                    new Rect(x, y.Value, item.Width, item.Height));
-                if (!best.HasValue ||
-                    candidate.Bounds.Y < best.Value.Bounds.Y - CoordinateTolerance ||
-                    (Math.Abs(candidate.Bounds.Y - best.Value.Bounds.Y) <= CoordinateTolerance &&
-                     candidate.StartColumn < best.Value.StartColumn))
-                {
-                    best = candidate;
-                }
+                    new Rect(x, y.Value, item.Width, item.Height)));
             }
 
-            return best;
+            return candidates
+                .OrderBy(candidate => candidate.Bounds.Y)
+                .ThenBy(candidate => candidate.StartColumn)
+                .ToList();
+        }
+
+        internal static List<Rect> FilterOccupiedForWorkspace(
+            IReadOnlyList<Rect> occupied,
+            Rect workspace,
+            double gap)
+        {
+            Rect collisionScope = workspace;
+            collisionScope.Inflate(gap / 2, gap / 2);
+            return occupied
+                .Where(collisionScope.IntersectsWith)
+                .ToList();
         }
 
         private static double? FindFirstAvailableY(
@@ -247,6 +373,7 @@ namespace DesktopOrganizer
                 TrackWidth = trackWidth;
                 ColumnCount = columnCount;
                 ColumnBottoms = Enumerable.Repeat(bounds.Top, columnCount).ToArray();
+                MinimumPlacementY = bounds.Top;
             }
 
             public Rect Bounds { get; }
@@ -254,6 +381,7 @@ namespace DesktopOrganizer
             public double TrackWidth { get; }
             public int ColumnCount { get; }
             public double[] ColumnBottoms { get; }
+            public double MinimumPlacementY { get; set; }
 
             public static WorkspaceState? TryCreate(
                 Rect bounds,

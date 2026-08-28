@@ -261,6 +261,58 @@ public sealed class CompactGroupGridPlannerTests
         Assert.IsNull(plan);
     }
 
+    [TestMethod]
+    public void TryPlan_PreserveVerticalOrder_BacktracksAroundWideCard()
+    {
+        CompactGroupGridItem[] items =
+        [
+            new("collapsed-many", 352, 38),
+            new("tall-middle", 352, 300),
+            new("wide-later", 716, 100),
+            new("single-last", 352, 200)
+        ];
+        var workspace = new Rect(0, 0, 1080, 412);
+
+        Dictionary<string, Point>? plan = CompactGroupGridPlanner.TryPlan(
+            items,
+            [workspace],
+            [],
+            trackWidth: 352,
+            gap: 12,
+            maximumColumns: 3,
+            preserveInputVerticalOrder: true);
+
+        Assert.IsNotNull(plan);
+        double[] yPositions = items.Select(item => plan[item.Id].Y).ToArray();
+        for (int index = 1; index < yPositions.Length; index++)
+        {
+            Assert.IsTrue(
+                yPositions[index] >= yPositions[index - 1],
+                $"Item {items[index].Id} was placed above an earlier item.");
+        }
+        AssertNoOverlap(items, plan, gap: 12);
+        AssertWithinAnyWorkspace(items, plan, [workspace]);
+    }
+
+    [TestMethod]
+    public void FilterOccupiedForWorkspace_KeepsOnlyPotentialCollisions()
+    {
+        var workspace = new Rect(100, 100, 300, 200);
+        var insideWorkspace = new Rect(150, 150, 20, 20);
+        var withinEdgeGap = new Rect(95, 150, 1, 20);
+        var beyondEdgeGap = new Rect(80, 150, 10, 20);
+        var anotherMonitor = new Rect(5000, 0, 100, 100);
+
+        List<Rect> filtered = CompactGroupGridPlanner.FilterOccupiedForWorkspace(
+            [insideWorkspace, withinEdgeGap, beyondEdgeGap, anotherMonitor],
+            workspace,
+            gap: 12);
+
+        CollectionAssert.AreEqual(
+            new[] { insideWorkspace, withinEdgeGap },
+            filtered);
+    }
+
     private static void AssertNoOverlap(
         IReadOnlyList<CompactGroupGridItem> items,
         IReadOnlyDictionary<string, Point> plan,

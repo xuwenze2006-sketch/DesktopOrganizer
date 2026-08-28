@@ -588,15 +588,11 @@ namespace DesktopOrganizer
             }
 
             RebuildDesktopIconsAndSaveLayout();
-            if (rearranged)
-            {
-                ScheduleCommandsCollapseAfterLayout();
-            }
             string modeMessage = _appLayout.CompactGroupLayout
                 ? "紧凑分类框已开启；大型分类可使用四列图标"
                 : "已恢复舒展分类框尺寸";
             StatusText.Text = rearranged
-                ? $"{modeMessage}；已保持分类当前展开/收起状态并重新排列以避免重叠"
+                ? $"{modeMessage}；已按内容数量重新排列并保持当前展开/收起状态"
                 : modeMessage;
         }
 
@@ -634,8 +630,7 @@ namespace DesktopOrganizer
             _lastSmartLayoutSnapshot = attemptSnapshot;
             UndoSmartLayoutButton.IsEnabled = true;
             RebuildDesktopIconsAndSaveLayout();
-            ScheduleCommandsCollapseAfterLayout();
-            StatusText.Text = $"已适应并重新排列 {_appLayout.Groups.Count} 个分类框；当前展开/收起状态保持不变";
+            StatusText.Text = $"已适应并按内容数量重新排列 {_appLayout.Groups.Count} 个分类框；当前展开/收起状态保持不变";
         }
 
         private void ScheduleControlPanelAutoCollapse()

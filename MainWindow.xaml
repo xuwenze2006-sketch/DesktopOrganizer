@@ -825,7 +825,7 @@
                                                 AutomationProperties.AutomationId="smart-layout"
                                          Style="{StaticResource PanelCommandButtonStyle}"
                                          Click="SmartArrangeGroupsButton_Click"
-                                         ToolTip="收起总面板后按其局部占位，以最多三列瀑布流紧贴排列；保持各分类当前展开/收起状态"/>
+                                         ToolTip="按内容数量从多到少优先占用顶部位置，以最多三列瀑布流紧贴排列；不受总面板影响"/>
                                         <Button Content="工作区"
                                                 Tag="▤"
                                                 AutomationProperties.AutomationId="workspaces"
