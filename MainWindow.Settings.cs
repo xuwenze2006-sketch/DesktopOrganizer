@@ -376,6 +376,8 @@ namespace DesktopOrganizer
 
                 PauseButton.Content = "继续整理";
                 QuickPauseButton.Content = "继续";
+                PauseButton.ToolTip = "继续整理并重新隐藏系统桌面图标";
+                QuickPauseButton.ToolTip = "继续整理并重新隐藏系统桌面图标";
                 StatusText.Text = "已暂停";
             }
             else
@@ -392,6 +394,8 @@ namespace DesktopOrganizer
                 RebuildDesktopIcons();
                 PauseButton.Content = "暂停整理";
                 QuickPauseButton.Content = "暂停";
+                PauseButton.ToolTip = "暂停整理并临时恢复系统桌面图标";
+                QuickPauseButton.ToolTip = "暂停整理并临时恢复系统桌面图标";
                 StatusText.Text = "整理已继续";
             }
 

@@ -587,7 +587,8 @@
                                 BorderBrush="#356E8FB3"
                                 BorderThickness="1"
                                 Cursor="SizeAll"
-                                ToolTip="按住此处拖动总面板"
+                                ToolTip="{Binding Text, ElementName=StatusText}"
+                                ToolTipService.InitialShowDelay="350"
                                 PreviewMouseLeftButtonDown="ControlPanelDragHandle_PreviewMouseLeftButtonDown"
                                 PreviewMouseLeftButtonUp="ControlPanelDragHandle_PreviewMouseLeftButtonUp"
                                 PreviewMouseMove="ControlPanelDragHandle_PreviewMouseMove"
@@ -596,8 +597,8 @@
                                        Text="正在加载…"
                                        Foreground="{StaticResource SecondaryTextBrush}"
                                        VerticalAlignment="Center"
-                                       HorizontalAlignment="Right"
-                                       MaxWidth="280"
+                                       HorizontalAlignment="Left"
+                                       MaxWidth="360"
                                        TextTrimming="CharacterEllipsis"
                                        IsHitTestVisible="False"/>
                         </Border>
@@ -608,7 +609,7 @@
                                 Style="{StaticResource CompactButton}"
                                 Focusable="False"
                                 Click="PauseButton_Click"
-                                ToolTip="临时恢复系统桌面图标"/>
+                                ToolTip="暂停整理并临时恢复系统桌面图标"/>
 
                         <Button Grid.Column="3"
                                 Content="×"
@@ -747,7 +748,11 @@
                             <WrapPanel MaxWidth="730" HorizontalAlignment="Right">
                                 <Button Content="刷新" Style="{StaticResource ToolbarButton}" Click="RefreshButton_Click"/>
                                 <Button Content="诊断日志" Style="{StaticResource ToolbarButton}" Click="OpenDiagnosticsLogButton_Click" ToolTip="打开运行日志目录"/>
-                                <Button x:Name="PauseButton" Content="暂停整理" Style="{StaticResource ToolbarButton}" Click="PauseButton_Click"/>
+                                <Button x:Name="PauseButton"
+                                        Content="暂停整理"
+                                        Style="{StaticResource ToolbarButton}"
+                                        Click="PauseButton_Click"
+                                        ToolTip="暂停整理并临时恢复系统桌面图标"/>
                                 <Button Content="隐藏面板" Style="{StaticResource ToolbarButton}" Click="HidePanelButton_Click"/>
                                 <Button Content="退出" Style="{StaticResource ToolbarButton}" Click="ExitButton_Click"/>
                             </WrapPanel>
