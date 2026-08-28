@@ -302,7 +302,7 @@ namespace DesktopOrganizer
                 BorderThickness = new Thickness(1),
                 Child = new TextBlock
                 {
-                    Text = group.Width < 235 ? group.ItemNames.Count.ToString() : $"{group.ItemNames.Count} 项",
+                    Text = $"{group.ItemNames.Count} 项",
                     Foreground = new SolidColorBrush(Color.FromArgb(235, 241, 247, 253)),
                     FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center,
