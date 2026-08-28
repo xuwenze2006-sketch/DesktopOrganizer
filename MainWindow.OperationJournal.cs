@@ -106,11 +106,14 @@ namespace DesktopOrganizer
 
         private void ProtectFileOperationJournal(string errorMessage)
         {
-            _fileOperationJournalError = string.IsNullOrWhiteSpace(errorMessage)
-                ? "操作账本不可用。"
-                : errorMessage;
-            _fileOperationJournalProtected = true;
-            _diagnostics.Log($"JOURNAL protected error={_fileOperationJournalError}");
+            lock (_fileOperationJournalGate)
+            {
+                _fileOperationJournalError = string.IsNullOrWhiteSpace(errorMessage)
+                    ? "操作账本不可用。"
+                    : errorMessage;
+                _fileOperationJournalProtected = true;
+                _diagnostics.Log($"JOURNAL protected error={_fileOperationJournalError}");
+            }
         }
 
         private FileOperationDispatchResult DispatchJournaledOperation(
@@ -128,11 +131,13 @@ namespace DesktopOrganizer
 
             var coordinator = new FileOperationWriteAheadCoordinator(
                 _fileOperationJournalStore,
-                afterPersisted: _ => PublishFileOperationJournalSnapshot());
+                afterPersisted: _ => PublishFileOperationJournalSnapshot(),
+                journalGate: _fileOperationJournalGate);
             FileOperationDispatchResult result = coordinator.DispatchQueued(
                 _fileOperationJournal,
                 entry,
-                operation);
+                operation,
+                canStart: () => !_fileOperationJournalProtected);
             if (!result.JournalPersisted)
             {
                 ProtectFileOperationJournal(
@@ -145,27 +150,31 @@ namespace DesktopOrganizer
             IReadOnlyList<FileOperationJournalEntry> entries,
             out string errorMessage)
         {
-            errorMessage = string.Empty;
-            if (_fileOperationJournalProtected)
+            lock (_fileOperationJournalGate)
             {
-                errorMessage = _fileOperationJournalError ?? "操作账本处于保护状态。";
+                errorMessage = string.Empty;
+                if (_fileOperationJournalProtected)
+                {
+                    errorMessage = _fileOperationJournalError ?? "操作账本处于保护状态。";
+                    return false;
+                }
+
+                var coordinator = new FileOperationWriteAheadCoordinator(
+                    _fileOperationJournalStore,
+                    afterPersisted: _ => PublishFileOperationJournalSnapshot(),
+                    journalGate: _fileOperationJournalGate);
+                if (coordinator.TryQueue(
+                        _fileOperationJournal,
+                        entries,
+                        out string? queueError))
+                {
+                    return true;
+                }
+
+                errorMessage = queueError ?? "Queued 状态未能落盘。";
+                ProtectFileOperationJournal(errorMessage);
                 return false;
             }
-
-            var coordinator = new FileOperationWriteAheadCoordinator(
-                _fileOperationJournalStore,
-                afterPersisted: _ => PublishFileOperationJournalSnapshot());
-            if (coordinator.TryQueue(
-                    _fileOperationJournal,
-                    entries,
-                    out string? queueError))
-            {
-                return true;
-            }
-
-            errorMessage = queueError ?? "Queued 状态未能落盘。";
-            ProtectFileOperationJournal(errorMessage);
-            return false;
         }
 
         private void PublishFileOperationJournalSnapshot()

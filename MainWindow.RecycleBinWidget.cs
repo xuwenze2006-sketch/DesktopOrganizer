@@ -190,12 +190,6 @@ namespace DesktopOrganizer
                 return;
             }
 
-            if (HasPendingFileOperations)
-            {
-                StatusText.Text = "已有真实文件操作正在进行，请完成后再清空回收站";
-                return;
-            }
-
             if (!EnsureFileOperationJournalAvailable("清空回收站"))
             {
                 return;

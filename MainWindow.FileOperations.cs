@@ -101,12 +101,6 @@ namespace DesktopOrganizer
                 return false;
             }
 
-            if (_fileOperationCount > 0)
-            {
-                StatusText.Text = "已有真实文件操作正在进行，请完成后再继续";
-                return false;
-            }
-
             if (reservedKeys.Any(key => _pendingFileOperationPaths.Contains(key)))
             {
                 StatusText.Text = busyMessage;

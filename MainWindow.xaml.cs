@@ -69,6 +69,7 @@ namespace DesktopOrganizer
         private readonly RefreshCancellationEpoch _refreshCancellationEpoch = new();
         private readonly FileOperationService _fileOperationService;
         private readonly FileOperationJournalStore _fileOperationJournalStore;
+        private readonly object _fileOperationJournalGate = new();
         private readonly object _refreshDebounceLock = new();
         private readonly object _desktopRenameLock = new();
         private readonly object _externalEventLock = new();

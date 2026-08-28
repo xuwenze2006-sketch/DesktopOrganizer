@@ -319,6 +319,39 @@ public sealed class FileOperationJournalTests
     }
 
     [TestMethod]
+    public void Coordinator_ProtectedPrequeuedEntryDoesNotStartOrPersistRunning()
+    {
+        var store = new CapturingStore();
+        var gate = new object();
+        var coordinator = new FileOperationWriteAheadCoordinator(
+            store,
+            () => FirstUtc,
+            journalGate: gate);
+        var journal = new FileOperationJournalData();
+        FileOperationJournalEntry entry = NewEntry();
+        Assert.IsTrue(coordinator.TryQueue(journal, [entry], out _));
+        int operationCalls = 0;
+
+        FileOperationDispatchResult result = coordinator.DispatchQueued(
+            journal,
+            entry,
+            () =>
+            {
+                operationCalls++;
+                return FileOperationExecutionOutcome.Success();
+            },
+            canStart: () => false);
+
+        Assert.IsFalse(result.Executed);
+        Assert.IsTrue(result.JournalPersisted);
+        Assert.AreEqual(0, operationCalls);
+        Assert.AreEqual(FileOperationJournalState.Queued, entry.State);
+        CollectionAssert.AreEqual(
+            new[] { FileOperationJournalState.Queued },
+            store.SavedStates.ToArray());
+    }
+
+    [TestMethod]
     public void Coordinator_SuccessPersistsQueuedRunningAndTerminalAndInvokesOnce()
     {
         int clockCalls = 0;

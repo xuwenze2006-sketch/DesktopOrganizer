@@ -199,15 +199,18 @@ namespace DesktopOrganizer
         private readonly IFileOperationJournalStore _store;
         private readonly Func<DateTime> _utcNow;
         private readonly Action<FileOperationJournalData>? _afterPersisted;
+        private readonly object _journalGate;
 
         public FileOperationWriteAheadCoordinator(
             IFileOperationJournalStore store,
             Func<DateTime>? utcNow = null,
-            Action<FileOperationJournalData>? afterPersisted = null)
+            Action<FileOperationJournalData>? afterPersisted = null,
+            object? journalGate = null)
         {
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _utcNow = utcNow ?? (() => DateTime.UtcNow);
             _afterPersisted = afterPersisted;
+            _journalGate = journalGate ?? new object();
         }
 
         public FileOperationDispatchResult Dispatch(
@@ -241,6 +244,17 @@ namespace DesktopOrganizer
         {
             ArgumentNullException.ThrowIfNull(journal);
             ArgumentNullException.ThrowIfNull(entries);
+            lock (_journalGate)
+            {
+                return TryQueueCore(journal, entries, out errorMessage);
+            }
+        }
+
+        private bool TryQueueCore(
+            FileOperationJournalData journal,
+            IReadOnlyList<FileOperationJournalEntry> entries,
+            out string? errorMessage)
+        {
             journal.Entries ??= new List<FileOperationJournalEntry>();
             if (entries.Count == 0)
             {
@@ -281,45 +295,57 @@ namespace DesktopOrganizer
         public FileOperationDispatchResult DispatchQueued(
             FileOperationJournalData journal,
             FileOperationJournalEntry entry,
-            Func<FileOperationExecutionOutcome> operation)
+            Func<FileOperationExecutionOutcome> operation,
+            Func<bool>? canStart = null)
         {
             ArgumentNullException.ThrowIfNull(journal);
             ArgumentNullException.ThrowIfNull(entry);
             ArgumentNullException.ThrowIfNull(operation);
-            journal.Entries ??= new List<FileOperationJournalEntry>();
-            if (entry.State != FileOperationJournalState.Queued ||
-                !journal.Entries.Any(existing => ReferenceEquals(existing, entry)))
+            lock (_journalGate)
             {
-                return new FileOperationDispatchResult(
-                    Executed: false,
-                    JournalPersisted: false,
-                    Entry: entry,
-                    ErrorMessage: "只能执行已经持久化的 Queued 操作。");
-            }
+                journal.Entries ??= new List<FileOperationJournalEntry>();
+                if (entry.State != FileOperationJournalState.Queued ||
+                    !journal.Entries.Any(existing => ReferenceEquals(existing, entry)))
+                {
+                    return new FileOperationDispatchResult(
+                        Executed: false,
+                        JournalPersisted: false,
+                        Entry: entry,
+                        ErrorMessage: "只能执行已经持久化的 Queued 操作。");
+                }
+                if (canStart != null && !canStart())
+                {
+                    return new FileOperationDispatchResult(
+                        Executed: false,
+                        JournalPersisted: true,
+                        Entry: entry,
+                        ErrorMessage: "操作账本处于保护状态，Queued 操作没有开始。");
+                }
 
-            DateTime? previousStartedUtc = entry.StartedUtc;
-            if (!FileOperationJournalStateMachine.TryTransition(
-                    entry,
-                    FileOperationJournalState.Running,
-                    _utcNow()))
-            {
-                return new FileOperationDispatchResult(
-                    Executed: false,
-                    JournalPersisted: true,
-                    Entry: entry,
-                    ErrorMessage: "无法将已排队操作转换为 Running。");
-            }
+                DateTime? previousStartedUtc = entry.StartedUtc;
+                if (!FileOperationJournalStateMachine.TryTransition(
+                        entry,
+                        FileOperationJournalState.Running,
+                        _utcNow()))
+                {
+                    return new FileOperationDispatchResult(
+                        Executed: false,
+                        JournalPersisted: true,
+                        Entry: entry,
+                        ErrorMessage: "无法将已排队操作转换为 Running。");
+                }
 
-            if (!TrySave(journal, out string? runningError))
-            {
-                // Running 没有落盘时，不得让内存假装该委托已开始。
-                entry.State = FileOperationJournalState.Queued;
-                entry.StartedUtc = previousStartedUtc;
-                return new FileOperationDispatchResult(
-                    Executed: false,
-                    JournalPersisted: false,
-                    Entry: entry,
-                    ErrorMessage: runningError ?? "Running 状态未能落盘。");
+                if (!TrySave(journal, out string? runningError))
+                {
+                    // Running 没有落盘时，不得让内存假装该委托已开始。
+                    entry.State = FileOperationJournalState.Queued;
+                    entry.StartedUtc = previousStartedUtc;
+                    return new FileOperationDispatchResult(
+                        Executed: false,
+                        JournalPersisted: false,
+                        Entry: entry,
+                        ErrorMessage: runningError ?? "Running 状态未能落盘。");
+                }
             }
 
             FileOperationExecutionOutcome outcome;
@@ -343,27 +369,30 @@ namespace DesktopOrganizer
                     exception.Message);
             }
 
-            if (!FileOperationJournalStateMachine.CanTransition(entry.State, outcome.State))
+            lock (_journalGate)
             {
-                outcome = FileOperationExecutionOutcome.Failure(
-                    "invalid_outcome_state",
-                    $"文件操作返回了非法终态 {outcome.State}。");
+                if (!FileOperationJournalStateMachine.CanTransition(entry.State, outcome.State))
+                {
+                    outcome = FileOperationExecutionOutcome.Failure(
+                        "invalid_outcome_state",
+                        $"文件操作返回了非法终态 {outcome.State}。");
+                }
+
+                entry.DestinationPath = outcome.DestinationPath ?? entry.DestinationPath;
+                entry.ResultIdentity = outcome.ResultIdentity ?? entry.ResultIdentity;
+                entry.ErrorCode = outcome.ErrorCode;
+                entry.ErrorMessage = outcome.ErrorMessage;
+                _ = FileOperationJournalStateMachine.TryTransition(entry, outcome.State, _utcNow());
+
+                bool terminalSaved = TrySave(journal, out string? terminalError);
+                return new FileOperationDispatchResult(
+                    Executed: true,
+                    JournalPersisted: terminalSaved,
+                    Entry: entry,
+                    ErrorMessage: terminalSaved
+                        ? entry.ErrorMessage
+                        : terminalError ?? "操作已执行，但终态未能落盘。");
             }
-
-            entry.DestinationPath = outcome.DestinationPath ?? entry.DestinationPath;
-            entry.ResultIdentity = outcome.ResultIdentity ?? entry.ResultIdentity;
-            entry.ErrorCode = outcome.ErrorCode;
-            entry.ErrorMessage = outcome.ErrorMessage;
-            _ = FileOperationJournalStateMachine.TryTransition(entry, outcome.State, _utcNow());
-
-            bool terminalSaved = TrySave(journal, out string? terminalError);
-            return new FileOperationDispatchResult(
-                Executed: true,
-                JournalPersisted: terminalSaved,
-                Entry: entry,
-                ErrorMessage: terminalSaved
-                    ? entry.ErrorMessage
-                    : terminalError ?? "操作已执行，但终态未能落盘。");
         }
 
         private bool TrySave(
