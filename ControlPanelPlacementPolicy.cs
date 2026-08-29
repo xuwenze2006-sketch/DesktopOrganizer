@@ -28,5 +28,38 @@ namespace DesktopOrganizer
                 Math.Clamp(x, minX, maxX),
                 Math.Clamp(y, minY, maxY));
         }
+
+        public static Point ResizeFromNearestHorizontalEdge(
+            Rect workArea,
+            double x,
+            double y,
+            double previousWidth,
+            double newWidth,
+            double newHeight,
+            double edgeInset)
+        {
+            previousWidth = Math.Max(0, previousWidth);
+            newWidth = Math.Max(0, newWidth);
+            edgeInset = Math.Max(0, edgeInset);
+
+            double previousInset = previousWidth + edgeInset * 2 <= workArea.Width
+                ? edgeInset
+                : 0;
+            double leftAnchor = workArea.Left + previousInset;
+            double rightAnchor = workArea.Right - previousInset;
+            double distanceToLeft = Math.Abs(x - leftAnchor);
+            double distanceToRight = Math.Abs(rightAnchor - (x + previousWidth));
+            double anchoredX = distanceToRight <= distanceToLeft
+                ? x + previousWidth - newWidth
+                : x;
+
+            return ClampToWorkArea(
+                workArea,
+                anchoredX,
+                y,
+                newWidth,
+                newHeight,
+                edgeInset);
+        }
     }
 }

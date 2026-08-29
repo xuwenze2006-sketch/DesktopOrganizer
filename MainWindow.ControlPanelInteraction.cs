@@ -401,18 +401,43 @@ namespace DesktopOrganizer
 
         private void ApplyControlPanelPosition()
         {
-            ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            double panelWidth = GetRenderedLength(
-                ControlPanel.ActualWidth,
-                ControlPanel.Width,
-                ControlPanel.DesiredSize.Width);
+            Size panelSize = MeasureControlPanelContentSize();
             Rect primaryWorkArea = GetPrimaryWorkArea();
             double defaultX = Math.Max(
                 primaryWorkArea.Left,
-                primaryWorkArea.Right - panelWidth - 14);
+                primaryWorkArea.Right - panelSize.Width - 14);
             double x = _appLayout.ControlPanelX ?? defaultX;
             double y = _appLayout.ControlPanelY ?? (primaryWorkArea.Top + 14);
             SetControlPanelPosition(x, y, updateLayout: true);
+        }
+
+        private Size MeasureControlPanelContentSize()
+        {
+            ControlPanel.InvalidateMeasure();
+            ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+            Thickness margin = ControlPanel.Margin;
+            double horizontalMargin =
+                (double.IsFinite(margin.Left) ? margin.Left : 0) +
+                (double.IsFinite(margin.Right) ? margin.Right : 0);
+            double verticalMargin =
+                (double.IsFinite(margin.Top) ? margin.Top : 0) +
+                (double.IsFinite(margin.Bottom) ? margin.Bottom : 0);
+            double desiredWidth = ControlPanel.DesiredSize.Width - horizontalMargin;
+            double desiredHeight = ControlPanel.DesiredSize.Height - verticalMargin;
+            double width = double.IsFinite(desiredWidth) && desiredWidth > 0
+                ? desiredWidth
+                : GetRenderedLength(
+                    ControlPanel.ActualWidth,
+                    ControlPanel.Width,
+                    ControlPanel.DesiredSize.Width);
+            double height = double.IsFinite(desiredHeight) && desiredHeight > 0
+                ? desiredHeight
+                : GetRenderedLength(
+                    ControlPanel.ActualHeight,
+                    ControlPanel.Height,
+                    ControlPanel.DesiredSize.Height);
+            return new Size(Math.Max(0, width), Math.Max(0, height));
         }
 
         private Point GetControlPanelPosition()
@@ -449,17 +474,15 @@ namespace DesktopOrganizer
             ControlPanelRestoreButton.Margin = new Thickness(clamped.X, clamped.Y, 0, 0);
         }
 
-        private void SetControlPanelPosition(double x, double y, bool updateLayout)
+        private void SetControlPanelPosition(
+            double x,
+            double y,
+            bool updateLayout,
+            Size? measuredSize = null)
         {
-            ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            double width = GetRenderedLength(
-                ControlPanel.ActualWidth,
-                ControlPanel.Width,
-                ControlPanel.DesiredSize.Width);
-            double height = GetRenderedLength(
-                ControlPanel.ActualHeight,
-                ControlPanel.Height,
-                ControlPanel.DesiredSize.Height);
+            Size panelSize = measuredSize ?? MeasureControlPanelContentSize();
+            double width = panelSize.Width;
+            double height = panelSize.Height;
             var requested = new Rect(
                 SafeCanvasCoordinate(x),
                 SafeCanvasCoordinate(y),

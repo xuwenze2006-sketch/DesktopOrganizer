@@ -509,10 +509,41 @@ namespace DesktopOrganizer
                 return;
             }
 
+            bool preservePanelEdge = ControlPanel.Visibility == Visibility.Visible;
+            Point previousPosition = default;
+            Size previousSize = default;
+            DesktopMonitorRegion? resizeMonitor = null;
+            if (preservePanelEdge)
+            {
+                previousPosition = GetControlPanelPosition();
+                previousSize = MeasureControlPanelContentSize();
+                resizeMonitor = GetMonitorForItemRect(new Rect(
+                    previousPosition,
+                    previousSize));
+            }
+
             _commandsExpanded = expanded;
             ExpandedCommands.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
             PanelExpanderButton.Content = expanded ? "整理  ▴" : "整理  ▾";
             PanelExpanderButton.ToolTip = expanded ? "收起整理命令" : "展开整理命令";
+
+            if (preservePanelEdge && resizeMonitor != null)
+            {
+                Size newSize = MeasureControlPanelContentSize();
+                Point anchoredPosition = ControlPanelPlacementPolicy.ResizeFromNearestHorizontalEdge(
+                    resizeMonitor.WorkArea,
+                    previousPosition.X,
+                    previousPosition.Y,
+                    previousSize.Width,
+                    newSize.Width,
+                    newSize.Height,
+                    edgeInset: 14);
+                SetControlPanelPosition(
+                    anchoredPosition.X,
+                    anchoredPosition.Y,
+                    updateLayout: true,
+                    measuredSize: newSize);
+            }
 
             // 展开状态不属于持久化布局，不能在每次点击时排队写 layout.json。
             // 仅在布局完成后低优先级修正面板边界，而且同一轮最多排队一次。

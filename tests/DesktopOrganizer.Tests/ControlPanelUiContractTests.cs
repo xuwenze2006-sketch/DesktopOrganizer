@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Threading;
 using System.Xml.Linq;
 
 namespace DesktopOrganizer.Tests;
@@ -155,7 +156,7 @@ public sealed class ControlPanelUiContractTests
         window.ControlPanel.Visibility = Visibility.Visible;
         window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
 
-        Assert.AreEqual(324, window.ControlPanel.DesiredSize.Width, 1);
+        Assert.AreEqual(324, GetPanelContentWidth(window.ControlPanel), 1);
 
         RaiseClick(window.PanelExpanderButton);
         window.ControlPanel.InvalidateMeasure();
@@ -166,13 +167,13 @@ public sealed class ControlPanelUiContractTests
         Assert.AreEqual("收起整理命令", window.PanelExpanderButton.ToolTip);
         Assert.IsLessThanOrEqualTo(
             440,
-            window.ControlPanel.DesiredSize.Width,
-            $"Expanded panel width grew to {window.ControlPanel.DesiredSize.Width:F1} DIP.");
-        Assert.AreEqual(438, window.ControlPanel.DesiredSize.Width, 1);
+            GetPanelContentWidth(window.ControlPanel),
+            $"Expanded panel width grew to {GetPanelContentWidth(window.ControlPanel):F1} DIP.");
+        Assert.AreEqual(438, GetPanelContentWidth(window.ControlPanel), 1);
         Assert.IsLessThanOrEqualTo(
             282,
-            window.ControlPanel.DesiredSize.Height,
-            $"Expanded panel height grew to {window.ControlPanel.DesiredSize.Height:F1} DIP.");
+            GetPanelContentHeight(window.ControlPanel),
+            $"Expanded panel height grew to {GetPanelContentHeight(window.ControlPanel):F1} DIP.");
 
         RaiseClick(window.HidePanelCommandButton);
 
@@ -190,8 +191,61 @@ public sealed class ControlPanelUiContractTests
         window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         Assert.AreEqual(
             324,
-            window.ControlPanel.DesiredSize.Width - window.ControlPanel.Margin.Left,
+            GetPanelContentWidth(window.ControlPanel),
             1);
+    }
+
+    [STATestMethod]
+    public void Expander_RepeatedRightAnchoredRoundTripsDoNotDrift()
+    {
+        var window = new MainWindow(startQuietly: false);
+        window.ControlPanel.Visibility = Visibility.Visible;
+        window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double compactWidth = GetPanelContentWidth(window.ControlPanel);
+        Rect workArea = SystemParameters.WorkArea;
+        double compactX = Math.Max(14, workArea.Width - compactWidth - 14);
+        window.ControlPanel.Margin = new Thickness(compactX, 14, 0, 0);
+        window.RootGrid.Measure(new Size(workArea.Width, workArea.Height));
+        window.RootGrid.Arrange(new Rect(0, 0, workArea.Width, workArea.Height));
+        Assert.AreEqual(
+            compactWidth,
+            window.ControlPanel.ActualWidth,
+            1,
+            "The regression setup must begin with a rendered compact width.");
+
+        for (int iteration = 0; iteration < 12; iteration++)
+        {
+            RaiseClick(window.PanelExpanderButton);
+            double expandedWidth = GetPanelContentWidth(window.ControlPanel);
+            Assert.AreEqual(
+                workArea.Width - 14,
+                window.ControlPanel.Margin.Left + expandedWidth,
+                1,
+                $"Expanded right edge drifted on iteration {iteration}.");
+            double immediateExpandedX = window.ControlPanel.Margin.Left;
+            DrainDeferredLayout(window);
+            Assert.AreEqual(
+                immediateExpandedX,
+                window.ControlPanel.Margin.Left,
+                1,
+                $"Deferred clamp moved the expanded panel on iteration {iteration}.");
+
+            RaiseClick(window.PanelExpanderButton);
+            double roundTripWidth = GetPanelContentWidth(window.ControlPanel);
+            Assert.AreEqual(
+                compactX,
+                window.ControlPanel.Margin.Left,
+                1,
+                $"Collapsed position drifted on iteration {iteration}.");
+            Assert.AreEqual(compactWidth, roundTripWidth, 1);
+            double immediateCollapsedX = window.ControlPanel.Margin.Left;
+            DrainDeferredLayout(window);
+            Assert.AreEqual(
+                immediateCollapsedX,
+                window.ControlPanel.Margin.Left,
+                1,
+                $"Deferred clamp moved the collapsed panel on iteration {iteration}.");
+        }
     }
 
     [STATestMethod]
@@ -233,6 +287,25 @@ public sealed class ControlPanelUiContractTests
     private static IEnumerable<XElement> GetCommandElements(XElement root) =>
         root.Descendants()
             .Where(element => element.Attribute("AutomationProperties.AutomationId") != null);
+
+    private static double GetPanelContentWidth(FrameworkElement panel)
+    {
+        panel.InvalidateMeasure();
+        panel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return panel.DesiredSize.Width - panel.Margin.Left - panel.Margin.Right;
+    }
+
+    private static double GetPanelContentHeight(FrameworkElement panel)
+    {
+        panel.InvalidateMeasure();
+        panel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return panel.DesiredSize.Height - panel.Margin.Top - panel.Margin.Bottom;
+    }
+
+    private static void DrainDeferredLayout(MainWindow window) =>
+        window.Dispatcher.Invoke(
+            DispatcherPriority.ApplicationIdle,
+            new Action(() => { }));
 
     private static string[] GetCommandIds(XElement root) =>
         GetCommandElements(root)

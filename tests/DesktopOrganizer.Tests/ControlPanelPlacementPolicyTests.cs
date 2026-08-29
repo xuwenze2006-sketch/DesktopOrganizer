@@ -65,4 +65,58 @@ public sealed class ControlPanelPlacementPolicyTests
         Assert.AreEqual(-1266, result.X);
         Assert.AreEqual(-186, result.Y);
     }
+
+    [TestMethod]
+    public void ResizeFromNearestHorizontalEdge_RightAnchoredRoundTripDoesNotDrift()
+    {
+        Rect workArea = new(0, 0, 1920, 1040);
+        Point expanded = ControlPanelPlacementPolicy.ResizeFromNearestHorizontalEdge(
+            workArea,
+            x: 1582,
+            y: 14,
+            previousWidth: 324,
+            newWidth: 438,
+            newHeight: 282,
+            edgeInset: 14);
+        Point collapsed = ControlPanelPlacementPolicy.ResizeFromNearestHorizontalEdge(
+            workArea,
+            expanded.X,
+            expanded.Y,
+            previousWidth: 438,
+            newWidth: 324,
+            newHeight: 52,
+            edgeInset: 14);
+
+        Assert.AreEqual(1468, expanded.X);
+        Assert.AreEqual(1582, collapsed.X);
+        Assert.AreEqual(14, expanded.Y);
+        Assert.AreEqual(14, collapsed.Y);
+    }
+
+    [TestMethod]
+    public void ResizeFromNearestHorizontalEdge_LeftSideInteriorRoundTripDoesNotDrift()
+    {
+        Rect workArea = new(0, 0, 1920, 1040);
+        Point expanded = ControlPanelPlacementPolicy.ResizeFromNearestHorizontalEdge(
+            workArea,
+            x: 220,
+            y: 100,
+            previousWidth: 324,
+            newWidth: 438,
+            newHeight: 282,
+            edgeInset: 14);
+        Point collapsed = ControlPanelPlacementPolicy.ResizeFromNearestHorizontalEdge(
+            workArea,
+            expanded.X,
+            expanded.Y,
+            previousWidth: 438,
+            newWidth: 324,
+            newHeight: 52,
+            edgeInset: 14);
+
+        Assert.AreEqual(220, expanded.X);
+        Assert.AreEqual(220, collapsed.X);
+        Assert.AreEqual(100, expanded.Y);
+        Assert.AreEqual(100, collapsed.Y);
+    }
 }
