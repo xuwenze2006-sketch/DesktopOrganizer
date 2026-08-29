@@ -117,6 +117,24 @@ namespace DesktopOrganizer
             int cy,
             uint uFlags);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr BeginDeferWindowPos(int nNumWindows);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr DeferWindowPos(
+            IntPtr hWinPosInfo,
+            IntPtr hWnd,
+            IntPtr hWndInsertAfter,
+            int x,
+            int y,
+            int cx,
+            int cy,
+            uint uFlags);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool EndDeferWindowPos(IntPtr hWinPosInfo);
+
         [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
         private static extern int GetWindowLong32(IntPtr hWnd, int nIndex);
 

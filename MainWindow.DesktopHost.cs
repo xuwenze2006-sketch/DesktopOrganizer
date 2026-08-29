@@ -63,6 +63,7 @@ namespace DesktopOrganizer
         private void MainWindow_SourceInitialized(object? sender, EventArgs e)
         {
             IntPtr hwnd = new WindowInteropHelper(this).Handle;
+            _desktopWindowHandle = hwnd;
             NativeMethods.ApplyDesktopWindowStyles(hwnd);
 
             // 启动阶段立即插入到 Progman 正上方：在壁纸/桌面之上、普通应用之下。
@@ -249,6 +250,18 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (windowEvent.Kind == NativeMethods.ExternalWindowEventKind.Shown)
+            {
+                if (NativeMethods.IsDesktopCompanionShowCandidate(
+                        windowEvent.WindowHandle,
+                        _desktopWindowHandle,
+                        _desktopHostHandle))
+                {
+                    QueueDesktopCompanionLayerCorrection(windowEvent.WindowHandle);
+                }
+                return;
+            }
+
             if (windowEvent.Kind != NativeMethods.ExternalWindowEventKind.Foreground)
             {
                 return;
@@ -256,6 +269,118 @@ namespace DesktopOrganizer
 
             Interlocked.Increment(ref _externalLayerGeneration);
             QueueExternalLayerCorrection(windowEvent.WindowHandle, shouldActivate: true);
+        }
+
+        private void QueueDesktopCompanionLayerCorrection(IntPtr companionWindow)
+        {
+            if (_isClosing ||
+                companionWindow == IntPtr.Zero ||
+                Dispatcher.HasShutdownStarted)
+            {
+                return;
+            }
+
+            lock (_externalEventLock)
+            {
+                _pendingDesktopCompanionWindows.Add(companionWindow);
+            }
+
+            if (Interlocked.CompareExchange(
+                    ref _desktopCompanionLayerCorrectionQueued,
+                    1,
+                    0) != 0)
+            {
+                return;
+            }
+
+            _ = ProcessDesktopCompanionLayerCorrectionsAfterShownAsync();
+        }
+
+        private async Task ProcessDesktopCompanionLayerCorrectionsAfterShownAsync()
+        {
+            try
+            {
+                // SHOW 通知可能早于窗口最终扩展样式和矩形。整个批次只建立一个
+                // 延迟链：先在样式通常稳定后检查，再给应用一次最终 Z 序提交机会。
+                await Task.Delay(80, _lifetimeCts.Token);
+                await Task.Run(
+                    () => ProcessPendingDesktopCompanionLayerCorrections(clear: false),
+                    _lifetimeCts.Token);
+
+                await Task.Delay(420, _lifetimeCts.Token);
+                await Task.Run(
+                    () => ProcessPendingDesktopCompanionLayerCorrections(clear: true),
+                    _lifetimeCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 正常退出。
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _desktopCompanionLayerCorrectionQueued, 0);
+
+                bool hasPending;
+                lock (_externalEventLock)
+                {
+                    hasPending = _pendingDesktopCompanionWindows.Count > 0;
+                }
+
+                if (hasPending &&
+                    !_isClosing &&
+                    Interlocked.CompareExchange(
+                        ref _desktopCompanionLayerCorrectionQueued,
+                        1,
+                        0) == 0)
+                {
+                    _ = ProcessDesktopCompanionLayerCorrectionsAfterShownAsync();
+                }
+            }
+        }
+
+        private void ProcessPendingDesktopCompanionLayerCorrections(bool clear)
+        {
+            IntPtr[] pendingWindows;
+            lock (_externalEventLock)
+            {
+                pendingWindows = _pendingDesktopCompanionWindows.ToArray();
+                if (clear)
+                {
+                    _pendingDesktopCompanionWindows.Clear();
+                }
+            }
+
+            var orderedCandidates = pendingWindows
+                .Select(window => new
+                {
+                    Window = window,
+                    Depth = NativeMethods.GetDesktopBandDepth(
+                        window,
+                        _desktopWindowHandle,
+                        _desktopHostHandle)
+                })
+                .Where(candidate => candidate.Depth >= 0)
+                .OrderBy(candidate => candidate.Depth);
+
+            IntPtr[] orderedWindows = orderedCandidates
+                .Select(candidate => candidate.Window)
+                .ToArray();
+            if (orderedWindows.Length == 0 ||
+                _isClosing ||
+                _desktopWindowHandle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            int placedCount = NativeMethods.TryPlaceDesktopCompanionsAboveOrganizer(
+                orderedWindows,
+                _desktopWindowHandle,
+                _desktopHostHandle);
+            if (placedCount > 0)
+            {
+                _diagnostics.Log(
+                    $"COMPANION_LAYER requested windows={placedCount}");
+            }
         }
 
         private async Task RecheckDesktopLayerAfterShellMenuClosedAsync(int closeGeneration)
@@ -578,7 +703,10 @@ namespace DesktopOrganizer
             {
                 _pendingExternalWindowHandle = IntPtr.Zero;
                 _pendingExternalWindowShouldActivate = false;
+                _pendingDesktopCompanionWindows.Clear();
             }
+            Interlocked.Exchange(ref _desktopCompanionLayerCorrectionQueued, 0);
+            _desktopWindowHandle = IntPtr.Zero;
             _externalWindowMonitor?.Dispose();
             _externalWindowMonitor = null;
 

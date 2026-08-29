@@ -1,5 +1,5 @@
 // 桌面宿主、Z 序与窗口样式
-// 本文件由 v1.12 Win32 互操作模块拆分；P/Invoke 与行为保持自 v1.11.6 不变。
+// 本文件由 v1.12 Win32 互操作模块拆分；负责当前桌面宿主与 Z 序策略。
 namespace DesktopOrganizer
 {
     internal static partial class NativeMethods
@@ -195,6 +195,301 @@ namespace DesktopOrganizer
             }
 
             return IsWindowAbove(root, organizerWindow);
+        }
+
+        /// <summary>
+        /// SHOW 事件刚到达时窗口样式和尺寸可能尚未稳定，因此这里只做不会依赖
+        /// 最终可见性、扩展样式或矩形的轻量筛选。延迟批处理会重新读取全部事实。
+        /// </summary>
+        public static bool IsDesktopCompanionShowCandidate(
+            IntPtr candidateWindow,
+            IntPtr organizerWindow,
+            IntPtr desktopHost)
+        {
+            IntPtr root = NormalizeRootWindow(candidateWindow);
+            if (root == IntPtr.Zero ||
+                root == organizerWindow ||
+                root == desktopHost ||
+                !IsWindow(root))
+            {
+                return false;
+            }
+
+            _ = GetWindowThreadProcessId(root, out uint processId);
+            bool isExternalProcess = processId != 0 && processId != (uint)Environment.ProcessId;
+
+            var classNameBuilder = new StringBuilder(128);
+            string? className = GetClassName(
+                root,
+                classNameBuilder,
+                classNameBuilder.Capacity) > 0
+                ? classNameBuilder.ToString()
+                : null;
+
+            return DesktopCompanionWindowPolicy.IsShownWindowCandidate(
+                GetWindowLongPtr(root, GWL_STYLE).ToInt64(),
+                className,
+                isExternalProcess);
+        }
+
+        /// <summary>
+        /// 判断窗口是否可能是桌面宠物、桌面挂件等非激活透明伴随窗口。
+        /// 这里只识别候选，不改变 Z 序；真正提升前还会验证它位于整理层与 Progman 之间。
+        /// </summary>
+        public static bool IsPotentialDesktopCompanionWindow(
+            IntPtr candidateWindow,
+            IntPtr organizerWindow,
+            IntPtr desktopHost)
+        {
+            IntPtr root = NormalizeRootWindow(candidateWindow);
+            if (root == IntPtr.Zero ||
+                root == organizerWindow ||
+                root == desktopHost ||
+                !IsWindow(root))
+            {
+                return false;
+            }
+
+            _ = GetWindowThreadProcessId(root, out uint processId);
+            bool isExternalProcess = processId != 0 && processId != (uint)Environment.ProcessId;
+
+            var classNameBuilder = new StringBuilder(128);
+            string? className = GetClassName(
+                root,
+                classNameBuilder,
+                classNameBuilder.Capacity) > 0
+                ? classNameBuilder.ToString()
+                : null;
+
+            int width = 0;
+            int height = 0;
+            bool hasCandidateRect = GetWindowRect(root, out NativeRect rect);
+            if (hasCandidateRect)
+            {
+                width = rect.Right - rect.Left;
+                height = rect.Bottom - rect.Top;
+            }
+
+            int desktopWidth = 0;
+            int desktopHeight = 0;
+            if (GetWindowRect(organizerWindow, out NativeRect desktopRect))
+            {
+                desktopWidth = desktopRect.Right - desktopRect.Left;
+                desktopHeight = desktopRect.Bottom - desktopRect.Top;
+            }
+
+            double maximumMonitorCoverage = double.PositiveInfinity;
+            if (hasCandidateRect)
+            {
+                if (!TryGetMaximumMonitorCoverage(rect, out maximumMonitorCoverage) &&
+                    desktopWidth > 0 &&
+                    desktopHeight > 0)
+                {
+                    maximumMonitorCoverage =
+                        (double)Math.Max(0, width) * Math.Max(0, height) /
+                        ((double)desktopWidth * desktopHeight);
+                }
+            }
+
+            return DesktopCompanionWindowPolicy.IsPotentialCompanion(
+                GetWindowLongPtr(root, GWL_STYLE).ToInt64(),
+                GetWindowLongPtr(root, GWL_EXSTYLE).ToInt64(),
+                width,
+                height,
+                desktopWidth,
+                desktopHeight,
+                maximumMonitorCoverage,
+                className,
+                isExternalProcess,
+                IsWindowVisible(root),
+                IsIconic(root));
+        }
+
+        private static bool TryGetMaximumMonitorCoverage(
+            NativeRect candidateRect,
+            out double maximumCoverage)
+        {
+            var monitors = new List<DesktopCompanionScreenBounds>();
+            MonitorEnumProc callback = delegate(
+                IntPtr monitor,
+                IntPtr monitorDc,
+                ref NativeRect monitorRect,
+                IntPtr data)
+            {
+                monitors.Add(new DesktopCompanionScreenBounds(
+                    monitorRect.Left,
+                    monitorRect.Top,
+                    monitorRect.Right,
+                    monitorRect.Bottom));
+                return true;
+            };
+
+            bool enumerated = EnumDisplayMonitors(
+                IntPtr.Zero,
+                IntPtr.Zero,
+                callback,
+                IntPtr.Zero);
+            maximumCoverage = 0;
+            if (!enumerated)
+            {
+                return false;
+            }
+
+            return DesktopCompanionWindowPolicy.TryCalculateMaximumMonitorCoverage(
+                new DesktopCompanionScreenBounds(
+                    candidateRect.Left,
+                    candidateRect.Top,
+                    candidateRect.Right,
+                    candidateRect.Bottom),
+                monitors,
+                out maximumCoverage);
+        }
+
+        /// <summary>
+        /// 返回候选在“整理层之下、桌面宿主之上”夹层中的深度；紧邻整理层为 0。
+        /// 不在该夹层时返回 -1。批量提升时按深度从小到大处理，可保留多个宠物
+        /// 原有的相对 Z 序。
+        /// </summary>
+        public static int GetDesktopBandDepth(
+            IntPtr candidateWindow,
+            IntPtr organizerWindow,
+            IntPtr desktopHost)
+        {
+            IntPtr root = NormalizeRootWindow(candidateWindow);
+            if (root == IntPtr.Zero ||
+                organizerWindow == IntPtr.Zero ||
+                desktopHost == IntPtr.Zero ||
+                root == organizerWindow ||
+                root == desktopHost ||
+                !IsWindow(organizerWindow) ||
+                !IsWindow(desktopHost))
+            {
+                return -1;
+            }
+
+            IntPtr current = GetWindow(organizerWindow, GW_HWNDNEXT);
+            for (int depth = 0; depth < 4096 && current != IntPtr.Zero; depth++)
+            {
+                if (current == desktopHost)
+                {
+                    return -1;
+                }
+
+                if (current == root)
+                {
+                    return depth;
+                }
+
+                current = GetWindow(current, GW_HWNDNEXT);
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// 将刚显示且位于“整理层 > 候选 > Progman”夹层中的桌面伴随窗口
+        /// 一次性放到整理层正上方。批量提交保留多个宠物的相对 Z 序；不会激活
+        /// 候选，也不会把它们提升到整理层上方已有的普通应用之上。
+        /// </summary>
+        public static int TryPlaceDesktopCompanionsAboveOrganizer(
+            IReadOnlyList<IntPtr> candidateWindows,
+            IntPtr organizerWindow,
+            IntPtr desktopHost)
+        {
+            if (candidateWindows.Count == 0 ||
+                organizerWindow == IntPtr.Zero ||
+                desktopHost == IntPtr.Zero ||
+                !IsWindow(organizerWindow) ||
+                !IsWindow(desktopHost))
+            {
+                return 0;
+            }
+
+            var orderedCandidates = candidateWindows
+                .Select(NormalizeRootWindow)
+                .Where(window => window != IntPtr.Zero)
+                .Distinct()
+                .Select(window => new
+                {
+                    Window = window,
+                    Depth = GetDesktopBandDepth(window, organizerWindow, desktopHost)
+                })
+                .Where(candidate => candidate.Depth >= 0)
+                .OrderBy(candidate => candidate.Depth)
+                .Where(candidate =>
+                {
+                    bool isPotentialCompanion = IsPotentialDesktopCompanionWindow(
+                        candidate.Window,
+                        organizerWindow,
+                        desktopHost);
+                    DesktopCompanionPlacementPlan plan =
+                        DesktopCompanionWindowPolicy.CreatePlacementPlan(
+                            isPotentialCompanion,
+                            organizerIsAboveCandidate: true,
+                            candidateIsAboveDesktopHost: true);
+                    return plan.ShouldPlace &&
+                           !plan.RequestActivation &&
+                           !plan.UseTopmostBand;
+                })
+                .Select(candidate => candidate.Window)
+                .ToArray();
+            if (orderedCandidates.Length == 0)
+            {
+                return 0;
+            }
+
+            if (!IsWindow(organizerWindow) ||
+                !IsWindow(desktopHost) ||
+                orderedCandidates.Any(window =>
+                    !IsWindow(window) ||
+                    GetDesktopBandDepth(window, organizerWindow, desktopHost) < 0))
+            {
+                return 0;
+            }
+
+            IntPtr windowAboveOrganizer = GetWindow(organizerWindow, GW_HWNDPREV);
+            IntPtr insertAfter = windowAboveOrganizer == IntPtr.Zero
+                ? HWND_TOP
+                : windowAboveOrganizer;
+            uint flags = SWP_NOMOVE |
+                         SWP_NOSIZE |
+                         SWP_NOACTIVATE |
+                         SWP_NOOWNERZORDER;
+
+            IntPtr deferredPosition = BeginDeferWindowPos(orderedCandidates.Length);
+            if (deferredPosition == IntPtr.Zero)
+            {
+                return 0;
+            }
+
+            foreach (IntPtr root in orderedCandidates)
+            {
+                deferredPosition = DeferWindowPos(
+                    deferredPosition,
+                    root,
+                    insertAfter,
+                    0,
+                    0,
+                    0,
+                    0,
+                    flags);
+                if (deferredPosition == IntPtr.Zero)
+                {
+                    // 任一 DeferWindowPos 失败后，按 Win32 契约放弃整个序列，
+                    // 不再调用 EndDeferWindowPos，也不逐项重试。
+                    return 0;
+                }
+
+                insertAfter = root;
+            }
+
+            if (!EndDeferWindowPos(deferredPosition))
+            {
+                return 0;
+            }
+
+            return orderedCandidates.Count(window =>
+                IsWindowAbove(window, organizerWindow));
         }
 
         private static IntPtr NormalizeRootWindow(IntPtr windowHandle)

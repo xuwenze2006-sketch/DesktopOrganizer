@@ -1,5 +1,5 @@
 // 外部窗口与 Shell 菜单事件监听
-// 本文件由 v1.12 Win32 互操作模块拆分；P/Invoke 与行为保持自 v1.11.6 不变。
+// 本文件由 v1.12 Win32 互操作模块拆分；负责当前外部窗口与 Shell 事件订阅。
 namespace DesktopOrganizer
 {
     internal static partial class NativeMethods
@@ -7,8 +7,7 @@ namespace DesktopOrganizer
 
         /// <summary>
         /// 监听外部进程的前台切换、顶级窗口显示以及系统菜单生命周期。
-        /// 仅监听前台窗口并不足以覆盖 Windows Terminal：由桌面右键菜单启动时，
-        /// Terminal 可能先显示但暂时不成为前台窗口。EVENT_OBJECT_SHOW 能更早发现它。
+        /// 顶级窗口显示事件只交给后续的桌面伴随窗口窄策略判断，不直接重排整理层。
         /// </summary>
         public static IDisposable? WatchExternalWindowEvents(Action<ExternalWindowEvent> callback)
         {
@@ -118,10 +117,12 @@ namespace DesktopOrganizer
                     return;
                 }
 
-                // 普通顶级窗口的 EVENT_OBJECT_SHOW 数量非常大，通知中心、浏览器、
-                // WinUI 宿主和后台组件都会触发。仅凭 SHOW 就多轮重排全屏整理层会形成
-                // Z 序反馈循环。普通应用只在真正成为前台窗口时再校正；此监听保留用于
-                // 识别 Windows 11 的桌面菜单 Popup 生命周期。
+                if (eventType == EVENT_OBJECT_SHOW)
+                {
+                    // 普通 SHOW 事件不会直接移动任何窗口。MainWindow 只会继续处理
+                    // layered + tool/noactivate 且确实落入桌面夹层的窄候选。
+                    PublishWindowEvent(ExternalWindowEventKind.Shown, hWnd);
+                }
             }
 
             private void OnMenuEvent(
@@ -225,8 +226,11 @@ namespace DesktopOrganizer
                     root = hWnd;
                 }
 
-                if (GetParent(root) != IntPtr.Zero ||
-                    IsTransientShellUiWindow(root, FindDesktopHostWindow()))
+                long style = GetWindowLongPtr(root, GWL_STYLE).ToInt64();
+                IntPtr desktopHost = FindDesktopHostWindow();
+                if ((style & WS_CHILD) != 0 ||
+                    root == desktopHost ||
+                    IsTransientShellUiWindow(root, desktopHost))
                 {
                     return;
                 }

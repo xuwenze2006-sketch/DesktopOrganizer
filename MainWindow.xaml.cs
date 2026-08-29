@@ -73,6 +73,7 @@ namespace DesktopOrganizer
         private readonly object _refreshDebounceLock = new();
         private readonly object _desktopRenameLock = new();
         private readonly object _externalEventLock = new();
+        private readonly HashSet<IntPtr> _pendingDesktopCompanionWindows = new();
         private readonly object _layoutWriteLock = new();
         private readonly SemaphoreSlim _layoutWriteGate = new(1, 1);
         private volatile bool _preservePendingExitRecovery;
@@ -184,14 +185,16 @@ namespace DesktopOrganizer
         private IDisposable? _externalWindowMonitor;
         private IDisposable? _desktopKeyboardMonitor;
         private int _externalLayerCorrectionQueued;
+        private int _desktopCompanionLayerCorrectionQueued;
         private int _externalLayerGeneration;
         private int _desktopShellMenuActive;
         private int _shellMenuCloseGeneration;
-        // 合并外部窗口 SHOW/FOREGROUND 事件；Shell 菜单打开期间暂停 Z 序校正，
-        // 避免全屏 layered window 因 SetWindowPos 重绘而闪烁。
+        // 普通前台窗口与桌面伴随窗口分别合并；Shell 菜单打开期间暂停普通窗口
+        // 的 Z 序校正，避免全屏 layered window 因 SetWindowPos 重绘而闪烁。
         private IntPtr _pendingExternalWindowHandle;
         private bool _pendingExternalWindowShouldActivate;
         private IntPtr _desktopHostHandle;
+        private IntPtr _desktopWindowHandle;
         private bool _isAttachedToDesktop;
         private Dictionary<string, GroupLayoutSnapshot>? _lastSmartLayoutSnapshot;
         private bool _lastSmartLayoutPreservedWorkspace;
