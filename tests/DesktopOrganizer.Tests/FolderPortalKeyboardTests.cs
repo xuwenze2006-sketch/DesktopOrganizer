@@ -7,6 +7,28 @@ namespace DesktopOrganizer.Tests;
 public sealed class FolderPortalKeyboardTests
 {
     [TestMethod]
+    [DataRow(true, false, true, true, true)]
+    [DataRow(false, false, true, true, false)]
+    [DataRow(true, true, true, true, false)]
+    [DataRow(true, false, false, true, false)]
+    [DataRow(true, false, true, false, false)]
+    public void ShouldRestoreListFocus_RequiresFocusedCurrentLiveReplacement(
+        bool previousListHadFocus,
+        bool isClosing,
+        bool isCurrentState,
+        bool hasReplacementList,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldRestoreFolderPortalListFocus(
+                previousListHadFocus,
+                isClosing,
+                isCurrentState,
+                hasReplacementList));
+    }
+
+    [TestMethod]
     [DataRow(Key.System, Key.Up, Key.Up)]
     [DataRow(Key.System, Key.Home, Key.Home)]
     [DataRow(Key.System, Key.Left, Key.Left)]

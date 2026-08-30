@@ -37,6 +37,7 @@ namespace DesktopOrganizer
             public string? ErrorMessage { get; set; }
             public PortalReadResult? LastSuccessfulResult { get; set; }
             public int VisualRevision { get; set; }
+            public ListBox? CurrentList { get; set; }
         }
 
         /// <summary>
@@ -353,6 +354,7 @@ namespace DesktopOrganizer
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 ToolTip = "方向键选择；Enter 打开或进入；Shift+Enter 在资源管理器中显示；Ctrl+C 复制路径；Alt+↑ 返回上一级；Alt+Home 返回根目录；F5 手动刷新"
             };
+            state.CurrentList = list;
             ScrollViewer.SetCanContentScroll(list, true);
             VirtualizingPanel.SetIsVirtualizing(list, true);
             VirtualizingPanel.SetVirtualizationMode(list, VirtualizationMode.Recycling);
@@ -1088,6 +1090,7 @@ namespace DesktopOrganizer
                 return;
             }
 
+            bool previousListHadFocus = state.CurrentList?.IsKeyboardFocusWithin == true;
             RemoveFolderPortalVisual(portal.Id, cancelRead: false, removeRuntimeState: false);
             FrameworkElement visual = CreateFolderPortalVisual(portal, state);
             _folderPortalVisuals[portal.Id] = visual;
@@ -1097,7 +1100,31 @@ namespace DesktopOrganizer
             Canvas.SetLeft(visual, portal.X);
             Canvas.SetTop(visual, portal.Y);
             Panel.SetZIndex(visual, FolderPortalNormalZIndex);
+
+            bool isCurrentState =
+                _folderPortalRuntimeStates.TryGetValue(
+                    portal.Id,
+                    out FolderPortalRuntimeState? currentState) &&
+                ReferenceEquals(currentState, state);
+            if (ShouldRestoreFolderPortalListFocus(
+                    previousListHadFocus,
+                    _isClosing,
+                    isCurrentState,
+                    state.CurrentList != null))
+            {
+                state.CurrentList!.Focus();
+            }
         }
+
+        internal static bool ShouldRestoreFolderPortalListFocus(
+            bool previousListHadFocus,
+            bool isClosing,
+            bool isCurrentState,
+            bool hasReplacementList) =>
+            previousListHadFocus &&
+            !isClosing &&
+            isCurrentState &&
+            hasReplacementList;
 
         private void RemoveFolderPortalVisual(
             string portalId,
@@ -1115,6 +1142,12 @@ namespace DesktopOrganizer
                 IconCanvas.Children.Remove(visual);
             }
             _folderPortalVisualFingerprints.Remove(portalId);
+            if (_folderPortalRuntimeStates.TryGetValue(
+                    portalId,
+                    out FolderPortalRuntimeState? state))
+            {
+                state.CurrentList = null;
+            }
             if (removeRuntimeState)
             {
                 _folderPortalWatcherCoordinator.Unbind(portalId);
