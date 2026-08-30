@@ -66,6 +66,41 @@ namespace DesktopOrganizer
             }
         }
 
+        internal bool TryDuplicateWorkspace(
+            string sourceWorkspaceId,
+            string name,
+            out string duplicateWorkspaceId,
+            out string error)
+        {
+            duplicateWorkspaceId = string.Empty;
+            error = string.Empty;
+            try
+            {
+                PrepareLayoutForPersistence();
+                WorkspaceProfileInfo? duplicate = WorkspaceLayoutManager.Duplicate(
+                    _appLayout,
+                    sourceWorkspaceId,
+                    name,
+                    DateTime.UtcNow);
+                if (duplicate == null)
+                {
+                    error = "工作区已不存在。";
+                    return false;
+                }
+
+                duplicateWorkspaceId = duplicate.Id;
+                SaveLayout();
+                StatusText.Text = $"已复制工作区快照为“{duplicate.Name}”；当前布局未切换";
+                return true;
+            }
+            catch (Exception exception) when (
+                exception is ArgumentException or InvalidOperationException)
+            {
+                error = exception.Message;
+                return false;
+            }
+        }
+
         internal bool TryOverwriteWorkspace(string workspaceId, out string error)
         {
             error = string.Empty;

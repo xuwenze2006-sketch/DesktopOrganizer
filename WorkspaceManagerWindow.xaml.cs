@@ -108,6 +108,37 @@ namespace DesktopOrganizer
             RefreshList(item.Id);
         }
 
+        private void Duplicate_Click(object sender, RoutedEventArgs e)
+        {
+            WorkspaceListItem? item = RequireSelection();
+            if (item == null)
+            {
+                return;
+            }
+
+            var input = new SimpleInputDialog(
+                "请输入副本名称：",
+                GetSuggestedDuplicateName(item.Name))
+            {
+                Owner = this
+            };
+            if (input.ShowDialog() != true)
+            {
+                return;
+            }
+
+            if (!_mainWindow.TryDuplicateWorkspace(
+                    item.Id,
+                    input.ResultText,
+                    out string duplicateId,
+                    out string error))
+            {
+                ShowError(error);
+                return;
+            }
+            RefreshList(duplicateId);
+        }
+
         private void Overwrite_Click(object sender, RoutedEventArgs e)
         {
             WorkspaceListItem? item = RequireSelection();
@@ -184,6 +215,21 @@ namespace DesktopOrganizer
                 ShowError("请先选择一个工作区。");
             }
             return item;
+        }
+
+        private string GetSuggestedDuplicateName(string sourceName)
+        {
+            var existingNames = new HashSet<string>(
+                _mainWindow.GetWorkspacePreviews().Select(preview => preview.Name),
+                StringComparer.CurrentCultureIgnoreCase);
+            string baseName = $"{sourceName} 副本";
+            string candidate = baseName;
+            int suffix = 2;
+            while (existingNames.Contains(candidate))
+            {
+                candidate = $"{baseName} ({suffix++})";
+            }
+            return candidate;
         }
 
         private void ShowError(string message) => MessageBox.Show(

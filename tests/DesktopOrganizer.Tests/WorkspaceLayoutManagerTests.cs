@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Text.Json;
 
 namespace DesktopOrganizer.Tests;
 
@@ -62,6 +63,117 @@ public sealed class WorkspaceLayoutManagerTests
         CollectionAssert.AreEqual(
             new[] { "one.txt" },
             layout.Groups[0].ManuallyAssignedItemNames);
+    }
+
+    [TestMethod]
+    public void Duplicate_CopiesInactiveSnapshotWithoutActivatingApplyingOrAliasing()
+    {
+        var layout = CreateLayout("one.txt", 10);
+        layout.RecycleBinWidget = new RecycleBinWidgetLayoutInfo
+        {
+            X = 44,
+            Y = 55,
+            IsVisible = true
+        };
+        layout.AutoClassificationOriginalPositions["one.txt"] = new IconPosition
+        {
+            X = 5,
+            Y = 6
+        };
+        DateTime firstTime = DateTime.UnixEpoch;
+        DateTime secondTime = firstTime.AddMinutes(1);
+        DateTime duplicateTime = firstTime.AddMinutes(2);
+        WorkspaceProfileInfo first = WorkspaceLayoutManager.CreateAndActivate(
+            layout,
+            "工作",
+            firstTime);
+        layout.FreeIcons["one.txt"].X = 20;
+        WorkspaceProfileInfo second = WorkspaceLayoutManager.CreateAndActivate(
+            layout,
+            "学习",
+            secondTime);
+        layout.FreeIcons["one.txt"].X = 30;
+        layout.Groups[0].Name = "当前根布局";
+        layout.FolderPortals[0].X = 300;
+
+        WorkspaceProfileInfo? duplicate = WorkspaceLayoutManager.Duplicate(
+            layout,
+            first.Id,
+            " 工作副本 ",
+            duplicateTime);
+
+        Assert.IsNotNull(duplicate);
+        Assert.AreNotEqual(first.Id, duplicate.Id);
+        Assert.AreEqual("工作副本", duplicate.Name);
+        Assert.AreEqual(duplicateTime, duplicate.CreatedUtc);
+        Assert.AreEqual(duplicateTime, duplicate.UpdatedUtc);
+        Assert.AreEqual(second.Id, layout.ActiveWorkspaceId);
+        Assert.AreEqual(30, layout.FreeIcons["one.txt"].X);
+        Assert.AreEqual("当前根布局", layout.Groups[0].Name);
+        Assert.AreEqual(300, layout.FolderPortals[0].X);
+        Assert.AreEqual(20, duplicate.Layout.FreeIcons["one.txt"].X);
+        Assert.AreEqual("分组", duplicate.Layout.Groups[0].Name);
+        Assert.AreEqual(120, duplicate.Layout.FolderPortals[0].X);
+        Assert.AreEqual(first.Layout.Groups[0].Id, duplicate.Layout.Groups[0].Id);
+        Assert.AreEqual(first.Layout.FolderPortals[0].Id, duplicate.Layout.FolderPortals[0].Id);
+        Assert.AreEqual(secondTime, first.UpdatedUtc);
+
+        duplicate.Layout.FreeIcons["one.txt"].X = 999;
+        duplicate.Layout.Groups[0].Name = "changed";
+        duplicate.Layout.Groups[0].ItemNames.Clear();
+        duplicate.Layout.FolderPortals[0].X = 999;
+        duplicate.Layout.DesktopTopology[0].WorkWidth = 999;
+        duplicate.Layout.RecycleBinWidget.X = 999;
+        duplicate.Layout.AutoClassificationOriginalPositions["one.txt"].X = 999;
+
+        Assert.AreEqual(20, first.Layout.FreeIcons["one.txt"].X);
+        Assert.AreEqual("分组", first.Layout.Groups[0].Name);
+        CollectionAssert.AreEqual(new[] { "one.txt" }, first.Layout.Groups[0].ItemNames);
+        Assert.AreEqual(120, first.Layout.FolderPortals[0].X);
+        Assert.AreEqual(1920, first.Layout.DesktopTopology[0].WorkWidth);
+        Assert.AreEqual(44, first.Layout.RecycleBinWidget.X);
+        Assert.AreEqual(5, first.Layout.AutoClassificationOriginalPositions["one.txt"].X);
+    }
+
+    [TestMethod]
+    public void Duplicate_MissingSourceDoesNotMutateLayout()
+    {
+        var layout = CreateLayout("one.txt", 10);
+        _ = WorkspaceLayoutManager.CreateAndActivate(layout, "工作", DateTime.UnixEpoch);
+        string before = JsonSerializer.Serialize(layout);
+
+        WorkspaceProfileInfo? duplicate = WorkspaceLayoutManager.Duplicate(
+            layout,
+            "missing",
+            "副本",
+            DateTime.UnixEpoch.AddMinutes(1));
+
+        Assert.IsNull(duplicate);
+        Assert.AreEqual(before, JsonSerializer.Serialize(layout));
+    }
+
+    [TestMethod]
+    public void Duplicate_InvalidOrExistingNameDoesNotMutateLayout()
+    {
+        var layout = CreateLayout("one.txt", 10);
+        WorkspaceProfileInfo source = WorkspaceLayoutManager.CreateAndActivate(
+            layout,
+            "工作",
+            DateTime.UnixEpoch);
+        string before = JsonSerializer.Serialize(layout);
+
+        Assert.ThrowsExactly<ArgumentException>(() => WorkspaceLayoutManager.Duplicate(
+            layout,
+            source.Id,
+            " ",
+            DateTime.UnixEpoch.AddMinutes(1)));
+        Assert.ThrowsExactly<InvalidOperationException>(() => WorkspaceLayoutManager.Duplicate(
+            layout,
+            source.Id,
+            " 工作 ",
+            DateTime.UnixEpoch.AddMinutes(1)));
+
+        Assert.AreEqual(before, JsonSerializer.Serialize(layout));
     }
 
     [TestMethod]

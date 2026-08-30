@@ -90,6 +90,40 @@ namespace DesktopOrganizer
             return true;
         }
 
+        public static WorkspaceProfileInfo? Duplicate(
+            AppLayoutData layout,
+            string sourceWorkspaceId,
+            string name,
+            DateTime utcNow)
+        {
+            ArgumentNullException.ThrowIfNull(layout);
+            WorkspaceProfileInfo? source = Find(layout, sourceWorkspaceId);
+            if (source == null)
+            {
+                return null;
+            }
+
+            string normalizedName = NormalizeName(name);
+            if (layout.Workspaces.Any(workspace =>
+                    workspace.Name.Equals(
+                        normalizedName,
+                        StringComparison.CurrentCultureIgnoreCase)))
+            {
+                throw new InvalidOperationException("已经存在同名工作区。");
+            }
+
+            var duplicate = new WorkspaceProfileInfo
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                Name = normalizedName,
+                CreatedUtc = utcNow,
+                UpdatedUtc = utcNow,
+                Layout = Clone(source.Layout)
+            };
+            layout.Workspaces.Add(duplicate);
+            return duplicate;
+        }
+
         public static bool Rename(AppLayoutData layout, string workspaceId, string name)
         {
             ArgumentNullException.ThrowIfNull(layout);
@@ -335,6 +369,28 @@ namespace DesktopOrganizer
             X = widget.X,
             Y = widget.Y,
             IsVisible = widget.IsVisible
+        };
+
+        private static WorkspaceLayoutState Clone(WorkspaceLayoutState snapshot) => new()
+        {
+            Version = snapshot.Version,
+            ControlPanelX = snapshot.ControlPanelX,
+            ControlPanelY = snapshot.ControlPanelY,
+            RecycleBinWidget = Clone(snapshot.RecycleBinWidget),
+            FreeIcons = snapshot.FreeIcons.ToDictionary(
+                pair => pair.Key,
+                pair => Clone(pair.Value),
+                StringComparer.OrdinalIgnoreCase),
+            Groups = snapshot.Groups.Select(Clone).ToList(),
+            DesktopTopology = snapshot.DesktopTopology.Select(Clone).ToList(),
+            AutoClassificationOriginalPositions =
+                snapshot.AutoClassificationOriginalPositions.ToDictionary(
+                    pair => pair.Key,
+                    pair => Clone(pair.Value),
+                    StringComparer.OrdinalIgnoreCase),
+            FolderPortals = snapshot.FolderPortals
+                .Select(FolderPortalLayoutPolicy.Clone)
+                .ToList()
         };
 
         private static GroupInfo Clone(GroupInfo group)
