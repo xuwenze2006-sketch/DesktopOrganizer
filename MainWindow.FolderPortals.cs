@@ -350,7 +350,8 @@ namespace DesktopOrganizer
                 Padding = new Thickness(0),
                 AllowDrop = false,
                 Focusable = true,
-                HorizontalContentAlignment = HorizontalAlignment.Stretch
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                ToolTip = "方向键选择；Enter 打开或进入"
             };
             ScrollViewer.SetCanContentScroll(list, true);
             VirtualizingPanel.SetIsVirtualizing(list, true);
@@ -358,6 +359,22 @@ namespace DesktopOrganizer
             list.PreviewDragEnter += FolderPortal_BlockDrop;
             list.PreviewDragOver += FolderPortal_BlockDrop;
             list.PreviewDrop += FolderPortal_BlockDrop;
+            list.PreviewKeyDown += (_, eventArgs) =>
+            {
+                PortalDirectoryEntry? entry =
+                    (list.SelectedItem as FrameworkElement)?.Tag as PortalDirectoryEntry;
+                if (!ShouldOpenFolderPortalEntryFromKeyboard(
+                        eventArgs.Key,
+                        Keyboard.Modifiers,
+                        eventArgs.IsRepeat,
+                        entry != null))
+                {
+                    return;
+                }
+
+                eventArgs.Handled = true;
+                OpenFolderPortalEntry(portal, entry!);
+            };
 
             IReadOnlyList<PortalDirectoryEntry> entries =
                 state.LastSuccessfulResult?.Entries ?? Array.Empty<PortalDirectoryEntry>();
@@ -809,6 +826,16 @@ namespace DesktopOrganizer
             // 文件和重解析点只交给 Shell 外部打开；重解析目录绝不进入 Portal 内部。
             OpenPath(entry.FullPath);
         }
+
+        internal static bool ShouldOpenFolderPortalEntryFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasEntry) =>
+            key == Key.Enter &&
+            modifiers == ModifierKeys.None &&
+            !isRepeat &&
+            hasEntry;
 
         private bool CanUseFolderPortalPath(FolderPortalInfo portal, string path)
         {
