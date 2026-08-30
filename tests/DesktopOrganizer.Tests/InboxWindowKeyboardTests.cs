@@ -70,6 +70,23 @@ public sealed class InboxWindowKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(true, true, true)]
+    [DataRow(true, false, false)]
+    [DataRow(false, true, false)]
+    [DataRow(false, false, false)]
+    public void ShouldReturnFocusToInboxList_RequiresSuccessfulSaveAndSelection(
+        bool saveSucceeded,
+        bool hasSelection,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            InboxWindow.ShouldReturnFocusToInboxList(
+                saveSucceeded,
+                hasSelection));
+    }
+
+    [TestMethod]
     [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, true, true)]
     [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, true, true, false)]
     [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, false, false)]
@@ -114,7 +131,9 @@ public sealed class InboxWindowKeyboardTests
         Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
         Assert.IsNull(groupSelector.Attribute("PreviewKeyDown"));
         StringAssert.Contains(tagEditor.Attribute("ToolTip")?.Value, "Ctrl+S");
-        Assert.AreEqual("Ctrl+S", saveTagsButton.Attribute("ToolTip")?.Value);
+        StringAssert.Contains(tagEditor.Attribute("ToolTip")?.Value, "返回列表");
+        StringAssert.Contains(saveTagsButton.Attribute("ToolTip")?.Value, "Ctrl+S");
+        StringAssert.Contains(saveTagsButton.Attribute("ToolTip")?.Value, "返回列表");
         StringAssert.Contains(acceptAllReliableButton.Attribute("ToolTip")?.Value, "Ctrl+Shift+Enter");
         Assert.AreEqual("Enter", FindButton(document, "接受建议").Attribute("ToolTip")?.Value);
         Assert.AreEqual("Ctrl+Enter", FindButton(document, "留在桌面").Attribute("ToolTip")?.Value);

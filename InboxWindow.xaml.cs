@@ -130,6 +130,19 @@ namespace DesktopOrganizer
             {
                 Refresh(selectedName);
             }
+
+            InboxListItemView? refreshedSelection = Selected;
+            if (ShouldReturnFocusToInboxList(
+                    succeeded,
+                    refreshedSelection != null))
+            {
+                InboxList.ScrollIntoView(refreshedSelection);
+                InboxList.Focus();
+            }
+            else if (!succeeded && TagEditorBox.IsEnabled)
+            {
+                TagEditorBox.Focus();
+            }
             StatusText.Text = message;
         }
 
@@ -203,6 +216,11 @@ namespace DesktopOrganizer
             modifiers == ModifierKeys.None &&
             !isRepeat &&
             canEditTags;
+
+        internal static bool ShouldReturnFocusToInboxList(
+            bool saveSucceeded,
+            bool hasSelection) =>
+            saveSucceeded && hasSelection;
 
         internal static bool ShouldAcceptAllReliableFromKeyboard(
             Key key,
