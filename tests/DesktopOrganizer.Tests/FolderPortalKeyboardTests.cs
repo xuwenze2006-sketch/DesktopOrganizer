@@ -72,6 +72,36 @@ public sealed class FolderPortalKeyboardTests
     }
 
     [TestMethod]
+    public void GetSelectionPathAfterNavigateRoot_ReturnsTopLevelBranch()
+    {
+        string? nestedBranch = MainWindow.GetFolderPortalSelectionPathAfterNavigateRoot(
+            @"C:\Root",
+            @"Projects\2026\Report");
+
+        Assert.AreEqual(@"C:\Root\Projects", nestedBranch);
+        Assert.AreEqual(
+            @"C:\Root\Projects",
+            MainWindow.GetFolderPortalSelectionPathAfterNavigateRoot(
+                @"C:\Root",
+                "Projects/2026"));
+        Assert.AreEqual(
+            @"C:\Root\Projects",
+            MainWindow.GetFolderPortalSelectionPathAfterNavigateRoot(
+                @"C:\Root",
+                "Projects"));
+        Assert.IsNull(
+            MainWindow.GetFolderPortalSelectionPathAfterNavigateRoot(
+                @"C:\Root",
+                string.Empty));
+        Assert.AreEqual(
+            1,
+            MainWindow.FindFolderPortalRestoredSelectionIndex(
+                [@"C:\Root\Other", @"C:\Root\Projects"],
+                selectedEntryPath: null,
+                nestedBranch));
+    }
+
+    [TestMethod]
     [DataRow(@"C:\Root\Child", true, false, -1, true)]
     [DataRow(@"C:\Root\Child", true, true, -1, true)]
     [DataRow(@"C:\Root\Child", false, false, 1, true)]

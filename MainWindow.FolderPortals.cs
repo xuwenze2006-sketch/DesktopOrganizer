@@ -253,7 +253,7 @@ namespace DesktopOrganizer
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "⌂",
                 "返回入口根目录（只读，Alt+Home）",
-                (_, _) => QueueFolderPortalRead(portal, string.Empty)));
+                (_, _) => NavigateFolderPortalRoot(portal)));
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "↻",
                 "F5 手动刷新；失败不会自动重试",
@@ -384,7 +384,7 @@ namespace DesktopOrganizer
                         eventArgs.IsRepeat))
                 {
                     eventArgs.Handled = true;
-                    QueueFolderPortalRead(portal, string.Empty);
+                    NavigateFolderPortalRoot(portal);
                     return;
                 }
 
@@ -914,6 +914,31 @@ namespace DesktopOrganizer
                 ? null
                 : Path.TrimEndingDirectorySeparator(
                     Path.GetFullPath(Path.Combine(rootPath, current)));
+        }
+
+        private void NavigateFolderPortalRoot(FolderPortalInfo portal)
+        {
+            QueueFolderPortalRead(
+                portal,
+                string.Empty,
+                GetFolderPortalSelectionPathAfterNavigateRoot(
+                    portal.RootPath,
+                    portal.CurrentRelativePath));
+        }
+
+        internal static string? GetFolderPortalSelectionPathAfterNavigateRoot(
+            string rootPath,
+            string? currentRelativePath)
+        {
+            string? rootBranch = (currentRelativePath?.Trim() ?? string.Empty)
+                .Split(
+                    [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault();
+            return string.IsNullOrWhiteSpace(rootBranch)
+                ? null
+                : Path.TrimEndingDirectorySeparator(
+                    Path.GetFullPath(Path.Combine(rootPath, rootBranch)));
         }
 
         private void OpenFolderPortalEntry(
