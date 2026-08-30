@@ -149,8 +149,21 @@ namespace DesktopOrganizer
             _ = TryExecuteSelectedAction(DesktopSearchKeyboardAction.Reveal);
         }
 
-        private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) =>
+        private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            bool isResultItem =
+                e.OriginalSource is DependencyObject source &&
+                ItemsControl.ContainerFromElement(ResultsList, source) is ListBoxItem;
+            if (!ShouldLocateFromResultDoubleClick(
+                    e.ChangedButton,
+                    isResultItem))
+            {
+                return;
+            }
+
+            e.Handled = true;
             Locate_Click(sender, e);
+        }
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
@@ -185,6 +198,11 @@ namespace DesktopOrganizer
 
         internal static bool ShouldCloseAfterAction(DesktopSearchKeyboardAction action) =>
             action == DesktopSearchKeyboardAction.Locate;
+
+        internal static bool ShouldLocateFromResultDoubleClick(
+            MouseButton changedButton,
+            bool isResultItem) =>
+            changedButton == MouseButton.Left && isResultItem;
 
         internal static DesktopSearchKeyboardAction ResolveKeyboardAction(
             Key key,

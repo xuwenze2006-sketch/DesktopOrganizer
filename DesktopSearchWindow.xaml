@@ -40,7 +40,7 @@
         <ListBox x:Name="ResultsList" Grid.Row="2"
                  MouseDoubleClick="ResultsList_MouseDoubleClick"
                  PreviewKeyDown="ResultsList_PreviewKeyDown"
-                 ToolTip="Enter 定位并返回桌面；Ctrl+Enter 打开；Shift+Enter 在资源管理器中显示；Ctrl+F 返回搜索框并全选查询文本">
+                 ToolTip="双击结果或按 Enter 定位并返回桌面；Ctrl+Enter 打开；Shift+Enter 在资源管理器中显示；Ctrl+F 返回搜索框并全选查询文本">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid Margin="4,5">

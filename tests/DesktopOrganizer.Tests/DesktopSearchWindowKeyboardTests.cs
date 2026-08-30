@@ -84,6 +84,23 @@ public sealed class DesktopSearchWindowKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(MouseButton.Left, true, true)]
+    [DataRow(MouseButton.Left, false, false)]
+    [DataRow(MouseButton.Right, true, false)]
+    [DataRow(MouseButton.Middle, true, false)]
+    public void ShouldLocateFromResultDoubleClick_RequiresLeftButtonOnResultItem(
+        MouseButton changedButton,
+        bool isResultItem,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            DesktopSearchWindow.ShouldLocateFromResultDoubleClick(
+                changedButton,
+                isResultItem));
+    }
+
+    [TestMethod]
     public void SearchWindow_WiresWindowQueryShortcutAndControlActions()
     {
         XDocument document = LoadSearchWindowXaml();
@@ -110,6 +127,9 @@ public sealed class DesktopSearchWindowKeyboardTests
             "ResultsList_PreviewKeyDown",
             resultsList.Attribute("PreviewKeyDown")?.Value);
         Assert.AreEqual(
+            "ResultsList_MouseDoubleClick",
+            resultsList.Attribute("MouseDoubleClick")?.Value);
+        Assert.AreEqual(
             "DesktopSearchWindow_PreviewKeyDown",
             document.Root?.Attribute("PreviewKeyDown")?.Value);
 
@@ -129,6 +149,7 @@ public sealed class DesktopSearchWindowKeyboardTests
         StringAssert.Contains(
             resultsList.Attribute("ToolTip")?.Value,
             "Ctrl+F 返回搜索框并全选查询文本");
+        StringAssert.Contains(resultsList.Attribute("ToolTip")?.Value, "双击结果");
     }
 
     private static XElement FindButton(XDocument document, string content) =>
