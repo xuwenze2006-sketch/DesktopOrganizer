@@ -179,6 +179,7 @@ namespace DesktopOrganizer
             UIElement draggedElement = _draggedElement;
             GroupInfo? draggedGroup = _draggedGroup;
             bool moved = _groupDragMoved;
+            bool positionChanged = false;
 
             _isCompletingGroupDrag = true;
             try
@@ -208,6 +209,12 @@ namespace DesktopOrganizer
                         commit = false;
                         StatusText.Text = "分组不能覆盖只读文件夹入口，已恢复原位置";
                     }
+                    else
+                    {
+                        positionChanged =
+                            Math.Abs(draggedGroup.X - _groupDragStartPosition.X) > 0.01 ||
+                            Math.Abs(draggedGroup.Y - _groupDragStartPosition.Y) > 0.01;
+                    }
                 }
                 else
                 {
@@ -222,8 +229,10 @@ namespace DesktopOrganizer
             Panel.SetZIndex(draggedElement, 100);
             ResetGroupDragState();
 
-            if (commit && moved)
+            if (commit && moved && positionChanged)
             {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
                 SaveLayout();
                 StatusText.Text = draggedGroup == null
                     ? "分组位置已保存"
