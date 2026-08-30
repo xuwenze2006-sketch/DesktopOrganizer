@@ -69,7 +69,7 @@
             <TextBlock Grid.Column="1"
                        Foreground="#FF64748B"
                        VerticalAlignment="Center"
-                       Text="按最近时间排序 · 只读"/>
+                       Text="按最近时间排序 · 只读 · 选中后按 Ctrl+C 复制详情"/>
         </Grid>
 
         <Grid Grid.Row="3">
@@ -80,11 +80,14 @@
                       CanUserDeleteRows="False"
                       CanUserReorderColumns="True"
                       SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      ClipboardCopyMode="IncludeHeader"
                       EnableRowVirtualization="True"
                       HeadersVisibility="Column"
                       GridLinesVisibility="Horizontal">
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Header="时间" Width="170">
+                    <DataGridTemplateColumn Header="时间" Width="170"
+                                            ClipboardContentBinding="{Binding TimeText}">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding TimeText}"
@@ -95,7 +98,8 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Header="类型" Binding="{Binding KindText}" Width="145"/>
-                    <DataGridTemplateColumn Header="项目" Width="160">
+                    <DataGridTemplateColumn Header="项目" Width="160"
+                                            ClipboardContentBinding="{Binding ItemText}">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding ItemText}"
@@ -105,7 +109,8 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="来源" Width="*">
+                    <DataGridTemplateColumn Header="来源" Width="*"
+                                            ClipboardContentBinding="{Binding SourceText}">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding SourceText}"
@@ -115,7 +120,8 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="目标" Width="*">
+                    <DataGridTemplateColumn Header="目标" Width="*"
+                                            ClipboardContentBinding="{Binding TargetText}">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding TargetText}"
@@ -126,7 +132,8 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Header="状态" Binding="{Binding StateText}" Width="100"/>
-                    <DataGridTemplateColumn Header="撤销能力" Width="220">
+                    <DataGridTemplateColumn Header="撤销能力" Width="220"
+                                            ClipboardContentBinding="{Binding ReversibilityText}">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding ReversibilityText}"
@@ -136,7 +143,8 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="错误 / 说明" Width="220">
+                    <DataGridTemplateColumn Header="错误 / 说明" Width="220"
+                                            ClipboardContentBinding="{Binding ErrorText}">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding ErrorText}"

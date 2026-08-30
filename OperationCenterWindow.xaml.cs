@@ -7,6 +7,7 @@ namespace DesktopOrganizer
         private readonly DispatcherTimer _refreshTimer;
 
         private sealed record OperationRow(
+            string Id,
             string TimeText,
             string TimeDetails,
             string KindText,
@@ -48,6 +49,7 @@ namespace DesktopOrganizer
 
         private void RefreshView()
         {
+            string? selectedEntryId = (JournalGrid.SelectedItem as OperationRow)?.Id;
             FileOperationJournalData journal = _journalProvider() ??
                 new FileOperationJournalData();
 
@@ -64,9 +66,13 @@ namespace DesktopOrganizer
                 .Select(entry => entry.UndoOfEntryId!)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            JournalGrid.ItemsSource = entries
+            List<OperationRow> rows = entries
                 .Select(entry => CreateRow(entry, successfullyUndoneEntryIds))
                 .ToList();
+            JournalGrid.ItemsSource = rows;
+            JournalGrid.SelectedIndex = FindRestoredSelectionIndex(
+                rows.Select(row => row.Id),
+                selectedEntryId);
 
             int succeededCount = entries.Count(entry =>
                 entry.State == FileOperationJournalState.Succeeded);
@@ -103,6 +109,7 @@ namespace DesktopOrganizer
             HashSet<string> successfullyUndoneEntryIds)
         {
             return new OperationRow(
+                entry.Id,
                 FormatPrimaryTime(entry),
                 FormatTimeDetails(entry),
                 FormatKind(entry.Kind),
@@ -112,6 +119,28 @@ namespace DesktopOrganizer
                 FormatState(entry.State),
                 FormatReversibility(entry, successfullyUndoneEntryIds),
                 FormatError(entry));
+        }
+
+        internal static int FindRestoredSelectionIndex(
+            IEnumerable<string> rowIds,
+            string? selectedEntryId)
+        {
+            ArgumentNullException.ThrowIfNull(rowIds);
+            if (string.IsNullOrWhiteSpace(selectedEntryId))
+            {
+                return -1;
+            }
+
+            int index = 0;
+            foreach (string rowId in rowIds)
+            {
+                if (rowId.Equals(selectedEntryId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return index;
+                }
+                index++;
+            }
+            return -1;
         }
 
         private static DateTime GetSortTime(FileOperationJournalEntry entry) =>
