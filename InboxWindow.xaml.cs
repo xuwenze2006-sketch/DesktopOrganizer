@@ -201,6 +201,10 @@ namespace DesktopOrganizer
             }
 
             string selectedName = selected.DisplayName;
+            int selectedIndex = InboxList.SelectedIndex;
+            bool editorDirty = HasUnsavedTagEditorText(
+                _loadedTagEditorText,
+                TagEditorBox.Text);
             bool succeeded = _mainWindow.TrySetInboxItemTags(
                 selectedName,
                 TagEditorBox.Text,
@@ -209,10 +213,14 @@ namespace DesktopOrganizer
             {
                 Refresh(selectedName);
             }
+            else if (!editorDirty)
+            {
+                Refresh(selectedName, selectedIndex);
+            }
 
             InboxListItemView? refreshedSelection = Selected;
             if (ShouldReturnFocusToInboxList(
-                    succeeded,
+                    succeeded || !editorDirty,
                     refreshedSelection != null))
             {
                 InboxList.ScrollIntoView(refreshedSelection);
@@ -309,9 +317,9 @@ namespace DesktopOrganizer
             canEditTags;
 
         internal static bool ShouldReturnFocusToInboxList(
-            bool saveSucceeded,
+            bool listRefreshed,
             bool hasSelection) =>
-            saveSucceeded && hasSelection;
+            listRefreshed && hasSelection;
 
         internal static bool HasUnsavedTagEditorText(
             string? loadedText,

@@ -80,15 +80,15 @@ public sealed class InboxWindowKeyboardTests
     [DataRow(true, false, false)]
     [DataRow(false, true, false)]
     [DataRow(false, false, false)]
-    public void ShouldReturnFocusToInboxList_RequiresSuccessfulSaveAndSelection(
-        bool saveSucceeded,
+    public void ShouldReturnFocusToInboxList_RequiresRefreshedListAndSelection(
+        bool listRefreshed,
         bool hasSelection,
         bool expected)
     {
         Assert.AreEqual(
             expected,
             InboxWindow.ShouldReturnFocusToInboxList(
-                saveSucceeded,
+                listRefreshed,
                 hasSelection));
     }
 
@@ -360,6 +360,57 @@ public sealed class InboxWindowKeyboardTests
         Assert.IsEmpty(targetGroup.ItemNames);
         Assert.IsEmpty(targetGroup.ManuallyAssignedItemNames);
         StringAssert.Contains(window.StatusText.Text, "已不在待整理收件箱");
+    }
+
+    [STATestMethod]
+    public void SaveTags_WhenSelectedItemWasRemovedAndEditorClean_RefreshesToAdjacentItem()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        const string removedName = "a-removed.txt";
+        const string remainingName = "b-remaining.txt";
+        PrepareActionableInboxItem(layout, removedName);
+        AddInboxItem(layout, remainingName, 1);
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        Assert.AreEqual(removedName, GetSelectedName(window));
+        Assert.AreEqual("原标签", window.TagEditorBox.Text);
+        layout.InboxItems.Remove(removedName);
+        layout.ItemIdentities.Remove(removedName);
+
+        InvokeSaveTags(window);
+
+        Assert.AreNotSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreEqual(remainingName, GetSelectedName(window));
+        Assert.AreEqual(1, window.InboxList.Items.Count);
+        Assert.AreEqual(string.Empty, window.TagEditorBox.Text);
+        StringAssert.Contains(window.StatusText.Text, "已变化");
+    }
+
+    [STATestMethod]
+    public void SaveTags_WhenSelectedItemWasRemovedAndEditorDirty_PreservesDraft()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        const string removedName = "a-removed.txt";
+        const string remainingName = "b-remaining.txt";
+        PrepareActionableInboxItem(layout, removedName);
+        AddInboxItem(layout, remainingName, 1);
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        object selectedItem = window.InboxList.SelectedItem;
+        window.TagEditorBox.Text = "未保存草稿";
+        layout.InboxItems.Remove(removedName);
+        layout.ItemIdentities.Remove(removedName);
+
+        InvokeSaveTags(window);
+
+        Assert.AreSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreSame(selectedItem, window.InboxList.SelectedItem);
+        Assert.AreEqual(removedName, GetSelectedName(window));
+        Assert.AreEqual(2, window.InboxList.Items.Count);
+        Assert.AreEqual("未保存草稿", window.TagEditorBox.Text);
+        StringAssert.Contains(window.StatusText.Text, "已变化");
     }
 
     [STATestMethod]
@@ -654,6 +705,15 @@ public sealed class InboxWindowKeyboardTests
             BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new AssertFailedException("未找到加入手工分组处理器。");
         handler.Invoke(window, [window, new RoutedEventArgs()]);
+    }
+
+    private static void InvokeSaveTags(InboxWindow window)
+    {
+        MethodInfo handler = typeof(InboxWindow).GetMethod(
+            "SaveTags_Click",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到标签保存处理器。");
+        handler.Invoke(window, [window.SaveTagsButton, new RoutedEventArgs()]);
     }
 
     private static void InvokeRefresh(
