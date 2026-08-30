@@ -31,6 +31,7 @@ public sealed class RuleManagerUiContractTests
     [DataRow(Key.S, ModifierKeys.Control, true, true, false)]
     [DataRow(Key.S, ModifierKeys.None, false, true, false)]
     [DataRow(Key.S, ModifierKeys.Control | ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.S, ModifierKeys.Control | ModifierKeys.Alt, false, true, false)]
     [DataRow(Key.S, ModifierKeys.Alt, false, true, false)]
     [DataRow(Key.Enter, ModifierKeys.Control, false, true, false)]
     public void ShouldSaveDraftFromKeyboard_RequiresExactInitialControlSForUnsavedEditor(
@@ -135,7 +136,7 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
-    public void RuleEditorAndRuleList_WireShortcutsOnlyToTheirScopes()
+    public void RuleWindowAndRuleList_WireShortcutsOnlyToTheirScopes()
     {
         XDocument document = LoadRuleManagerXaml();
         XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
@@ -150,9 +151,7 @@ public sealed class RuleManagerUiContractTests
                 "新建规则",
                 StringComparison.Ordinal));
 
-        Assert.AreEqual(
-            "RuleEditor_PreviewKeyDown",
-            editor.Attribute("PreviewKeyDown")?.Value);
+        Assert.IsNull(editor.Attribute("PreviewKeyDown"));
         Assert.AreEqual(
             "RuleManagerWindow_PreviewKeyDown",
             document.Root?.Attribute("PreviewKeyDown")?.Value);
@@ -162,6 +161,7 @@ public sealed class RuleManagerUiContractTests
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Enter");
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Delete");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "Ctrl+S");
+        StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "窗口任意焦点");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "草稿");
         StringAssert.Contains(newRuleButton.Attribute("ToolTip")?.Value, "Ctrl+N");
         StringAssert.Contains(deleteButton.Attribute("ToolTip")?.Value, "Delete");

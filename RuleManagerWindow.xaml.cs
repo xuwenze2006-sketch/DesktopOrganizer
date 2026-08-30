@@ -44,6 +44,17 @@ namespace DesktopOrganizer
         {
             bool hasUnsavedEditor = _editorDirty ||
                 string.IsNullOrWhiteSpace(_editingRuleId);
+            if (ShouldSaveDraftFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    hasUnsavedEditor))
+            {
+                e.Handled = true;
+                SaveDraft_Click(sender, e);
+                return;
+            }
+
             if (!ShouldCreateRuleFromKeyboard(
                     e.Key,
                     Keyboard.Modifiers,
@@ -252,23 +263,6 @@ namespace DesktopOrganizer
         {
             UpdateActionTargetEditor();
             EditorChanged(sender, e);
-        }
-
-        private void RuleEditor_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            bool hasUnsavedEditor = _editorDirty ||
-                string.IsNullOrWhiteSpace(_editingRuleId);
-            if (!ShouldSaveDraftFromKeyboard(
-                    e.Key,
-                    Keyboard.Modifiers,
-                    e.IsRepeat,
-                    hasUnsavedEditor))
-            {
-                return;
-            }
-
-            e.Handled = true;
-            SaveDraft_Click(sender, e);
         }
 
         internal static bool ShouldSaveDraftFromKeyboard(
