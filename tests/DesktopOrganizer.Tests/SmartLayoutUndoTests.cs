@@ -434,6 +434,117 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void CompactGroupLayoutToggle_SizeChangeInvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            InvokeAutoFitGroup(window, group);
+            Assert.AreEqual(190, group.Width);
+            Assert.AreEqual(134, group.Height);
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            window.CompactGroupLayoutToggle.IsChecked = true;
+
+            InvokeCompactGroupLayoutToggle(window);
+
+            Assert.IsTrue(GetField<AppLayoutData>(window, "_appLayout").CompactGroupLayout);
+            Assert.AreEqual(180, group.Width);
+            Assert.AreEqual(130, group.Height);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void CompactGroupLayoutToggle_UnchangedLockedGroupPreservesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            InvokeAutoFitGroup(window, group);
+            group.IsSizeLocked = true;
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            window.CompactGroupLayoutToggle.IsChecked = true;
+
+            InvokeCompactGroupLayoutToggle(window);
+
+            Assert.IsTrue(GetField<AppLayoutData>(window, "_appLayout").CompactGroupLayout);
+            Assert.AreEqual(40, group.X);
+            Assert.AreEqual(40, group.Y);
+            Assert.AreEqual(190, group.Width);
+            Assert.AreEqual(134, group.Height);
+            Assert.IsFalse(group.IsCollapsed);
+            Assert.IsTrue(group.IsSizeLocked);
+            Assert.HasCount(1, GetField<AppLayoutData>(window, "_appLayout").Groups);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void CompactGroupLayoutToggle_CollisionRearrangementInvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo firstGroup = PrepareAutoFitGroup(window);
+            InvokeAutoFitGroup(window, firstGroup);
+            firstGroup.IsSizeLocked = true;
+            var secondGroup = new GroupInfo
+            {
+                Id = "second-group",
+                Name = "重叠分类",
+                X = firstGroup.X,
+                Y = firstGroup.Y,
+                Width = firstGroup.Width,
+                Height = firstGroup.Height,
+                IsSizeLocked = true
+            };
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.Groups.Add(secondGroup);
+            layout.ReserveTemporaryWorkspace = false;
+            layout.RecycleBinWidget.IsVisible = false;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            window.CompactGroupLayoutToggle.IsChecked = true;
+
+            InvokeCompactGroupLayoutToggle(window);
+
+            Assert.IsTrue(layout.CompactGroupLayout);
+            Assert.IsFalse(new Rect(
+                firstGroup.X,
+                firstGroup.Y,
+                firstGroup.Width,
+                firstGroup.Height).IntersectsWith(new Rect(
+                    secondGroup.X,
+                    secondGroup.Y,
+                    secondGroup.Width,
+                    secondGroup.Height)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
@@ -538,6 +649,13 @@ public sealed class SmartLayoutUndoTests
 
     private static void InvokeAutoFitGroup(MainWindow window, GroupInfo group) =>
         InvokePrivateMethod(window, "AutoFitGroup", group, true);
+
+    private static void InvokeCompactGroupLayoutToggle(MainWindow window) =>
+        InvokePrivateMethod(
+            window,
+            "CompactGroupLayoutToggle_Click",
+            window.CompactGroupLayoutToggle,
+            new RoutedEventArgs());
 
     private static T GetField<T>(MainWindow window, string fieldName)
         where T : class

@@ -727,6 +727,24 @@ namespace DesktopOrganizer
             }
 
             RebuildDesktopIconsAndSaveLayout();
+            bool layoutChanged = _appLayout.Groups.Count != previousLayout.Count ||
+                                 _appLayout.Groups.Any(group =>
+                                     !previousLayout.TryGetValue(
+                                         group.Id,
+                                         out GroupLayoutSnapshot? snapshot) ||
+                                     snapshot == null ||
+                                     group.X != snapshot.X ||
+                                     group.Y != snapshot.Y ||
+                                     group.Width != snapshot.Width ||
+                                     group.Height != snapshot.Height ||
+                                     group.IsCollapsed != snapshot.IsCollapsed ||
+                                     group.IsSizeLocked != snapshot.IsSizeLocked);
+            if (layoutChanged)
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
+            }
+
             string modeMessage = _appLayout.CompactGroupLayout
                 ? "紧凑分类框已开启；大型分类可使用四列图标"
                 : "已恢复舒展分类框尺寸";
