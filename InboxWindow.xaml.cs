@@ -10,8 +10,8 @@ namespace DesktopOrganizer
 
     public partial class InboxWindow : Window
     {
-        private const string UnsavedTagSelectionMessage =
-            "标签尚未保存；请先按 Ctrl+S 保存，或恢复原内容后再切换项目。";
+        private const string UnsavedTagEditorMessage =
+            "标签尚未保存；请先按 Ctrl+S 保存，或恢复原内容后再继续。";
 
         private readonly MainWindow _mainWindow;
         private string _loadedTagEditorText = string.Empty;
@@ -28,7 +28,8 @@ namespace DesktopOrganizer
 
         private void Refresh(
             string? selectedName = null,
-            int? fallbackIndex = null)
+            int? fallbackIndex = null,
+            IReadOnlyList<string>? previousDisplayOrder = null)
         {
             string? selectedManualGroupId =
                 (ManualGroupSelector.SelectedItem as ManualGroupChoice)?.Id;
@@ -37,6 +38,14 @@ namespace DesktopOrganizer
             try
             {
                 InboxList.ItemsSource = items;
+                if (previousDisplayOrder != null)
+                {
+                    selectedName = ResolvePostBulkActionSelectionName(
+                        previousDisplayOrder,
+                        fallbackIndex ?? -1,
+                        items.Select(item => item.DisplayName).ToList());
+                    fallbackIndex = 0;
+                }
                 int selectedIndex = items.FindIndex(item =>
                     item.DisplayName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
                 InboxList.SelectedIndex = selectedIndex >= 0
@@ -82,7 +91,7 @@ namespace DesktopOrganizer
                     _suppressInboxSelectionChange = false;
                 }
 
-                StatusText.Text = UnsavedTagSelectionMessage;
+                StatusText.Text = UnsavedTagEditorMessage;
                 TagEditorBox.Focus();
                 return;
             }
@@ -147,7 +156,7 @@ namespace DesktopOrganizer
             }
             else if (string.Equals(
                          StatusText.Text,
-                         UnsavedTagSelectionMessage,
+                         UnsavedTagEditorMessage,
                          StringComparison.Ordinal))
             {
                 StatusText.Text = string.Empty;
@@ -159,8 +168,22 @@ namespace DesktopOrganizer
 
         private void AcceptAllReliable_Click(object sender, RoutedEventArgs e)
         {
+            if (HasUnsavedTagEditorText(_loadedTagEditorText, TagEditorBox.Text))
+            {
+                StatusText.Text = UnsavedTagEditorMessage;
+                TagEditorBox.Focus();
+                return;
+            }
+
+            List<string> previousDisplayOrder = InboxList.Items
+                .Cast<InboxListItemView>()
+                .Select(item => item.DisplayName)
+                .ToList();
+            int selectedIndex = InboxList.SelectedIndex;
             _ = _mainWindow.TryAcceptPendingReliableInboxSuggestions(out string message);
-            Refresh();
+            Refresh(
+                fallbackIndex: selectedIndex,
+                previousDisplayOrder: previousDisplayOrder);
             StatusText.Text = message;
         }
 
@@ -318,6 +341,36 @@ namespace DesktopOrganizer
             itemCount > 0
                 ? Math.Clamp(previousIndex, 0, itemCount - 1)
                 : -1;
+
+        internal static string? ResolvePostBulkActionSelectionName(
+            IReadOnlyList<string> previousDisplayOrder,
+            int selectedIndex,
+            IReadOnlyList<string> remainingDisplayNames)
+        {
+            if (selectedIndex < 0 || selectedIndex >= previousDisplayOrder.Count)
+            {
+                return null;
+            }
+
+            var remainingNames = new HashSet<string>(
+                remainingDisplayNames,
+                StringComparer.OrdinalIgnoreCase);
+            for (int index = selectedIndex; index < previousDisplayOrder.Count; index++)
+            {
+                if (remainingNames.Contains(previousDisplayOrder[index]))
+                {
+                    return previousDisplayOrder[index];
+                }
+            }
+            for (int index = selectedIndex - 1; index >= 0; index--)
+            {
+                if (remainingNames.Contains(previousDisplayOrder[index]))
+                {
+                    return previousDisplayOrder[index];
+                }
+            }
+            return null;
+        }
 
         internal static bool ShouldAcceptAllReliableFromKeyboard(
             Key key,

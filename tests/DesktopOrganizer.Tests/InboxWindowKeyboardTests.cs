@@ -2,6 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
 using System.Xml.Linq;
 
@@ -112,12 +113,7 @@ public sealed class InboxWindowKeyboardTests
     public void InboxSelectionChanged_WithUnsavedTags_RestoresOriginalItem()
     {
         var mainWindow = new MainWindow(startQuietly: false);
-        FieldInfo appLayoutField = typeof(MainWindow).GetField(
-            "_appLayout",
-            BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new AssertFailedException("未找到当前布局。");
-        var layout = (AppLayoutData)(appLayoutField.GetValue(mainWindow)
-            ?? throw new AssertFailedException("当前布局尚未初始化。"));
+        AppLayoutData layout = GetAppLayout(mainWindow);
         layout.InboxItems.Clear();
         layout.ItemTags.Clear();
         layout.InboxItems["a-first.txt"] = new InboxItemInfo
@@ -155,6 +151,77 @@ public sealed class InboxWindowKeyboardTests
         Assert.AreEqual(1, window.InboxList.SelectedIndex);
         Assert.AreEqual("第二项标签", window.TagEditorBox.Text);
         Assert.AreEqual(string.Empty, window.StatusText.Text);
+    }
+
+    [STATestMethod]
+    public void AcceptAllReliable_PreservesCleanSelectionWhenNothingCanBeAccepted()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        layout.InboxItems.Clear();
+        AddInboxItem(layout, "a-first.txt", 0);
+        AddInboxItem(layout, "b-selected.txt", 1);
+        var window = new InboxWindow(mainWindow);
+        window.InboxList.SelectedIndex = 1;
+
+        InvokeAcceptAllReliable(window);
+
+        Assert.AreEqual("b-selected.txt", GetSelectedName(window));
+        Assert.AreEqual(1, window.InboxList.SelectedIndex);
+        StringAssert.Contains(window.StatusText.Text, "没有可批量接受");
+    }
+
+    [STATestMethod]
+    public void AcceptAllReliable_WithUnsavedTags_DoesNotRefreshOrDiscardDraft()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        layout.InboxItems.Clear();
+        layout.ItemTags.Clear();
+        AddInboxItem(layout, "draft.txt", 0);
+        layout.ItemTags["draft.txt"] = ["原标签"];
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        object selectedItem = window.InboxList.SelectedItem;
+        window.TagEditorBox.Text = "未保存草稿";
+
+        InvokeAcceptAllReliable(window);
+
+        Assert.AreSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreSame(selectedItem, window.InboxList.SelectedItem);
+        Assert.AreEqual("未保存草稿", window.TagEditorBox.Text);
+        StringAssert.Contains(window.StatusText.Text, "Ctrl+S");
+    }
+
+    [STATestMethod]
+    public void RefreshAfterBulkAccept_UsesPreviousOrderForSurvivorAndAdjacentFallback()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        layout.InboxItems.Clear();
+        AddInboxItem(layout, "a-first.txt", 0);
+        AddInboxItem(layout, "b-middle.txt", 1);
+        AddInboxItem(layout, "c-last.txt", 2);
+        var window = new InboxWindow(mainWindow);
+        string[] previousOrder = ["a-first.txt", "b-middle.txt", "c-last.txt"];
+
+        window.InboxList.SelectedIndex = 1;
+        layout.InboxItems.Remove("a-first.txt");
+        InvokeRefresh(window, null, 1, previousOrder);
+        Assert.AreEqual("b-middle.txt", GetSelectedName(window));
+        Assert.AreEqual(0, window.InboxList.SelectedIndex);
+
+        layout.InboxItems.Remove("b-middle.txt");
+        InvokeRefresh(window, null, 1, previousOrder);
+        Assert.AreEqual("c-last.txt", GetSelectedName(window));
+        Assert.AreEqual(0, window.InboxList.SelectedIndex);
+
+        AddInboxItem(layout, "d-tail.txt", 3);
+        InvokeRefresh(window, "d-tail.txt", 1);
+        layout.InboxItems.Remove("d-tail.txt");
+        InvokeRefresh(window, null, 1, ["c-last.txt", "d-tail.txt"]);
+        Assert.AreEqual("c-last.txt", GetSelectedName(window));
+        Assert.AreEqual(0, window.InboxList.SelectedIndex);
     }
 
     [TestMethod]
@@ -239,6 +306,39 @@ public sealed class InboxWindowKeyboardTests
     }
 
     [TestMethod]
+    public void ResolvePostBulkActionSelectionName_PrefersSelectedThenNextThenPrevious()
+    {
+        string[] previousOrder = ["r1", "r2", "l1", "l2"];
+
+        Assert.AreEqual(
+            "r2",
+            InboxWindow.ResolvePostBulkActionSelectionName(
+                previousOrder,
+                1,
+                ["r2", "l1", "l2"]));
+        Assert.AreEqual(
+            "l1",
+            InboxWindow.ResolvePostBulkActionSelectionName(
+                previousOrder,
+                1,
+                ["l1", "l2"]));
+        Assert.AreEqual(
+            "l1",
+            InboxWindow.ResolvePostBulkActionSelectionName(
+                ["l1", "r1", "r2"],
+                2,
+                ["L1"]));
+        Assert.IsNull(InboxWindow.ResolvePostBulkActionSelectionName(
+            previousOrder,
+            1,
+            []));
+        Assert.IsNull(InboxWindow.ResolvePostBulkActionSelectionName(
+            previousOrder,
+            -1,
+            ["l1"]));
+    }
+
+    [TestMethod]
     public void InboxWindow_WiresKeyboardHandlersOnlyToTheirTargetControls()
     {
         XDocument document = LoadInboxWindowXaml();
@@ -290,6 +390,58 @@ public sealed class InboxWindowKeyboardTests
                 (string?)element.Attribute("Content"),
                 content,
                 StringComparison.Ordinal));
+
+    private static AppLayoutData GetAppLayout(MainWindow mainWindow)
+    {
+        FieldInfo appLayoutField = typeof(MainWindow).GetField(
+            "_appLayout",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到当前布局。");
+        return (AppLayoutData)(appLayoutField.GetValue(mainWindow)
+            ?? throw new AssertFailedException("当前布局尚未初始化。"));
+    }
+
+    private static void AddInboxItem(
+        AppLayoutData layout,
+        string displayName,
+        int detectedSeconds)
+    {
+        layout.InboxItems[displayName] = new InboxItemInfo
+        {
+            DetectedUtc = DateTime.UnixEpoch.AddSeconds(detectedSeconds),
+            UpdatedUtc = DateTime.UnixEpoch.AddSeconds(detectedSeconds),
+            SuggestedCategoryName = "文档",
+            MatchReason = "测试",
+            Reliability = ClassificationReliability.Conservative,
+            ReviewState = InboxReviewState.Pending
+        };
+    }
+
+    private static void InvokeAcceptAllReliable(InboxWindow window)
+    {
+        MethodInfo handler = typeof(InboxWindow).GetMethod(
+            "AcceptAllReliable_Click",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到批量接受处理器。");
+        handler.Invoke(window, [window.AcceptAllReliableButton, new RoutedEventArgs()]);
+    }
+
+    private static void InvokeRefresh(
+        InboxWindow window,
+        string? selectedName,
+        int fallbackIndex,
+        IReadOnlyList<string>? previousDisplayOrder = null)
+    {
+        MethodInfo refresh = typeof(InboxWindow).GetMethod(
+            "Refresh",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到收件箱刷新方法。");
+        refresh.Invoke(window, [selectedName, fallbackIndex, previousDisplayOrder]);
+    }
+
+    private static string GetSelectedName(InboxWindow window) =>
+        (window.InboxList.SelectedItem as InboxListItemView)?.DisplayName
+        ?? throw new AssertFailedException("收件箱刷新后没有选中项目。");
 
     private static XDocument LoadInboxWindowXaml(
         [CallerFilePath] string sourceFilePath = "")
