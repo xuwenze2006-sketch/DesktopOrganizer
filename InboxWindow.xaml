@@ -18,7 +18,7 @@
         <Border Padding="12" CornerRadius="8" Background="#FFF0FFF8"
                 BorderBrush="#FF84D8B7" BorderThickness="1">
             <TextBlock TextWrapping="Wrap"
-                       Text="这里的操作只改变本地虚拟分组和标签。可靠建议可以接受；待确认建议保持原位，除非你明确加入手工分组。列表中可用 Enter 接受、Ctrl+Enter 留在桌面、Shift+Enter 以后处理。任何操作都不会移动、重命名或删除真实文件。"/>
+                       Text="这里的操作只改变本地虚拟分组和标签。可靠建议可以接受；待确认建议保持原位，除非你明确加入手工分组。列表中可用 Enter 接受、Ctrl+Enter 留在桌面、Shift+Enter 以后处理、Ctrl+Shift+Enter 接受全部可靠建议。任何操作都不会移动、重命名或删除真实文件。"/>
         </Border>
 
         <ListBox x:Name="InboxList" Grid.Row="1" Margin="0,12,0,12"
@@ -89,7 +89,7 @@
                         Content="接受全部可靠建议"
                         MinWidth="168"
                         Margin="0,0,12,0"
-                        ToolTip="只接受仍为待处理且当前可应用的可靠建议；以后处理和待确认项目保留"
+                        ToolTip="Ctrl+Shift+Enter；只接受仍为待处理且当前可应用的可靠建议；以后处理和待确认项目保留"
                         Click="AcceptAllReliable_Click"/>
                 <TextBlock x:Name="StatusText" Grid.Column="1" Margin="0,0,12,0"
                            VerticalAlignment="Center" Foreground="#FF64748B" TextWrapping="Wrap"/>

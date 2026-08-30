@@ -45,6 +45,30 @@ public sealed class InboxWindowKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, true, true)]
+    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, true, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, false, false)]
+    [DataRow(Key.Enter, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift | ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.Space, ModifierKeys.Control | ModifierKeys.Shift, false, true, false)]
+    public void ShouldAcceptAllReliableFromKeyboard_RequiresExactInitialShortcutAndEnabledAction(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool canAcceptAll,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            InboxWindow.ShouldAcceptAllReliableFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                canAcceptAll));
+    }
+
+    [TestMethod]
     public void InboxWindow_WiresKeyboardHandlersOnlyToTheirTargetControls()
     {
         XDocument document = LoadInboxWindowXaml();
@@ -52,6 +76,7 @@ public sealed class InboxWindowKeyboardTests
         XElement inboxList = FindNamedElement(document, xaml, "InboxList");
         XElement tagEditor = FindNamedElement(document, xaml, "TagEditorBox");
         XElement saveTagsButton = FindNamedElement(document, xaml, "SaveTagsButton");
+        XElement acceptAllReliableButton = FindNamedElement(document, xaml, "AcceptAllReliableButton");
         XElement groupSelector = FindNamedElement(document, xaml, "ManualGroupSelector");
 
         Assert.AreEqual(
@@ -64,6 +89,7 @@ public sealed class InboxWindowKeyboardTests
         Assert.IsNull(groupSelector.Attribute("PreviewKeyDown"));
         StringAssert.Contains(tagEditor.Attribute("ToolTip")?.Value, "Ctrl+S");
         Assert.AreEqual("Ctrl+S", saveTagsButton.Attribute("ToolTip")?.Value);
+        StringAssert.Contains(acceptAllReliableButton.Attribute("ToolTip")?.Value, "Ctrl+Shift+Enter");
         Assert.AreEqual("Enter", FindButton(document, "接受建议").Attribute("ToolTip")?.Value);
         Assert.AreEqual("Ctrl+Enter", FindButton(document, "留在桌面").Attribute("ToolTip")?.Value);
         Assert.AreEqual("Shift+Enter", FindButton(document, "以后再说").Attribute("ToolTip")?.Value);

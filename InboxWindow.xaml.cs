@@ -42,6 +42,17 @@ namespace DesktopOrganizer
 
         private void InboxList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (ShouldAcceptAllReliableFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    AcceptAllReliableButton.IsEnabled))
+            {
+                e.Handled = true;
+                AcceptAllReliable_Click(AcceptAllReliableButton, e);
+                return;
+            }
+
             e.Handled = TryExecuteKeyboardAction(
                 ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
         }
@@ -170,6 +181,16 @@ namespace DesktopOrganizer
             key == Key.S &&
             modifiers == ModifierKeys.Control &&
             !isRepeat;
+
+        internal static bool ShouldAcceptAllReliableFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool canAcceptAll) =>
+            key == Key.Enter &&
+            modifiers == (ModifierKeys.Control | ModifierKeys.Shift) &&
+            !isRepeat &&
+            canAcceptAll;
 
         private void RunSelectedAction(InboxAction action)
         {
