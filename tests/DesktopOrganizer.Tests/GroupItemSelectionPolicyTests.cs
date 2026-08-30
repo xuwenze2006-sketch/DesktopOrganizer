@@ -282,4 +282,37 @@ public sealed class GroupItemSelectionPolicyTests
             MainWindow.GetGroupHeaderInteractionToolTip(isEditMode: true),
             "双击标题非按钮区域可自动适应尺寸");
     }
+
+    [TestMethod]
+    public void ShouldCollapseAllGroups_CollapsesWheneverAnyGroupIsExpanded()
+    {
+        Assert.IsTrue(MainWindow.ShouldCollapseAllGroups(
+        [
+            new GroupInfo { IsCollapsed = false },
+            new GroupInfo { IsCollapsed = false }
+        ]));
+        Assert.IsTrue(MainWindow.ShouldCollapseAllGroups(
+        [
+            new GroupInfo { IsCollapsed = true },
+            new GroupInfo { IsCollapsed = false }
+        ]));
+        Assert.IsFalse(MainWindow.ShouldCollapseAllGroups(
+        [
+            new GroupInfo { IsCollapsed = true },
+            new GroupInfo { IsCollapsed = true }
+        ]));
+        Assert.IsFalse(MainWindow.ShouldCollapseAllGroups([]));
+    }
+
+    [TestMethod]
+    [DataRow(true, "收起全部分组")]
+    [DataRow(false, "展开全部分组")]
+    public void GetToggleAllGroupsMenuHeader_DescribesNextAction(
+        bool collapse,
+        string expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.GetToggleAllGroupsMenuHeader(collapse));
+    }
 }

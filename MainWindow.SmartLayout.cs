@@ -23,7 +23,16 @@ namespace DesktopOrganizer
                 : $"已展开“{group.Name}”";
         }
 
-        private void CollapseGroupsButton_Click(object sender, RoutedEventArgs e)
+        internal static bool ShouldCollapseAllGroups(IEnumerable<GroupInfo> groups) =>
+            groups.Any(group => !group.IsCollapsed);
+
+        internal static string GetToggleAllGroupsMenuHeader(bool collapse) =>
+            collapse ? "收起全部分组" : "展开全部分组";
+
+        private void CollapseGroupsButton_Click(object sender, RoutedEventArgs e) =>
+            ToggleAllGroupsCollapsed();
+
+        private void ToggleAllGroupsCollapsed()
         {
             if (_appLayout.Groups.Count == 0)
             {
@@ -32,7 +41,7 @@ namespace DesktopOrganizer
             }
 
             StopGroupPeek();
-            bool collapse = _appLayout.Groups.Any(group => !group.IsCollapsed);
+            bool collapse = ShouldCollapseAllGroups(_appLayout.Groups);
             foreach (GroupInfo group in _appLayout.Groups)
             {
                 group.IsCollapsed = collapse;
@@ -47,7 +56,7 @@ namespace DesktopOrganizer
         {
             bool hasGroups = _appLayout.Groups.Count > 0;
             CollapseGroupsButton.IsEnabled = hasGroups;
-            CollapseGroupsButton.Content = hasGroups && _appLayout.Groups.All(group => group.IsCollapsed)
+            CollapseGroupsButton.Content = hasGroups && !ShouldCollapseAllGroups(_appLayout.Groups)
                 ? "全部展开"
                 : "全部收起";
         }

@@ -371,6 +371,12 @@ namespace DesktopOrganizer
             renameItem.Click += (_, _) => RenameGroup(group);
             var collapseItem = new MenuItem { Header = group.IsCollapsed ? "展开" : "收起" };
             collapseItem.Click += (_, _) => ToggleGroupCollapsed(group);
+            var toggleAllGroupsItem = new MenuItem
+            {
+                Header = GetToggleAllGroupsMenuHeader(
+                    ShouldCollapseAllGroups(_appLayout.Groups))
+            };
+            toggleAllGroupsItem.Click += (_, _) => ToggleAllGroupsCollapsed();
             var autoFitItem = new MenuItem
             {
                 Header = group.IsSizeLocked ? "自动适应尺寸" : "重新适应内容"
@@ -407,6 +413,7 @@ namespace DesktopOrganizer
             deleteItem.Click += (_, args) => DeleteGroup_Click(menuButton, args);
             groupMenu.Items.Add(renameItem);
             groupMenu.Items.Add(collapseItem);
+            groupMenu.Items.Add(toggleAllGroupsItem);
             groupMenu.Items.Add(autoFitItem);
             groupMenu.Items.Add(sortMenu);
             groupMenu.Items.Add(selectionSeparator);
@@ -416,6 +423,8 @@ namespace DesktopOrganizer
             groupMenu.Items.Add(deleteItem);
             groupMenu.Opened += (_, _) =>
             {
+                toggleAllGroupsItem.Header = GetToggleAllGroupsMenuHeader(
+                    ShouldCollapseAllGroups(_appLayout.Groups));
                 List<string> selectedNames = _selectedItemNames
                     .Where(_desktopItems.ContainsKey)
                     .ToList();
