@@ -175,10 +175,24 @@ namespace DesktopOrganizer
                 Header = FormatDesktopItemTagSummary(displayName),
                 IsEnabled = false
             };
-            var editTags = new MenuItem { Header = "编辑本地标签…" };
+            var editTags = new MenuItem { Header = "编辑此项目的本地标签…" };
             editTags.Click += (_, _) => EditDesktopItemTags(displayName);
+            var batchAddTags = new MenuItem
+            {
+                Header = "为所选项目添加本地标签…",
+                Visibility = Visibility.Collapsed
+            };
+            batchAddTags.Click += (_, _) => EditSelectedItemTags(remove: false);
+            var batchRemoveTags = new MenuItem
+            {
+                Header = "从所选项目移除本地标签…",
+                Visibility = Visibility.Collapsed
+            };
+            batchRemoveTags.Click += (_, _) => EditSelectedItemTags(remove: true);
             menu.Items.Add(tagSummary);
             menu.Items.Add(editTags);
+            menu.Items.Add(batchAddTags);
+            menu.Items.Add(batchRemoveTags);
             menu.Items.Add(new Separator());
 
             var select = new MenuItem();
@@ -250,10 +264,16 @@ namespace DesktopOrganizer
                     _desktopItems.TryGetValue(name, out string? location) &&
                     !ShellItemLocation.TryDecode(location, out _, out _) &&
                     IsFileOperationPending(location));
+                batchAddTags.Visibility = selectedCount > 1 ? Visibility.Visible : Visibility.Collapsed;
+                batchRemoveTags.Visibility = selectedCount > 1 ? Visibility.Visible : Visibility.Collapsed;
                 batchRemove.Visibility = selectedCount > 1 ? Visibility.Visible : Visibility.Collapsed;
                 batchDelete.Visibility = selectedPhysicalCount > 1 ? Visibility.Visible : Visibility.Collapsed;
+                batchAddTags.IsEnabled = !selectedHasPendingFileOperation;
+                batchRemoveTags.IsEnabled = !selectedHasPendingFileOperation;
                 batchRemove.IsEnabled = !selectedHasPendingFileOperation;
                 batchDelete.IsEnabled = !selectedHasPendingFileOperation;
+                batchAddTags.Header = $"为所选 {selectedCount} 项添加本地标签…";
+                batchRemoveTags.Header = $"从所选 {selectedCount} 项移除本地标签…";
                 batchRemove.Header = $"将所选 {selectedCount} 项移出分类框";
                 batchDelete.Header = $"将所选 {selectedPhysicalCount} 个真实项目删除到回收站…";
                 if (delete != null)
@@ -314,6 +334,69 @@ namespace DesktopOrganizer
                 : normalized.Count == 0
                     ? $"已清除“{displayName}”的本地标签"
                     : $"已保存“{displayName}”的本地标签：{string.Join("、", normalized)}";
+        }
+
+        private void EditSelectedItemTags(bool remove)
+        {
+            if (_selectedItemNames.Count(_desktopItems.ContainsKey) < 2)
+            {
+                StatusText.Text = "请先选择至少两个桌面项目";
+                return;
+            }
+
+            SimpleInputDialog dialog = CreateInputDialog(
+                remove
+                    ? "输入要从所选项目移除的标签，用逗号或分号分隔："
+                    : "输入要为所选项目添加的标签，用逗号或分号分隔：",
+                string.Empty);
+            dialog.Title = remove ? "批量移除本地标签" : "批量添加本地标签";
+            dialog.Width = 460;
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            List<string> tags = ItemTagPolicy.ParseEditorText(dialog.ResultText);
+            if (tags.Count == 0)
+            {
+                StatusText.Text = "未输入有效标签，本次没有修改";
+                return;
+            }
+
+            List<string> selectedNames = _selectedItemNames
+                .Where(_desktopItems.ContainsKey)
+                .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+            if (selectedNames.Count < 2)
+            {
+                StatusText.Text = "所选项目已变化，当前不足两项，本次没有修改";
+                return;
+            }
+
+            int changedCount = 0;
+            foreach (string name in selectedNames)
+            {
+                bool changed = remove
+                    ? ItemTagPolicy.RemoveTags(_appLayout.ItemTags, name, tags)
+                    : ItemTagPolicy.AddTags(_appLayout.ItemTags, name, tags);
+                if (changed)
+                {
+                    changedCount++;
+                }
+            }
+            if (changedCount > 0)
+            {
+                SaveLayout();
+            }
+
+            string formatted = string.Join("、", tags);
+            StatusText.Text = changedCount == 0
+                ? remove
+                    ? $"所选 {selectedNames.Count} 项都不包含标签：{formatted}"
+                    : $"所选 {selectedNames.Count} 项都已包含标签：{formatted}"
+                : remove
+                    ? $"已从所选项目移除标签：{formatted}；实际更新 {changedCount}/{selectedNames.Count} 项"
+                    : $"已为所选项目添加标签：{formatted}；实际更新 {changedCount}/{selectedNames.Count} 项";
         }
 
         private static string GetIconDisplayName(FrameworkElement element) =>

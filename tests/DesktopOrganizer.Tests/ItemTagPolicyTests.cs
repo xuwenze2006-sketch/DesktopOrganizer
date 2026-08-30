@@ -57,6 +57,49 @@ public sealed class ItemTagPolicyTests
     }
 
     [TestMethod]
+    public void AddTags_MergesMultipleValuesAndIgnoresExistingCaseVariants()
+    {
+        var itemTags = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["item.txt"] = ["Alpha"]
+        };
+
+        Assert.IsTrue(ItemTagPolicy.AddTags(
+            itemTags,
+            "ITEM.TXT",
+            ["Beta", "ALPHA", " Gamma "]));
+        Assert.IsFalse(ItemTagPolicy.AddTags(
+            itemTags,
+            "item.txt",
+            ["beta", "gamma"]));
+        var empty = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        Assert.IsFalse(ItemTagPolicy.AddTags(empty, "new.txt", Array.Empty<string>()));
+        Assert.AreEqual(0, empty.Count);
+        CollectionAssert.AreEqual(
+            new[] { "Alpha", "Beta", "Gamma" },
+            itemTags["item.txt"]);
+    }
+
+    [TestMethod]
+    public void RemoveTags_RemovesMatchesAndDropsEmptyDictionaryEntry()
+    {
+        var itemTags = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["item.txt"] = ["Alpha", "Beta"]
+        };
+
+        Assert.IsTrue(ItemTagPolicy.RemoveTags(
+            itemTags,
+            "ITEM.TXT",
+            ["alpha", "missing"]));
+        CollectionAssert.AreEqual(new[] { "Beta" }, itemTags["item.txt"]);
+        Assert.IsFalse(ItemTagPolicy.RemoveTags(itemTags, "item.txt", ["missing"]));
+        Assert.IsFalse(ItemTagPolicy.RemoveTags(itemTags, "item.txt", Array.Empty<string>()));
+        Assert.IsTrue(ItemTagPolicy.RemoveTags(itemTags, "item.txt", ["BETA"]));
+        Assert.IsFalse(itemTags.ContainsKey("item.txt"));
+    }
+
+    [TestMethod]
     public void NormalizeDictionary_DropsBlankEntriesAndReturnsIndependentLists()
     {
         var source = new Dictionary<string, List<string>>

@@ -27,9 +27,15 @@ public sealed class IconTagMenuContractTests
         MenuItem summary = items.Single(item =>
             string.Equals(item.Header as string, "本地标签：无", StringComparison.Ordinal));
         MenuItem editor = items.Single(item =>
-            string.Equals(item.Header as string, "编辑本地标签…", StringComparison.Ordinal));
+            string.Equals(item.Header as string, "编辑此项目的本地标签…", StringComparison.Ordinal));
+        MenuItem batchAdd = items.Single(item =>
+            string.Equals(item.Header as string, "为所选项目添加本地标签…", StringComparison.Ordinal));
+        MenuItem batchRemove = items.Single(item =>
+            string.Equals(item.Header as string, "从所选项目移除本地标签…", StringComparison.Ordinal));
 
         Assert.IsFalse(summary.IsEnabled);
         Assert.IsTrue(editor.IsEnabled);
+        Assert.AreEqual(System.Windows.Visibility.Collapsed, batchAdd.Visibility);
+        Assert.AreEqual(System.Windows.Visibility.Collapsed, batchRemove.Visibility);
     }
 }
