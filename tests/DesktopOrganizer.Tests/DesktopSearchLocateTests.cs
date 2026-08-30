@@ -8,6 +8,24 @@ namespace DesktopOrganizer.Tests;
 public sealed class DesktopSearchLocateTests
 {
     [STATestMethod]
+    [DataRow(true, 352d, 80, 1560d)]
+    [DataRow(false, 352d, 80, 2132d)]
+    public void GroupSearchVerticalOffset_UsesCurrentLayoutRowHeight(
+        bool compactLayout,
+        double groupWidth,
+        int itemIndex,
+        double expectedOffset)
+    {
+        var window = new MainWindow(startQuietly: false);
+        GetField<AppLayoutData>(window, "_appLayout").CompactGroupLayout = compactLayout;
+        var group = new GroupInfo { Width = groupWidth };
+
+        double offset = InvokeGroupSearchVerticalOffset(window, group, itemIndex);
+
+        Assert.AreEqual(expectedOffset, offset, 0.001);
+    }
+
+    [STATestMethod]
     public void LocateDesktopSearchResult_SynchronizesGroupedRangeAnchor()
     {
         var window = new MainWindow(startQuietly: false);
@@ -97,5 +115,18 @@ public sealed class DesktopSearchLocateTests
             BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new AssertFailedException($"未找到字段 {fieldName}。");
         return field.GetValue(window) as T;
+    }
+
+    private static double InvokeGroupSearchVerticalOffset(
+        MainWindow window,
+        GroupInfo group,
+        int itemIndex)
+    {
+        MethodInfo method = typeof(MainWindow).GetMethod(
+            "GetGroupSearchVerticalOffset",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到分组搜索滚动偏移入口。");
+        return (double)(method.Invoke(window, [group, itemIndex])
+            ?? throw new AssertFailedException("未能计算分组搜索滚动偏移。"));
     }
 }

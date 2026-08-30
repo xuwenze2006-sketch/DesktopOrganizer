@@ -105,8 +105,7 @@ namespace DesktopOrganizer
                 List<string> orderedNames = GetSortedGroupItemNames(group, _desktopItems).ToList();
                 int index = orderedNames.FindIndex(name =>
                     name.Equals(displayName, StringComparison.OrdinalIgnoreCase));
-                int columns = Math.Max(1, GetDesiredGroupColumnCount(group));
-                double offset = Math.Max(0, index / columns) * GroupedIconRowHeight;
+                double offset = GetGroupSearchVerticalOffset(group, index);
                 _ = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
                 {
                     if (_groupItemPanels.TryGetValue(group.Id, out VirtualizingGroupPanel? panel))
@@ -119,6 +118,12 @@ namespace DesktopOrganizer
             StatusText.Text = group == null
                 ? $"已在桌面高亮“{displayName}”"
                 : $"已展开“{group.Name}”并高亮“{displayName}”";
+        }
+
+        private double GetGroupSearchVerticalOffset(GroupInfo group, int itemIndex)
+        {
+            int columns = Math.Max(1, GetDesiredGroupColumnCount(group));
+            return Math.Max(0, itemIndex / columns) * GetGroupedIconRowHeight();
         }
 
         internal void OpenDesktopSearchResult(string location) => OpenDesktopItem(location);
