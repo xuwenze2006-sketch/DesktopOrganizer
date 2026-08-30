@@ -56,14 +56,18 @@
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  ClipboardCopyMode="IncludeHeader"
                   EnableRowVirtualization="True"
                   HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal">
+                  GridLinesVisibility="Horizontal"
+                  ToolTip="选中预览行后按 Ctrl+C 复制五列详情和表头">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="项目" Binding="{Binding DisplayName}" Width="170"/>
                 <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="90"/>
                 <DataGridTextColumn Header="目标" Binding="{Binding Target}" Width="150"/>
-                <DataGridTemplateColumn Header="命中原因" Width="*">
+                <DataGridTemplateColumn Header="命中原因" Width="*"
+                                        ClipboardContentBinding="{Binding Explanation}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding Explanation}"
@@ -72,7 +76,8 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="冲突" Width="220">
+                <DataGridTemplateColumn Header="冲突" Width="220"
+                                        ClipboardContentBinding="{Binding ConflictText}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding ConflictText}"
@@ -95,9 +100,16 @@
                        VerticalAlignment="Center"
                        TextWrapping="Wrap"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="CopySelectedPreviewButton"
+                        Content="复制所选详情"
+                        MinWidth="108"
+                        Margin="12,0,8,0"
+                        Command="{x:Static ApplicationCommands.Copy}"
+                        CommandTarget="{Binding ElementName=PreviewGrid}"
+                        ToolTip="Ctrl+C；复制所选预览行的五列详情和表头"/>
                 <Button Content="取消"
                         MinWidth="76"
-                        Margin="12,0,8,0"
+                        Margin="0,0,8,0"
                         IsCancel="True"
                         Click="Cancel_Click"/>
                 <Button x:Name="PrimaryButton"
