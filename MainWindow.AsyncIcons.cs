@@ -74,7 +74,7 @@ namespace DesktopOrganizer
             bindings.Add(new IconVisualBinding(image, placeholder));
             int priority = parentGroup == null
                 ? 0
-                : parentGroup.IsCollapsed ? 2 : 1;
+                : parentGroup.IsCollapsed && !IsGroupPeekActive(parentGroup) ? 2 : 1;
             if (!_queuedIconLoads.TryGetValue(requestKey, out int queuedPriority) ||
                 priority < queuedPriority)
             {

@@ -108,11 +108,72 @@ public sealed class VirtualizingGroupPanelTests
         Assert.AreEqual(initialChildCount, panel.Children.Count);
     }
 
+    [STATestMethod]
+    public void ReleaseRealizedContainers_RecyclesViewportAndPreservesScrollOffset()
+    {
+        VirtualizingGroupPanel panel = CreatePanel(
+            itemCount: 30,
+            out _,
+            out List<FrameworkElement> recycledVisuals);
+        panel.Measure(new Size(300, 80));
+        panel.Arrange(new Rect(0, 0, 300, 80));
+        panel.SetVerticalOffset(160);
+        panel.Measure(new Size(300, 80));
+        panel.Arrange(new Rect(0, 0, 300, 80));
+        int realizedBeforeRelease = panel.Children.Count;
+        int recycledBeforeRelease = recycledVisuals.Count;
+        double offsetBeforeRelease = panel.VerticalOffset;
+
+        panel.ReleaseRealizedContainers();
+
+        Assert.AreEqual(0, panel.Children.Count);
+        Assert.AreEqual(
+            realizedBeforeRelease,
+            recycledVisuals.Count - recycledBeforeRelease);
+        Assert.AreEqual(offsetBeforeRelease, panel.VerticalOffset);
+
+        panel.Measure(new Size(300, 80));
+        panel.Arrange(new Rect(0, 0, 300, 80));
+
+        Assert.IsGreaterThan(0, panel.Children.Count);
+        Assert.AreEqual(offsetBeforeRelease, panel.VerticalOffset);
+    }
+
+    [STATestMethod]
+    public void ReleaseRealizedContainers_DoesNotRecycleDetachedDragSource()
+    {
+        VirtualizingGroupPanel panel = CreatePanel(
+            itemCount: 8,
+            out Dictionary<string, FrameworkElement> visuals,
+            out List<FrameworkElement> recycledVisuals);
+        panel.Measure(new Size(300, 160));
+        panel.Arrange(new Rect(0, 0, 300, 160));
+        FrameworkElement detached = visuals["item-0"];
+        Assert.IsTrue(panel.DetachForDrag(detached));
+        int realizedAfterDetach = panel.Children.Count;
+
+        panel.ReleaseRealizedContainers();
+
+        Assert.AreEqual(0, panel.Children.Count);
+        Assert.AreEqual(realizedAfterDetach, recycledVisuals.Count);
+        Assert.IsFalse(recycledVisuals.Contains(detached));
+        Assert.IsFalse(panel.IsStable);
+    }
+
     private static VirtualizingGroupPanel CreatePanel(
         int itemCount,
         out Dictionary<string, FrameworkElement> visuals)
     {
+        return CreatePanel(itemCount, out visuals, out _);
+    }
+
+    private static VirtualizingGroupPanel CreatePanel(
+        int itemCount,
+        out Dictionary<string, FrameworkElement> visuals,
+        out List<FrameworkElement> recycledVisuals)
+    {
         var createdVisuals = new Dictionary<string, FrameworkElement>(StringComparer.Ordinal);
+        var recycled = new List<FrameworkElement>();
         var items = Enumerable.Range(0, itemCount)
             .Select(index => new GroupVirtualItem($"item-{index}", $@"C:\Desktop\item-{index}.txt"))
             .ToList();
@@ -124,13 +185,14 @@ public sealed class VirtualizingGroupPanelTests
                 createdVisuals[item.DisplayName] = visual;
                 return visual;
             },
-            _ => { },
+            recycled.Add,
             columnCount: 3,
             slotWidth: 100,
             rowHeight: 80,
             initialVerticalOffset: 0);
 
         visuals = createdVisuals;
+        recycledVisuals = recycled;
         return panel;
     }
 }

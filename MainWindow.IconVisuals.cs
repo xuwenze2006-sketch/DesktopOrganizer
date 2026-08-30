@@ -101,7 +101,13 @@ namespace DesktopOrganizer
                 ApplyIconSelectionVisual(displayName, hitTarget, isMouseOver: true);
             hitTarget.MouseLeave += (_, _) =>
                 ApplyIconSelectionVisual(displayName, hitTarget, isMouseOver: false);
-            hitTarget.ContextMenu = CreateIconContextMenu(fullPath, displayName, parentGroup);
+            ContextMenu iconMenu = CreateIconContextMenu(fullPath, displayName, parentGroup);
+            if (parentGroup != null)
+            {
+                iconMenu.Opened += (_, _) => NotifyGroupPeekChildMenuOpened(parentGroup.Id);
+                iconMenu.Closed += (_, _) => NotifyGroupPeekChildMenuClosed(parentGroup.Id);
+            }
+            hitTarget.ContextMenu = iconMenu;
 
             if (Directory.Exists(fullPath) && !fileOperationPending)
             {

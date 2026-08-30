@@ -64,6 +64,8 @@ namespace DesktopOrganizer
         private readonly DispatcherTimer _controlPanelAutoCollapseTimer;
         private readonly DispatcherTimer _healthMonitorTimer;
         private readonly DispatcherTimer _recycleBinStatusTimer;
+        private readonly DispatcherTimer _groupPeekOpenTimer;
+        private readonly DispatcherTimer _groupPeekCloseTimer;
         private readonly AppDiagnostics _diagnostics = new();
         private readonly CancellationTokenSource _lifetimeCts = new();
         private readonly RefreshCancellationEpoch _refreshCancellationEpoch = new();
@@ -309,6 +311,18 @@ namespace DesktopOrganizer
                 Interval = TimeSpan.FromSeconds(4)
             };
             _recycleBinStatusTimer.Tick += RecycleBinStatusTimer_Tick;
+
+            _groupPeekOpenTimer = new DispatcherTimer(DispatcherPriority.Input)
+            {
+                Interval = TimeSpan.FromMilliseconds(450)
+            };
+            _groupPeekOpenTimer.Tick += GroupPeekOpenTimer_Tick;
+
+            _groupPeekCloseTimer = new DispatcherTimer(DispatcherPriority.Input)
+            {
+                Interval = TimeSpan.FromMilliseconds(180)
+            };
+            _groupPeekCloseTimer.Tick += GroupPeekCloseTimer_Tick;
 
             SourceInitialized += MainWindow_SourceInitialized;
             Loaded += MainWindow_Loaded;

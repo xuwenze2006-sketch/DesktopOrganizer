@@ -377,6 +377,7 @@ namespace DesktopOrganizer
 
             if (_organizerPaused)
             {
+                StopGroupPeek();
                 IconCanvas.Visibility = Visibility.Collapsed;
                 UpdateRecycleBinWidgetVisibility();
                 if (_nativeIconsWereVisible)

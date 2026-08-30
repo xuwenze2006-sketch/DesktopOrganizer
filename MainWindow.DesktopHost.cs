@@ -674,6 +674,7 @@ namespace DesktopOrganizer
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             _isClosing = true;
+            StopGroupPeek();
             CancelAllPortalReads();
             _folderPortalWatcherCoordinator.Dispose();
             _lifetimeCts.Cancel();

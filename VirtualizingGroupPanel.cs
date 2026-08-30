@@ -131,6 +131,16 @@ namespace DesktopOrganizer
         }
 
         /// <summary>
+        /// 释放当前视口已经创建的图标控件，同时保留滚动位置和拖动抑制状态。
+        /// </summary>
+        public void ReleaseRealizedContainers()
+        {
+            ClearInsertionIndicator();
+            RecycleOutsideRange(0, -1);
+            InvalidateMeasure();
+        }
+
+        /// <summary>
         /// 返回与当前已渲染槽位完全一致的项目顺序。拖动期间源项目仍保留在该快照中，
         /// 供落点边界和排序应用共享同一份顺序基准。
         /// </summary>

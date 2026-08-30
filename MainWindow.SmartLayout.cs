@@ -31,6 +31,7 @@ namespace DesktopOrganizer
                 return;
             }
 
+            StopGroupPeek();
             bool collapse = _appLayout.Groups.Any(group => !group.IsCollapsed);
             foreach (GroupInfo group in _appLayout.Groups)
             {

@@ -477,7 +477,7 @@ namespace DesktopOrganizer
 
             var bodyLayer = new Grid();
             bodyLayer.Children.Add(scrollViewer);
-            bodyLayer.Children.Add(new Border
+            var bodyDivider = new Border
             {
                 Height = 1,
                 Margin = new Thickness(8, 0, 8, 0),
@@ -485,7 +485,8 @@ namespace DesktopOrganizer
                 Background = accentBrush,
                 Opacity = 0.30,
                 IsHitTestVisible = false
-            });
+            };
+            bodyLayer.Children.Add(bodyDivider);
 
             var body = new Border
             {
@@ -564,6 +565,7 @@ namespace DesktopOrganizer
                 container.BorderBrush = hoverBorderBrush;
                 header.Background = hoverHeaderBrush;
                 SetHoverActionsVisible(true);
+                RequestGroupPeek(group.Id);
             };
             container.MouseLeave += (_, _) =>
             {
@@ -573,16 +575,27 @@ namespace DesktopOrganizer
                 {
                     SetHoverActionsVisible(false);
                 }
+                ScheduleGroupPeekClose(group.Id);
             };
             groupMenu.Closed += (_, _) =>
             {
                 if (!container.IsMouseOver)
                 {
                     SetHoverActionsVisible(false);
+                    ScheduleGroupPeekClose(group.Id);
                 }
             };
             _groupItemPanels[group.Id] = itemsPanel;
             _groupDropTargets[group.Id] = container;
+            RegisterGroupPeekVisual(
+                group,
+                container,
+                outer,
+                header,
+                body,
+                bodyDivider,
+                itemsPanel,
+                groupMenu);
             return container;
         }
 

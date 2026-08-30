@@ -441,7 +441,7 @@ namespace DesktopOrganizer
 
                 Canvas.SetLeft(groupVisual, group.X);
                 Canvas.SetTop(groupVisual, group.Y);
-                Panel.SetZIndex(groupVisual, 100);
+                RefreshGroupPeekVisualAfterRebuild(group, groupVisual);
             }
 
             int reusedFreeIcons = 0;
@@ -624,6 +624,7 @@ namespace DesktopOrganizer
 
         private void RemoveGroupVisual(string groupId)
         {
+            UnregisterGroupPeekVisual(groupId);
             if (_groupVisuals.Remove(groupId, out FrameworkElement? visual))
             {
                 IconCanvas.Children.Remove(visual);
