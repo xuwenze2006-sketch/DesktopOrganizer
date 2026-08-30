@@ -23,6 +23,9 @@ namespace DesktopOrganizer
             List<ManualGroupChoice> groups = _mainWindow.GetManualInboxGroups().ToList();
             ManualGroupSelector.ItemsSource = groups;
             ManualGroupSelector.SelectedIndex = groups.Count > 0 ? 0 : -1;
+            int bulkAcceptCount = _mainWindow.GetPendingReliableInboxSuggestionCount();
+            AcceptAllReliableButton.Content = $"接受全部可靠建议 ({bulkAcceptCount})";
+            AcceptAllReliableButton.IsEnabled = bulkAcceptCount > 0;
             UpdateButtons();
         }
 
@@ -41,6 +44,13 @@ namespace DesktopOrganizer
         private void Accept_Click(object sender, RoutedEventArgs e) =>
             RunSelectedAction((string name, out string message) =>
                 _mainWindow.TryAcceptInboxSuggestion(name, out message));
+
+        private void AcceptAllReliable_Click(object sender, RoutedEventArgs e)
+        {
+            _ = _mainWindow.TryAcceptPendingReliableInboxSuggestions(out string message);
+            Refresh();
+            StatusText.Text = message;
+        }
 
         private void Leave_Click(object sender, RoutedEventArgs e) =>
             RunSelectedAction((string name, out string message) =>

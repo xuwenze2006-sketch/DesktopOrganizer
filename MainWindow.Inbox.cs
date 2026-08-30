@@ -54,6 +54,13 @@ namespace DesktopOrganizer
                 .Select(group => new ManualGroupChoice(group.Id, group.Name))
                 .ToList();
 
+        internal int GetPendingReliableInboxSuggestionCount() =>
+            InboxQueueManager.PlanAutomaticAcceptances(
+                _appLayout.InboxItems,
+                _appLayout.ItemIdentities,
+                _appLayout.Groups,
+                paused: false).Count;
+
         internal bool TryAcceptInboxSuggestion(string displayName, out string message)
         {
             InboxActionResult result = InboxQueueManager.TryCreateAcceptancePlan(
@@ -77,6 +84,39 @@ namespace DesktopOrganizer
             RebuildDesktopIconsAndSaveLayout();
             UpdateInboxButton();
             message = $"已按建议把“{plan.DisplayName}”加入虚拟分类“{plan.TargetCategory.DisplayName}”；真实文件未移动。";
+            StatusText.Text = message;
+            return true;
+        }
+
+        internal bool TryAcceptPendingReliableInboxSuggestions(out string message)
+        {
+            IReadOnlyList<InboxAcceptancePlan> plans =
+                InboxQueueManager.PlanAutomaticAcceptances(
+                    _appLayout.InboxItems,
+                    _appLayout.ItemIdentities,
+                    _appLayout.Groups,
+                    paused: false);
+            if (plans.Count == 0)
+            {
+                message = "当前没有可批量接受的待处理可靠建议。";
+                StatusText.Text = message;
+                return false;
+            }
+
+            int acceptedCount = ApplyInboxAcceptancePlans(plans);
+            if (acceptedCount == 0)
+            {
+                message = "建议对应的项目身份已经变化，本次未修改收件箱或布局。";
+                StatusText.Text = message;
+                return false;
+            }
+
+            RebuildDesktopIconsAndSaveLayout();
+            UpdateInboxButton();
+            int skippedCount = plans.Count - acceptedCount;
+            message = skippedCount == 0
+                ? $"已接受 {acceptedCount} 项可靠建议；待整理仍有 {_appLayout.InboxItems.Count} 项，真实文件未移动。"
+                : $"已接受 {acceptedCount} 项；另有 {skippedCount} 项状态已变化并保留。待整理仍有 {_appLayout.InboxItems.Count} 项，真实文件未移动。";
             StatusText.Text = message;
             return true;
         }
@@ -248,12 +288,20 @@ namespace DesktopOrganizer
                 _appLayout.ItemIdentities,
                 _appLayout.Groups,
                 paused: !IsAutoClassificationActive);
-            bool changed = false;
+            return ApplyInboxAcceptancePlans(plans) > 0;
+        }
+
+        private int ApplyInboxAcceptancePlans(IReadOnlyList<InboxAcceptancePlan> plans)
+        {
+            int acceptedCount = 0;
             foreach (InboxAcceptancePlan plan in plans)
             {
-                changed |= ApplyInboxAcceptancePlan(plan);
+                if (ApplyInboxAcceptancePlan(plan))
+                {
+                    acceptedCount++;
+                }
             }
-            return changed;
+            return acceptedCount;
         }
 
         private bool ApplyInboxAcceptancePlan(InboxAcceptancePlan plan)

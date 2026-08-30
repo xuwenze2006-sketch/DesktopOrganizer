@@ -8,6 +8,8 @@ public sealed class InboxQueueManagerTests
 {
     private static readonly DesktopCategoryDefinition Documents =
         new("documents", "文档", 40);
+    private static readonly DesktopCategoryDefinition Images =
+        new("images", "图片", 30);
 
     [TestMethod]
     public void Reconcile_IncompleteScan_DoesNotEstablishBaselineOrMutateInbox()
@@ -369,6 +371,75 @@ public sealed class InboxQueueManagerTests
     }
 
     [TestMethod]
+    public void PlanAutomaticAcceptances_MultipleEligibleItems_ReturnsStableSideEffectFreePlans()
+    {
+        DesktopItemIdentityInfo image = Physical(@"C:\Desktop\a.png", "volume:image", 76);
+        DesktopItemIdentityInfo document = Physical(@"C:\Desktop\z.txt", "volume:document", 77);
+        var inbox = new Dictionary<string, InboxItemInfo>(StringComparer.OrdinalIgnoreCase);
+        AddInbox(inbox, "a.png", image, ClassificationReliability.Reliable);
+        ApplyCategory(inbox["a.png"], Images);
+        AddInbox(inbox, "z.txt", document, ClassificationReliability.Reliable);
+        Dictionary<string, DesktopItemIdentityInfo> current = Current(
+            ("a.png", image),
+            ("z.txt", document));
+        string beforeInbox = JsonSerializer.Serialize(inbox);
+        string beforeCurrent = JsonSerializer.Serialize(current);
+
+        IReadOnlyList<InboxAcceptancePlan> plans = InboxQueueManager.PlanAutomaticAcceptances(
+            inbox,
+            current,
+            Array.Empty<GroupInfo>(),
+            paused: false);
+
+        CollectionAssert.AreEqual(
+            new[] { "a.png", "z.txt" },
+            plans.Select(plan => plan.DisplayName).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { "images", "documents" },
+            plans.Select(plan => plan.TargetCategory.Key).ToArray());
+        Assert.AreEqual(beforeInbox, JsonSerializer.Serialize(inbox));
+        Assert.AreEqual(beforeCurrent, JsonSerializer.Serialize(current));
+
+        current["a.png"] = Physical(@"C:\Desktop\a.png", "volume:changed", 78);
+        Assert.AreEqual("volume:image", plans[0].ExpectedIdentity.FileId);
+    }
+
+    [TestMethod]
+    public void PreplannedAcceptances_IdentityChangeConsumesOnlyStillValidEntry()
+    {
+        DesktopItemIdentityInfo first = Physical(@"C:\Desktop\a.txt", "volume:first", 79);
+        DesktopItemIdentityInfo second = Physical(@"C:\Desktop\b.txt", "volume:second", 80);
+        var inbox = new Dictionary<string, InboxItemInfo>(StringComparer.OrdinalIgnoreCase);
+        AddInbox(inbox, "a.txt", first, ClassificationReliability.Reliable);
+        AddInbox(inbox, "b.txt", second, ClassificationReliability.Reliable);
+        Dictionary<string, DesktopItemIdentityInfo> current = Current(
+            ("a.txt", first),
+            ("b.txt", second));
+        IReadOnlyList<InboxAcceptancePlan> plans = InboxQueueManager.PlanAutomaticAcceptances(
+            inbox,
+            current,
+            Array.Empty<GroupInfo>(),
+            paused: false);
+        string preservedEntry = JsonSerializer.Serialize(inbox["b.txt"]);
+        current["b.txt"] = Physical(@"C:\Desktop\b.txt", "volume:replacement", 81);
+
+        InboxActionResult firstResult = InboxQueueManager.CompleteAcceptance(
+            inbox,
+            current,
+            plans.Single(plan => plan.DisplayName == "a.txt"));
+        InboxActionResult secondResult = InboxQueueManager.CompleteAcceptance(
+            inbox,
+            current,
+            plans.Single(plan => plan.DisplayName == "b.txt"));
+
+        Assert.AreEqual(InboxActionOutcome.Applied, firstResult.Outcome);
+        Assert.AreEqual(InboxActionOutcome.StaleIdentity, secondResult.Outcome);
+        Assert.IsFalse(inbox.ContainsKey("a.txt"));
+        Assert.IsTrue(inbox.ContainsKey("b.txt"));
+        Assert.AreEqual(preservedEntry, JsonSerializer.Serialize(inbox["b.txt"]));
+    }
+
+    [TestMethod]
     public void RejectedStaleActions_DoNotMutateQueueOrGroups()
     {
         DesktopItemIdentityInfo oldIdentity = Physical(@"C:\Desktop\stale.txt", "volume:old", 80);
@@ -548,6 +619,15 @@ public sealed class InboxQueueManagerTests
             Reliability = reliability,
             ReviewState = state
         };
+    }
+
+    private static void ApplyCategory(
+        InboxItemInfo entry,
+        DesktopCategoryDefinition category)
+    {
+        entry.SuggestedCategoryKey = category.Key;
+        entry.SuggestedCategoryName = category.DisplayName;
+        entry.SuggestedCategoryOrder = category.Order;
     }
 
     private static InboxClassificationSuggestion Reliable(string reason) =>

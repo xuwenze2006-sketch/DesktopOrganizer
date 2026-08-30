@@ -58,11 +58,19 @@
             </StackPanel>
             <Grid Grid.Row="1" Margin="0,10,0,0">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="#FF64748B" TextWrapping="Wrap"/>
-                <Button Grid.Column="1" Content="关闭" MinWidth="76" IsCancel="True" Click="Close_Click"/>
+                <Button x:Name="AcceptAllReliableButton"
+                        Content="接受全部可靠建议"
+                        MinWidth="168"
+                        Margin="0,0,12,0"
+                        ToolTip="只接受仍为待处理且当前可应用的可靠建议；以后处理和待确认项目保留"
+                        Click="AcceptAllReliable_Click"/>
+                <TextBlock x:Name="StatusText" Grid.Column="1" Margin="0,0,12,0"
+                           VerticalAlignment="Center" Foreground="#FF64748B" TextWrapping="Wrap"/>
+                <Button Grid.Column="2" Content="关闭" MinWidth="76" IsCancel="True" Click="Close_Click"/>
             </Grid>
         </Grid>
     </Grid>
