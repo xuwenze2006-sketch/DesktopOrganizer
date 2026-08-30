@@ -219,6 +219,7 @@ namespace DesktopOrganizer
                     ? new CornerRadius(11)
                     : new CornerRadius(11, 11, 0, 0),
                 Cursor = _appLayout.IsEditMode ? Cursors.SizeAll : Cursors.Arrow,
+                ToolTip = "Ctrl+单击标题非按钮区域可选择或取消选择整组项目",
                 Tag = group
             };
 
@@ -281,11 +282,11 @@ namespace DesktopOrganizer
             var titleText = new TextBlock
             {
                 Text = group.Name,
-                ToolTip = group.IsAutoCategory
+                ToolTip = $"{(group.IsAutoCategory
                     ? "自动识别分类；手工拖动和重命名会被保留"
                     : !string.IsNullOrWhiteSpace(group.UserRuleId)
                         ? "用户规则创建的虚拟分组；真实文件未移动"
-                        : group.Name,
+                        : group.Name)}\nCtrl+单击标题非按钮区域可选择或取消选择整组项目",
                 Foreground = WarmPaperTheme.PrimaryTextBrush,
                 FontWeight = FontWeights.SemiBold,
                 FontSize = 13,

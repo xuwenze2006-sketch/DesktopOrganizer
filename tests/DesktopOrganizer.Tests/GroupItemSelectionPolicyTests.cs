@@ -187,4 +187,26 @@ public sealed class GroupItemSelectionPolicyTests
             expected,
             MainWindow.ShouldBeginGroupedRangeSelection(modifiers, clickCount));
     }
+
+    [TestMethod]
+    [DataRow(MouseButton.Left, 1, ModifierKeys.Control, true)]
+    [DataRow(MouseButton.Left, 1, ModifierKeys.None, false)]
+    [DataRow(MouseButton.Left, 1, ModifierKeys.Shift, false)]
+    [DataRow(MouseButton.Left, 1, ModifierKeys.Control | ModifierKeys.Shift, false)]
+    [DataRow(MouseButton.Left, 1, ModifierKeys.Control | ModifierKeys.Alt, false)]
+    [DataRow(MouseButton.Left, 2, ModifierKeys.Control, false)]
+    [DataRow(MouseButton.Right, 1, ModifierKeys.Control, false)]
+    public void ShouldToggleGroupSelectionFromHeader_RequiresPlainSingleControlClick(
+        MouseButton changedButton,
+        int clickCount,
+        ModifierKeys modifiers,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldToggleGroupSelectionFromHeader(
+                changedButton,
+                clickCount,
+                modifiers));
+    }
 }

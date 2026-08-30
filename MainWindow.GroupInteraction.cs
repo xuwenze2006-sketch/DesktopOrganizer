@@ -13,11 +13,6 @@ namespace DesktopOrganizer
                 return;
             }
 
-            if (!_appLayout.IsEditMode)
-            {
-                return;
-            }
-
             // 标题栏中的收起、菜单、删除按钮继续保持正常点击，不触发分组拖动。
             DependencyObject? source = e.OriginalSource as DependencyObject;
             while (source != null && source != header)
@@ -28,6 +23,22 @@ namespace DesktopOrganizer
                 }
 
                 source = VisualTreeHelper.GetParent(source) ?? LogicalTreeHelper.GetParent(source);
+            }
+
+            if (ShouldToggleGroupSelectionFromHeader(
+                    e.ChangedButton,
+                    e.ClickCount,
+                    Keyboard.Modifiers))
+            {
+                _groupRangeSelectionAnchor = null;
+                ToggleGroupItemSelection(group);
+                e.Handled = true;
+                return;
+            }
+
+            if (!_appLayout.IsEditMode)
+            {
+                return;
             }
 
             if (e.ClickCount == 2)
@@ -63,6 +74,14 @@ namespace DesktopOrganizer
 
             e.Handled = true;
         }
+
+        internal static bool ShouldToggleGroupSelectionFromHeader(
+            MouseButton changedButton,
+            int clickCount,
+            ModifierKeys modifiers) =>
+            changedButton == MouseButton.Left &&
+            clickCount == 1 &&
+            modifiers == ModifierKeys.Control;
 
         private void GroupHeader_MouseMove(object sender, MouseEventArgs e)
         {
