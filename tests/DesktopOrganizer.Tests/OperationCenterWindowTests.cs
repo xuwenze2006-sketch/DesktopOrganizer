@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using System.Xml.Linq;
@@ -113,11 +114,7 @@ public sealed class OperationCenterWindowTests
             ]
         };
         var window = new OperationCenterWindow(() => journal, () => null);
-        DispatcherTimer refreshTimer = (DispatcherTimer)(typeof(OperationCenterWindow)
-            .GetField("_refreshTimer", BindingFlags.Instance | BindingFlags.NonPublic)?
-            .GetValue(window)
-            ?? throw new AssertFailedException("未找到操作中心刷新计时器。"));
-        refreshTimer.Stop();
+        StopRefreshTimer(window);
 
         var sortDescription = new SortDescription(
             "KindText",
@@ -139,13 +136,12 @@ public sealed class OperationCenterWindowTests
         selectedRow = FindOperationRow(window, "selected");
         Assert.AreEqual(0, window.JournalGrid.Items.IndexOf(selectedRow));
         window.JournalGrid.SelectedItem = selectedRow;
+        object originalItemsSource = window.JournalGrid.ItemsSource;
 
-        MethodInfo refreshViewMethod = typeof(OperationCenterWindow).GetMethod(
-            "RefreshView",
-            BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new AssertFailedException("未找到操作中心刷新入口。");
-        refreshViewMethod.Invoke(window, null);
+        InvokeRefreshView(window);
 
+        Assert.AreSame(originalItemsSource, window.JournalGrid.ItemsSource);
+        Assert.AreSame(selectedRow, window.JournalGrid.SelectedItem);
         Assert.AreEqual(1, window.JournalGrid.Items.SortDescriptions.Count);
         Assert.AreEqual(
             sortDescription.PropertyName,
@@ -156,6 +152,76 @@ public sealed class OperationCenterWindowTests
         Assert.AreEqual(sortDescription.Direction, kindColumn.SortDirection);
         Assert.AreEqual("selected", GetOperationRowId(window.JournalGrid.Items[0]));
         Assert.AreEqual("selected", GetOperationRowId(window.JournalGrid.SelectedItem));
+    }
+
+    [STATestMethod]
+    public void RefreshView_WhenSameEntryChanges_ReplacesRowsAndRestoresSelection()
+    {
+        DateTime now = DateTime.UtcNow;
+        FileOperationJournalData journal = new()
+        {
+            Entries =
+            [
+                NewJournalEntry(
+                    "changing",
+                    now,
+                    FileOperationJournalKind.MoveIntoFolder,
+                    "changing.txt")
+            ]
+        };
+        var window = new OperationCenterWindow(() => journal, () => null);
+        StopRefreshTimer(window);
+        window.JournalGrid.SelectedIndex = 0;
+        object originalItemsSource = window.JournalGrid.ItemsSource;
+        object originalSelection = window.JournalGrid.SelectedItem;
+        FileOperationJournalEntry updated = NewJournalEntry(
+            "changing",
+            now,
+            FileOperationJournalKind.MoveIntoFolder,
+            "changing.txt");
+        updated.State = FileOperationJournalState.Succeeded;
+        updated.CompletedUtc = now.AddSeconds(2);
+        updated.ErrorMessage = "状态已更新";
+        journal = new FileOperationJournalData { Entries = [updated] };
+
+        InvokeRefreshView(window);
+
+        Assert.AreNotSame(originalItemsSource, window.JournalGrid.ItemsSource);
+        Assert.AreNotSame(originalSelection, window.JournalGrid.SelectedItem);
+        Assert.AreEqual("changing", GetOperationRowId(window.JournalGrid.SelectedItem));
+        Assert.AreEqual(
+            "已成功",
+            GetOperationRowText(window.JournalGrid.SelectedItem, "StateText"));
+        Assert.AreEqual(
+            "状态已更新",
+            GetOperationRowText(window.JournalGrid.SelectedItem, "ErrorText"));
+    }
+
+    [STATestMethod]
+    public void RefreshView_WhenRowsStaySame_StillUpdatesProtectionWarning()
+    {
+        string? warning = null;
+        var journal = new FileOperationJournalData
+        {
+            Entries =
+            [
+                NewJournalEntry(
+                    "stable",
+                    DateTime.UtcNow,
+                    FileOperationJournalKind.MoveToRecycleBin,
+                    "stable.txt")
+            ]
+        };
+        var window = new OperationCenterWindow(() => journal, () => warning);
+        StopRefreshTimer(window);
+        object originalItemsSource = window.JournalGrid.ItemsSource;
+        warning = "账本当前进入保护态";
+
+        InvokeRefreshView(window);
+
+        Assert.AreSame(originalItemsSource, window.JournalGrid.ItemsSource);
+        Assert.AreEqual(Visibility.Visible, window.ProtectionWarningBorder.Visibility);
+        Assert.AreEqual("账本当前进入保护态", window.ProtectionWarningText.Text);
     }
 
     [TestMethod]
@@ -222,6 +288,30 @@ public sealed class OperationCenterWindowTests
             .GetProperty("Id", BindingFlags.Instance | BindingFlags.Public)?
             .GetValue(row) as string
         ?? throw new AssertFailedException("操作中心行缺少账本 ID。");
+
+    private static string GetOperationRowText(object? row, string propertyName) =>
+        row?.GetType()
+            .GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public)?
+            .GetValue(row) as string
+        ?? throw new AssertFailedException($"操作中心行缺少 {propertyName}。");
+
+    private static void InvokeRefreshView(OperationCenterWindow window)
+    {
+        MethodInfo refreshViewMethod = typeof(OperationCenterWindow).GetMethod(
+            "RefreshView",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到操作中心刷新入口。");
+        refreshViewMethod.Invoke(window, null);
+    }
+
+    private static void StopRefreshTimer(OperationCenterWindow window)
+    {
+        DispatcherTimer refreshTimer = (DispatcherTimer)(typeof(OperationCenterWindow)
+            .GetField("_refreshTimer", BindingFlags.Instance | BindingFlags.NonPublic)?
+            .GetValue(window)
+            ?? throw new AssertFailedException("未找到操作中心刷新计时器。"));
+        refreshTimer.Stop();
+    }
 
     private static XElement FindNamedElement(
         XDocument document,

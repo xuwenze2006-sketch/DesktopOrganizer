@@ -51,16 +51,6 @@ namespace DesktopOrganizer
 
         private void RefreshView()
         {
-            bool selectedRowHadKeyboardFocus =
-                IsKeyboardFocusWithinSelectedJournalRow();
-            string? selectedEntryId = (JournalGrid.SelectedItem as OperationRow)?.Id;
-            List<SortDescription> activeSortDescriptions =
-                JournalGrid.Items.SortDescriptions.ToList();
-            List<(DataGridColumn Column, ListSortDirection Direction)>
-                activeColumnSortDirections = JournalGrid.Columns
-                    .Where(column => column.SortDirection.HasValue)
-                    .Select(column => (column, column.SortDirection!.Value))
-                    .ToList();
             FileOperationJournalData journal = _journalProvider() ??
                 new FileOperationJournalData();
 
@@ -80,26 +70,49 @@ namespace DesktopOrganizer
             List<OperationRow> rows = entries
                 .Select(entry => CreateRow(entry, successfullyUndoneEntryIds))
                 .ToList();
-            JournalGrid.ItemsSource = rows;
-            using (JournalGrid.Items.DeferRefresh())
+            bool rowsChanged = JournalGrid.ItemsSource is not IEnumerable<OperationRow> currentRows ||
+                !currentRows.SequenceEqual(rows);
+            bool shouldRestoreKeyboardFocus = false;
+            OperationRow? restoredRow = null;
+            if (rowsChanged)
             {
-                foreach (SortDescription sortDescription in activeSortDescriptions)
+                bool selectedRowHadKeyboardFocus =
+                    IsKeyboardFocusWithinSelectedJournalRow();
+                string? selectedEntryId = (JournalGrid.SelectedItem as OperationRow)?.Id;
+                List<SortDescription> activeSortDescriptions =
+                    JournalGrid.Items.SortDescriptions.ToList();
+                List<(DataGridColumn Column, ListSortDirection Direction)>
+                    activeColumnSortDirections = JournalGrid.Columns
+                        .Where(column => column.SortDirection.HasValue)
+                        .Select(column => (column, column.SortDirection!.Value))
+                        .ToList();
+
+                JournalGrid.ItemsSource = rows;
+                using (JournalGrid.Items.DeferRefresh())
                 {
-                    JournalGrid.Items.SortDescriptions.Add(sortDescription);
+                    foreach (SortDescription sortDescription in activeSortDescriptions)
+                    {
+                        JournalGrid.Items.SortDescriptions.Add(sortDescription);
+                    }
                 }
+                foreach ((DataGridColumn column, ListSortDirection direction)
+                         in activeColumnSortDirections)
+                {
+                    column.SortDirection = direction;
+                }
+                int restoredSelectionIndex = FindRestoredSelectionIndex(
+                    rows.Select(row => row.Id),
+                    selectedEntryId);
+                restoredRow = restoredSelectionIndex >= 0
+                    ? rows[restoredSelectionIndex]
+                    : null;
+                JournalGrid.SelectedItem = restoredRow;
+                shouldRestoreKeyboardFocus = ShouldRestoreJournalGridFocus(
+                    selectedRowHadKeyboardFocus,
+                    restoredRow != null,
+                    IsVisible,
+                    JournalGrid.IsEnabled);
             }
-            foreach ((DataGridColumn column, ListSortDirection direction)
-                     in activeColumnSortDirections)
-            {
-                column.SortDirection = direction;
-            }
-            int restoredSelectionIndex = FindRestoredSelectionIndex(
-                rows.Select(row => row.Id),
-                selectedEntryId);
-            OperationRow? restoredRow = restoredSelectionIndex >= 0
-                ? rows[restoredSelectionIndex]
-                : null;
-            JournalGrid.SelectedItem = restoredRow;
 
             int succeededCount = entries.Count(entry =>
                 entry.State == FileOperationJournalState.Succeeded);
@@ -130,11 +143,6 @@ namespace DesktopOrganizer
                 EmptyText.Text = "尚无真实文件操作记录。";
             }
 
-            bool shouldRestoreKeyboardFocus = ShouldRestoreJournalGridFocus(
-                selectedRowHadKeyboardFocus,
-                restoredRow != null,
-                IsVisible,
-                JournalGrid.IsEnabled);
             if (shouldRestoreKeyboardFocus && restoredRow != null)
             {
                 JournalGrid.ScrollIntoView(restoredRow);
