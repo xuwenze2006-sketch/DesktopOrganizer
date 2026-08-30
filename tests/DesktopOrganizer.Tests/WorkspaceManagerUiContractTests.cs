@@ -47,6 +47,7 @@ public sealed class WorkspaceManagerUiContractTests
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Ctrl+D");
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Delete");
+        StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "返回后可继续键盘操作");
         StringAssert.Contains(
             document.Descendants().Single(element =>
                 element.Name.LocalName == "Button" &&
@@ -230,6 +231,23 @@ public sealed class WorkspaceManagerUiContractTests
                 modifiers,
                 hasSelection,
                 isActive));
+    }
+
+    [TestMethod]
+    [DataRow(true, true, true)]
+    [DataRow(false, true, false)]
+    [DataRow(true, false, false)]
+    [DataRow(false, false, false)]
+    public void ShouldRestoreWorkspaceListFocus_RequiresVisibleWindowAndEnabledList(
+        bool windowIsVisible,
+        bool listIsEnabled,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            WorkspaceManagerWindow.ShouldRestoreWorkspaceListFocusAfterKeyboardAction(
+                windowIsVisible,
+                listIsEnabled));
     }
 
     private static XDocument LoadWorkspaceManagerXaml(

@@ -87,6 +87,7 @@ namespace DesktopOrganizer
             {
                 e.Handled = true;
                 Rename_Click(sender, e);
+                RestoreWorkspaceListFocusAfterKeyboardAction();
                 return;
             }
 
@@ -98,6 +99,7 @@ namespace DesktopOrganizer
             {
                 e.Handled = true;
                 Duplicate_Click(sender, e);
+                RestoreWorkspaceListFocusAfterKeyboardAction();
                 return;
             }
 
@@ -109,6 +111,7 @@ namespace DesktopOrganizer
             {
                 e.Handled = true;
                 Overwrite_Click(sender, e);
+                RestoreWorkspaceListFocusAfterKeyboardAction();
                 return;
             }
 
@@ -120,6 +123,7 @@ namespace DesktopOrganizer
             {
                 e.Handled = true;
                 Delete_Click(sender, e);
+                RestoreWorkspaceListFocusAfterKeyboardAction();
                 return;
             }
 
@@ -134,7 +138,29 @@ namespace DesktopOrganizer
 
             e.Handled = true;
             Activate_Click(sender, e);
+            RestoreWorkspaceListFocusAfterKeyboardAction();
         }
+
+        private void RestoreWorkspaceListFocusAfterKeyboardAction()
+        {
+            if (!ShouldRestoreWorkspaceListFocusAfterKeyboardAction(
+                    IsVisible,
+                    WorkspaceList.IsEnabled))
+            {
+                return;
+            }
+
+            if (Selected is WorkspaceListItem selection)
+            {
+                WorkspaceList.ScrollIntoView(selection);
+            }
+            WorkspaceList.Focus();
+        }
+
+        internal static bool ShouldRestoreWorkspaceListFocusAfterKeyboardAction(
+            bool windowIsVisible,
+            bool listIsEnabled) =>
+            windowIsVisible && listIsEnabled;
 
         internal static bool ShouldActivateFromKeyboard(
             Key key,

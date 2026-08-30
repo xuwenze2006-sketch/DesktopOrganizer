@@ -30,7 +30,7 @@
                      DisplayMemberPath="DisplayName"
                      MouseDoubleClick="WorkspaceList_MouseDoubleClick"
                      PreviewKeyDown="WorkspaceList_PreviewKeyDown"
-                     ToolTip="双击或按 Enter 可确认并切换非当前工作区；F2 重命名；Ctrl+D 复制；Ctrl+S 用当前布局覆盖；Delete 删除所选快照"
+                     ToolTip="双击或按 Enter 可确认并切换非当前工作区；F2 重命名；Ctrl+D 复制；Ctrl+S 用当前布局覆盖；Delete 删除所选快照；列表快捷键返回后可继续键盘操作"
                      SelectionChanged="WorkspaceList_SelectionChanged"/>
             <Border Grid.Column="1" Margin="12,0,0,0" Padding="14" Background="#FFF7F7F7" CornerRadius="8">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
