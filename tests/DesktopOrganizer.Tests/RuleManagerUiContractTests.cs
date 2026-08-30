@@ -76,6 +76,25 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
+    [DataRow(false, "rule-id", false)]
+    [DataRow(true, "rule-id", true)]
+    [DataRow(false, null, true)]
+    [DataRow(false, "", true)]
+    [DataRow(false, "   ", true)]
+    [DataRow(true, null, true)]
+    public void HasUnsavedRuleEditor_RequiresCleanPersistedRule(
+        bool editorDirty,
+        string? editingRuleId,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            RuleManagerWindow.HasUnsavedRuleEditor(
+                editorDirty,
+                editingRuleId));
+    }
+
+    [TestMethod]
     [DataRow(Key.Enter, ModifierKeys.None, false, true, false, false, false, (int)RuleListKeyboardAction.Preview)]
     [DataRow(Key.Enter, ModifierKeys.None, false, false, true, false, false, (int)RuleListKeyboardAction.ExecuteOnce)]
     [DataRow(Key.Enter, ModifierKeys.None, false, false, false, true, false, (int)RuleListKeyboardAction.Enable)]
@@ -161,12 +180,7 @@ public sealed class RuleManagerUiContractTests
         XElement ruleList = FindNamedElement(document, xaml, "RuleList");
         XElement saveButton = FindNamedElement(document, xaml, "SaveDraftButton");
         XElement deleteButton = FindNamedElement(document, xaml, "DeleteButton");
-        XElement newRuleButton = document.Descendants().Single(element =>
-            element.Name.LocalName == "Button" &&
-            string.Equals(
-                (string?)element.Attribute("Content"),
-                "新建规则",
-                StringComparison.Ordinal));
+        XElement newRuleButton = FindNamedElement(document, xaml, "NewRuleButton");
 
         Assert.IsNull(editor.Attribute("PreviewKeyDown"));
         Assert.AreEqual(
@@ -181,7 +195,10 @@ public sealed class RuleManagerUiContractTests
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "窗口任意焦点");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "草稿");
+        Assert.AreEqual("新建规则", newRuleButton.Attribute("Content")?.Value);
+        Assert.AreEqual("NewRule_Click", newRuleButton.Attribute("Click")?.Value);
         StringAssert.Contains(newRuleButton.Attribute("ToolTip")?.Value, "Ctrl+N");
+        StringAssert.Contains(newRuleButton.Attribute("ToolTip")?.Value, "已保存");
         StringAssert.Contains(deleteButton.Attribute("ToolTip")?.Value, "Delete");
         Assert.AreEqual("Delete_Click", deleteButton.Attribute("Click")?.Value);
         foreach (string buttonName in new[]

@@ -42,8 +42,9 @@ namespace DesktopOrganizer
 
         private void RuleManagerWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            bool hasUnsavedEditor = _editorDirty ||
-                string.IsNullOrWhiteSpace(_editingRuleId);
+            bool hasUnsavedEditor = HasUnsavedRuleEditor(
+                _editorDirty,
+                _editingRuleId);
             if (ShouldSaveDraftFromKeyboard(
                     e.Key,
                     Keyboard.Modifiers,
@@ -77,6 +78,11 @@ namespace DesktopOrganizer
             modifiers == ModifierKeys.Control &&
             !isRepeat &&
             !hasUnsavedEditor;
+
+        internal static bool HasUnsavedRuleEditor(
+            bool editorDirty,
+            string? editingRuleId) =>
+            editorDirty || string.IsNullOrWhiteSpace(editingRuleId);
 
         private void RefreshList(string? selectedId = null)
         {
@@ -594,6 +600,9 @@ namespace DesktopOrganizer
             EnableButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.TrialApplied;
             DisableButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.Enabled;
             DeleteButton.IsEnabled = persistedSelection;
+            NewRuleButton.IsEnabled = !HasUnsavedRuleEditor(
+                _editorDirty,
+                _editingRuleId);
             int enabledCount = _mainWindow.GetEnabledUserRuleCount();
             DisableAllRulesButton.Content = $"全部停用 ({enabledCount})";
             DisableAllRulesButton.IsEnabled = enabledCount > 0 && !_editorDirty;
