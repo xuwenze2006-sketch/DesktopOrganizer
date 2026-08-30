@@ -12,6 +12,11 @@ namespace DesktopOrganizer
                 return;
             }
 
+            AddManualGroup(dialog.ResultText.Trim());
+        }
+
+        private void AddManualGroup(string name)
+        {
             _appLayout.IsEditMode = true;
             EditModeToggle.IsChecked = true;
             EditModeToggle.Content = "完成编辑";
@@ -19,7 +24,7 @@ namespace DesktopOrganizer
 
             var group = new GroupInfo
             {
-                Name = dialog.ResultText.Trim(),
+                Name = name,
                 IsSizeLocked = false
             };
             AutoFitGroup(group, clampPosition: false);
@@ -29,6 +34,8 @@ namespace DesktopOrganizer
             group.Y = position.Y;
             ClampGroupToCanvas(group);
             _appLayout.Groups.Add(group);
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
         }
 

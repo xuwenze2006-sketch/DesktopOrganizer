@@ -545,6 +545,73 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void AddManualGroup_InvalidatesUndoWhenNewGroupOccupiesSnapshotPosition()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.Groups.Clear();
+            layout.FolderPortals.Clear();
+            layout.CompactGroupLayout = false;
+            layout.RecycleBinWidget.IsVisible = false;
+            SetField(
+                window,
+                "_desktopGeometry",
+                new DesktopGeometry(
+                [
+                    new DesktopMonitorRegion
+                    {
+                        DeviceName = "TEST",
+                        Bounds = new Rect(0, 0, 1200, 800),
+                        WorkArea = new Rect(0, 0, 1200, 800),
+                        IsPrimary = true
+                    }
+                ]));
+            var existingGroup = new GroupInfo
+            {
+                Id = "existing-group",
+                Name = "现有分类",
+                X = 20,
+                Y = 112,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true
+            };
+            layout.Groups.Add(existingGroup);
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            existingGroup.X = 500;
+            existingGroup.Y = 400;
+
+            InvokePrivateMethod(window, "AddManualGroup", "后来新增");
+
+            GroupInfo newGroup = layout.Groups.Single(group =>
+                !group.Id.Equals(existingGroup.Id, StringComparison.OrdinalIgnoreCase));
+            Assert.AreEqual(20, newGroup.X, 0.001);
+            Assert.AreEqual(112, newGroup.Y, 0.001);
+            Assert.AreEqual(500, existingGroup.X, 0.001);
+            Assert.AreEqual(400, existingGroup.Y, 0.001);
+            Assert.IsTrue(new Rect(
+                20,
+                112,
+                existingGroup.Width,
+                existingGroup.Height).IntersectsWith(new Rect(
+                    newGroup.X,
+                    newGroup.Y,
+                    newGroup.Width,
+                    newGroup.Height)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
