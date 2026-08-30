@@ -287,6 +287,82 @@ public sealed class InboxWindowKeyboardTests
     }
 
     [STATestMethod]
+    public void SelectedAction_WhenSelectedItemWasRemoved_RefreshesToAdjacentItem()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        const string removedName = "a-removed.txt";
+        const string remainingName = "b-remaining.txt";
+        PrepareActionableInboxItem(layout, removedName);
+        AddInboxItem(layout, remainingName, 1);
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        Assert.AreEqual(removedName, GetSelectedName(window));
+        layout.InboxItems.Remove(removedName);
+        layout.ItemIdentities.Remove(removedName);
+
+        InvokeSelectedAction(window, InboxKeyboardAction.Defer);
+
+        Assert.AreNotSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreEqual(remainingName, GetSelectedName(window));
+        Assert.AreEqual(1, window.InboxList.Items.Count);
+        StringAssert.Contains(window.StatusText.Text, "已不在待整理收件箱");
+    }
+
+    [STATestMethod]
+    public void SelectedAction_WhenFailureKeepsItem_PreservesItByNameAfterReorder()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        const string selectedName = "a-selected.txt";
+        const string reorderedName = "b-reordered.txt";
+        PrepareActionableInboxItem(layout, selectedName);
+        layout.InboxItems[selectedName].Reliability = ClassificationReliability.Conservative;
+        AddInboxItem(layout, reorderedName, 1);
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        Assert.AreEqual(selectedName, GetSelectedName(window));
+        Assert.AreEqual(0, window.InboxList.SelectedIndex);
+        layout.InboxItems[reorderedName].DetectedUtc = DateTime.UnixEpoch.AddSeconds(-1);
+
+        InvokeSelectedAction(window, InboxKeyboardAction.AcceptSuggestion);
+
+        Assert.AreNotSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreEqual(selectedName, GetSelectedName(window));
+        Assert.AreEqual(1, window.InboxList.SelectedIndex);
+        Assert.IsTrue(layout.InboxItems.ContainsKey(selectedName));
+        StringAssert.Contains(window.StatusText.Text, "证据不足");
+    }
+
+    [STATestMethod]
+    public void MoveToManualGroup_WhenSelectedItemWasRemoved_RefreshesToAdjacentItem()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        const string removedName = "a-removed.txt";
+        const string remainingName = "b-remaining.txt";
+        PrepareActionableInboxItem(layout, removedName);
+        AddInboxItem(layout, remainingName, 1);
+        var targetGroup = new GroupInfo { Id = "manual", Name = "手工分组" };
+        layout.Groups.Add(targetGroup);
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        Assert.AreEqual(removedName, GetSelectedName(window));
+        Assert.AreEqual(0, window.ManualGroupSelector.SelectedIndex);
+        layout.InboxItems.Remove(removedName);
+        layout.ItemIdentities.Remove(removedName);
+
+        InvokeMoveToManualGroup(window);
+
+        Assert.AreNotSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreEqual(remainingName, GetSelectedName(window));
+        Assert.AreEqual(1, window.InboxList.Items.Count);
+        Assert.IsEmpty(targetGroup.ItemNames);
+        Assert.IsEmpty(targetGroup.ManuallyAssignedItemNames);
+        StringAssert.Contains(window.StatusText.Text, "已不在待整理收件箱");
+    }
+
+    [STATestMethod]
     public void RefreshAfterBulkAccept_UsesPreviousOrderForSurvivorAndAdjacentFallback()
     {
         var mainWindow = new MainWindow(startQuietly: false);

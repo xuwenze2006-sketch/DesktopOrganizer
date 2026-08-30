@@ -246,10 +246,15 @@ namespace DesktopOrganizer
                 selectedName,
                 group.Id,
                 out string message);
-            StatusText.Text = message;
             if (succeeded)
             {
+                StatusText.Text = message;
                 Refresh(fallbackIndex: selectedIndex);
+            }
+            else
+            {
+                Refresh(selectedName, selectedIndex);
+                StatusText.Text = message;
             }
         }
 
@@ -445,10 +450,15 @@ namespace DesktopOrganizer
 
             int selectedIndex = InboxList.SelectedIndex;
             bool succeeded = action(selected.DisplayName, out string message);
-            StatusText.Text = message;
             if (succeeded)
             {
+                StatusText.Text = message;
                 Refresh(fallbackIndex: selectedIndex);
+            }
+            else
+            {
+                Refresh(selected.DisplayName, selectedIndex);
+                StatusText.Text = message;
             }
         }
 
