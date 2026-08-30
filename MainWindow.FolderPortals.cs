@@ -249,7 +249,7 @@ namespace DesktopOrganizer
                 (_, _) => NavigateFolderPortalUp(portal)));
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "⌂",
-                "返回入口根目录（只读）",
+                "返回入口根目录（只读，Alt+Home）",
                 (_, _) => QueueFolderPortalRead(portal, string.Empty)));
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "↻",
@@ -351,7 +351,7 @@ namespace DesktopOrganizer
                 AllowDrop = false,
                 Focusable = true,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                ToolTip = "方向键选择；Enter 打开或进入；Ctrl+C 复制路径；Alt+↑ 返回上一级；F5 手动刷新"
+                ToolTip = "方向键选择；Enter 打开或进入；Ctrl+C 复制路径；Alt+↑ 返回上一级；Alt+Home 返回根目录；F5 手动刷新"
             };
             ScrollViewer.SetCanContentScroll(list, true);
             VirtualizingPanel.SetIsVirtualizing(list, true);
@@ -371,6 +371,16 @@ namespace DesktopOrganizer
                 {
                     eventArgs.Handled = true;
                     QueueFolderPortalRead(portal, portal.CurrentRelativePath);
+                    return;
+                }
+
+                if (ShouldNavigateFolderPortalRootFromKeyboard(
+                        actualKey,
+                        Keyboard.Modifiers,
+                        eventArgs.IsRepeat))
+                {
+                    eventArgs.Handled = true;
+                    QueueFolderPortalRead(portal, string.Empty);
                     return;
                 }
 
@@ -880,6 +890,14 @@ namespace DesktopOrganizer
             modifiers == ModifierKeys.Alt &&
             !isRepeat &&
             canNavigateUp;
+
+        internal static bool ShouldNavigateFolderPortalRootFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat) =>
+            key == Key.Home &&
+            modifiers == ModifierKeys.Alt &&
+            !isRepeat;
 
         internal static bool ShouldRefreshFolderPortalFromKeyboard(
             Key key,

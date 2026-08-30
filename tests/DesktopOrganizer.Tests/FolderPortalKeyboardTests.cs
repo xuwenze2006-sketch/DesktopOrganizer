@@ -8,6 +8,7 @@ public sealed class FolderPortalKeyboardTests
 {
     [TestMethod]
     [DataRow(Key.System, Key.Up, Key.Up)]
+    [DataRow(Key.System, Key.Home, Key.Home)]
     [DataRow(Key.System, Key.Left, Key.Left)]
     [DataRow(Key.Up, Key.None, Key.Up)]
     public void ResolveFolderPortalKeyboardKey_UsesSystemKeyOnlyForAltEvents(
@@ -43,6 +44,31 @@ public sealed class FolderPortalKeyboardTests
                 modifiers,
                 isRepeat,
                 canNavigateUp));
+    }
+
+    [TestMethod]
+    [DataRow(Key.Home, ModifierKeys.Alt, false, true)]
+    [DataRow(Key.Home, ModifierKeys.Alt, true, false)]
+    [DataRow(Key.Home, ModifierKeys.None, false, false)]
+    [DataRow(Key.Home, ModifierKeys.Control, false, false)]
+    [DataRow(Key.Home, ModifierKeys.Shift, false, false)]
+    [DataRow(Key.Home, ModifierKeys.Alt | ModifierKeys.Control, false, false)]
+    [DataRow(Key.Home, ModifierKeys.Alt | ModifierKeys.Shift, false, false)]
+    [DataRow(Key.Home, ModifierKeys.Alt | ModifierKeys.Windows, false, false)]
+    [DataRow(Key.Up, ModifierKeys.Alt, false, false)]
+    [DataRow(Key.Left, ModifierKeys.Alt, false, false)]
+    public void ShouldNavigateFolderPortalRootFromKeyboard_RequiresExactInitialAltHome(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldNavigateFolderPortalRootFromKeyboard(
+                key,
+                modifiers,
+                isRepeat));
     }
 
     [TestMethod]
