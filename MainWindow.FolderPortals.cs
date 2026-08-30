@@ -253,7 +253,7 @@ namespace DesktopOrganizer
                 (_, _) => QueueFolderPortalRead(portal, string.Empty)));
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "↻",
-                "手动刷新；失败不会自动重试",
+                "F5 手动刷新；失败不会自动重试",
                 (_, _) => QueueFolderPortalRead(portal, portal.CurrentRelativePath)));
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 portal.IsCollapsed ? "▾" : "▴",
@@ -351,7 +351,7 @@ namespace DesktopOrganizer
                 AllowDrop = false,
                 Focusable = true,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                ToolTip = "方向键选择；Enter 打开或进入；Ctrl+C 复制路径；Alt+↑ 返回上一级"
+                ToolTip = "方向键选择；Enter 打开或进入；Ctrl+C 复制路径；Alt+↑ 返回上一级；F5 手动刷新"
             };
             ScrollViewer.SetCanContentScroll(list, true);
             VirtualizingPanel.SetIsVirtualizing(list, true);
@@ -364,6 +364,16 @@ namespace DesktopOrganizer
                 Key actualKey = ResolveFolderPortalKeyboardKey(
                     eventArgs.Key,
                     eventArgs.SystemKey);
+                if (ShouldRefreshFolderPortalFromKeyboard(
+                        actualKey,
+                        Keyboard.Modifiers,
+                        eventArgs.IsRepeat))
+                {
+                    eventArgs.Handled = true;
+                    QueueFolderPortalRead(portal, portal.CurrentRelativePath);
+                    return;
+                }
+
                 if (ShouldNavigateFolderPortalUpFromKeyboard(
                         actualKey,
                         Keyboard.Modifiers,
@@ -870,6 +880,14 @@ namespace DesktopOrganizer
             modifiers == ModifierKeys.Alt &&
             !isRepeat &&
             canNavigateUp;
+
+        internal static bool ShouldRefreshFolderPortalFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat) =>
+            key == Key.F5 &&
+            modifiers == ModifierKeys.None &&
+            !isRepeat;
 
         internal static bool ShouldOpenFolderPortalEntryFromKeyboard(
             Key key,

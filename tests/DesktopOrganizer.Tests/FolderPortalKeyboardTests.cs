@@ -46,6 +46,28 @@ public sealed class FolderPortalKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(Key.F5, ModifierKeys.None, false, true)]
+    [DataRow(Key.F5, ModifierKeys.None, true, false)]
+    [DataRow(Key.F5, ModifierKeys.Control, false, false)]
+    [DataRow(Key.F5, ModifierKeys.Shift, false, false)]
+    [DataRow(Key.F5, ModifierKeys.Alt, false, false)]
+    [DataRow(Key.F4, ModifierKeys.None, false, false)]
+    [DataRow(Key.Home, ModifierKeys.None, false, false)]
+    public void ShouldRefreshFolderPortalFromKeyboard_RequiresPlainInitialF5(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldRefreshFolderPortalFromKeyboard(
+                key,
+                modifiers,
+                isRepeat));
+    }
+
+    [TestMethod]
     [DataRow(Key.Enter, ModifierKeys.None, false, true, true)]
     [DataRow(Key.Enter, ModifierKeys.None, true, true, false)]
     [DataRow(Key.Enter, ModifierKeys.None, false, false, false)]
