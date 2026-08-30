@@ -89,9 +89,25 @@ namespace DesktopOrganizer
 
         private void AutoFitGroupAndUnlock(GroupInfo group)
         {
+            double originalX = group.X;
+            double originalY = group.Y;
+            double originalWidth = group.Width;
+            double originalHeight = group.Height;
+            bool wasSizeLocked = group.IsSizeLocked;
             group.IsSizeLocked = false;
             AutoFitGroup(group);
             RebuildDesktopIconsAndSaveLayout();
+            bool layoutChanged = group.X != originalX ||
+                                 group.Y != originalY ||
+                                 group.Width != originalWidth ||
+                                 group.Height != originalHeight ||
+                                 wasSizeLocked;
+            if (layoutChanged)
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
+            }
+
             StatusText.Text = $"“{group.Name}”已按内容自动适应尺寸";
         }
 

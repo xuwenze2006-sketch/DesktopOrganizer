@@ -297,6 +297,143 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void AutoFitGroupAndUnlock_LockStateChangeInvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            InvokeAutoFitGroup(window, group);
+            double fittedWidth = group.Width;
+            double fittedHeight = group.Height;
+            group.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokeAutoFitGroupAndUnlock(window, group);
+
+            Assert.AreEqual(fittedWidth, group.Width);
+            Assert.AreEqual(fittedHeight, group.Height);
+            Assert.IsFalse(group.IsSizeLocked);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void AutoFitGroupAndUnlock_SubpixelDimensionChangeInvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            InvokeAutoFitGroup(window, group);
+            double fittedWidth = group.Width;
+            group.Width += 0.25;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokeAutoFitGroupAndUnlock(window, group);
+
+            Assert.AreEqual(fittedWidth, group.Width);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void AutoFitGroupAndUnlock_PositionClampInvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            InvokeAutoFitGroup(window, group);
+            double fittedWidth = group.Width;
+            double fittedHeight = group.Height;
+            group.X = 1_000_000;
+            group.Y = 1_000_000;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokeAutoFitGroupAndUnlock(window, group);
+
+            Assert.AreEqual(fittedWidth, group.Width);
+            Assert.AreEqual(fittedHeight, group.Height);
+            Assert.AreEqual(1200 - fittedWidth, group.X, 0.001);
+            Assert.AreEqual(800 - fittedHeight, group.Y, 0.001);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void AutoFitGroupAndUnlock_UnchangedLayoutPreservesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            InvokeAutoFitGroup(window, group);
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokeAutoFitGroupAndUnlock(window, group);
+
+            Assert.IsFalse(group.IsSizeLocked);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void AutoFitGroupAndUnlock_RebuildSizeChangeInvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            group.ItemNames = ["Missing-A.txt", "Missing-B.txt"];
+            InvokeAutoFitGroup(window, group);
+            Assert.AreEqual(220, group.Width);
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokeAutoFitGroupAndUnlock(window, group);
+
+            Assert.IsEmpty(group.ItemNames);
+            Assert.AreEqual(190, group.Width);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
@@ -313,6 +450,26 @@ public sealed class SmartLayoutUndoTests
         };
         layout.Groups.Add(group);
         return group;
+    }
+
+    private static GroupInfo PrepareAutoFitGroup(MainWindow window)
+    {
+        AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+        layout.CompactGroupLayout = false;
+        SetField(
+            window,
+            "_desktopGeometry",
+            new DesktopGeometry(
+            [
+                new DesktopMonitorRegion
+                {
+                    DeviceName = "TEST",
+                    Bounds = new Rect(0, 0, 1200, 800),
+                    WorkArea = new Rect(0, 0, 1200, 800),
+                    IsPrimary = true
+                }
+            ]));
+        return PrepareGroup(window);
     }
 
     private static object CaptureSmartLayoutSnapshot(MainWindow window)
@@ -375,6 +532,12 @@ public sealed class SmartLayoutUndoTests
             ?? throw new AssertFailedException($"未找到入口 {methodName}。");
         return method.Invoke(window, arguments);
     }
+
+    private static void InvokeAutoFitGroupAndUnlock(MainWindow window, GroupInfo group) =>
+        InvokePrivateMethod(window, "AutoFitGroupAndUnlock", group);
+
+    private static void InvokeAutoFitGroup(MainWindow window, GroupInfo group) =>
+        InvokePrivateMethod(window, "AutoFitGroup", group, true);
 
     private static T GetField<T>(MainWindow window, string fieldName)
         where T : class
