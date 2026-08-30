@@ -88,6 +88,55 @@ public sealed class DesktopNewItemDetectorTests
         Assert.AreEqual(0, result.Count);
     }
 
+    [TestMethod]
+    public void FindNewItemNames_ConfirmedRenameTargetIsNotNewWithoutStableIdentity()
+    {
+        Dictionary<string, DesktopItemIdentityInfo> current = new()
+        {
+            ["old.txt"] = Physical(@"C:\Desktop\old.txt", null, null)
+        };
+        Dictionary<string, DesktopItemIdentityInfo> next = new()
+        {
+            ["renamed.txt"] = Physical(@"C:\Desktop\renamed.txt", null, null)
+        };
+
+        HashSet<string> unconfirmed = DesktopNewItemDetector.FindNewItemNames(current, next);
+        HashSet<string> confirmed = DesktopNewItemDetector.FindNewItemNames(
+            current,
+            next,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OLD.TXT"] = "RENAMED.TXT"
+            });
+
+        CollectionAssert.AreEquivalent(new[] { "renamed.txt" }, unconfirmed.ToArray());
+        Assert.IsEmpty(confirmed);
+    }
+
+    [TestMethod]
+    public void FindNewItemNames_ConfirmedRenameWithReusedSourceNameMarksOnlySourceAsNew()
+    {
+        Dictionary<string, DesktopItemIdentityInfo> current = new()
+        {
+            ["old.txt"] = Physical(@"C:\Desktop\old.txt", null, null)
+        };
+        Dictionary<string, DesktopItemIdentityInfo> next = new()
+        {
+            ["old.txt"] = Physical(@"C:\Desktop\old.txt", null, null),
+            ["renamed.txt"] = Physical(@"C:\Desktop\renamed.txt", null, null)
+        };
+
+        HashSet<string> result = DesktopNewItemDetector.FindNewItemNames(
+            current,
+            next,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["old.txt"] = "renamed.txt"
+            });
+
+        CollectionAssert.AreEquivalent(new[] { "old.txt" }, result.ToArray());
+    }
+
     private static DesktopItemIdentityInfo Physical(
         string path,
         string? fileId,

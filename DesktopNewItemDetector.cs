@@ -8,11 +8,27 @@ namespace DesktopOrganizer
     {
         public static HashSet<string> FindNewItemNames(
             IReadOnlyDictionary<string, DesktopItemIdentityInfo> current,
-            IReadOnlyDictionary<string, DesktopItemIdentityInfo> next)
+            IReadOnlyDictionary<string, DesktopItemIdentityInfo> next,
+            IReadOnlyDictionary<string, string>? confirmedRenames = null)
         {
             var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string>? confirmedRenameTargets = confirmedRenames?.Values
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach ((string nextName, DesktopItemIdentityInfo nextIdentity) in next)
             {
+                if (confirmedRenameTargets?.Contains(nextName) == true)
+                {
+                    continue;
+                }
+
+                // 旧名称在同一刷新批次中被另一实体重新占用时，不能再用旧路径回退
+                // 把它当作原项目；已确认的原项目正在上面的目标名称中。
+                if (confirmedRenames?.ContainsKey(nextName) == true)
+                {
+                    result.Add(nextName);
+                    continue;
+                }
+
                 if (IsKnownItem(nextName, nextIdentity, current))
                 {
                     continue;

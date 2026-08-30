@@ -8,6 +8,31 @@ namespace DesktopOrganizer.Tests;
 [TestClass]
 public sealed class DesktopRenameSelectionTests
 {
+    [TestMethod]
+    public void WatcherRenameIdentitiesAreCompatible_RejectsReplacedStableTarget()
+    {
+        DesktopItemIdentityInfo stored = Physical(
+            @"C:\Desktop\old.txt",
+            "volume:original",
+            10);
+        DesktopItemIdentityInfo renamed = Physical(
+            @"C:\Desktop\renamed.txt",
+            "volume:original",
+            10);
+        DesktopItemIdentityInfo replacement = Physical(
+            @"C:\Desktop\renamed.txt",
+            "volume:replacement",
+            20);
+        DesktopItemIdentityInfo unknown = Physical(
+            @"C:\Desktop\renamed.txt",
+            null,
+            null);
+
+        Assert.IsTrue(MainWindow.WatcherRenameIdentitiesAreCompatible(stored, renamed));
+        Assert.IsFalse(MainWindow.WatcherRenameIdentitiesAreCompatible(stored, replacement));
+        Assert.IsTrue(MainWindow.WatcherRenameIdentitiesAreCompatible(stored, unknown));
+    }
+
     [STATestMethod]
     public void ApplyDesktopRenameBatch_MigratesRangeAnchorAndPreservesLaterShiftRange()
     {
@@ -152,4 +177,16 @@ public sealed class DesktopRenameSelectionTests
             ?? throw new AssertFailedException($"未找到字段 {fieldName}。");
         field.SetValue(window, value);
     }
+
+    private static DesktopItemIdentityInfo Physical(
+        string path,
+        string? fileId,
+        long? creationTimeUtcTicks) => new()
+    {
+        Kind = DesktopItemKind.FileSystem,
+        LastKnownPath = path,
+        FileId = fileId,
+        CreationTimeUtcTicks = creationTimeUtcTicks,
+        IsDirectory = false
+    };
 }

@@ -87,6 +87,20 @@ namespace DesktopOrganizer
             return true;
         }
 
+        internal static GroupRangeSelectionAnchor? ReconcileSelectionForNewDesktopItems(
+            HashSet<string> selectedItemNames,
+            GroupRangeSelectionAnchor? rangeSelectionAnchor,
+            IReadOnlySet<string> newItemNames)
+        {
+            ArgumentNullException.ThrowIfNull(selectedItemNames);
+            ArgumentNullException.ThrowIfNull(newItemNames);
+
+            selectedItemNames.RemoveWhere(newItemNames.Contains);
+            return rangeSelectionAnchor != null && newItemNames.Contains(rangeSelectionAnchor.ItemName)
+                ? null
+                : rangeSelectionAnchor;
+        }
+
         private static bool AddDesktopPathItems(
             string desktopPath,
             Dictionary<string, string> target,
@@ -1181,10 +1195,17 @@ namespace DesktopOrganizer
                         _appLayout.ItemIdentities,
                         StringComparer.OrdinalIgnoreCase);
                     bool inboxBaselineWasEstablished = _appLayout.InboxBaselineEstablished;
+                    bool identityLayoutChanged = ReconcileDesktopItemIdentities(
+                        snapshot,
+                        out Dictionary<string, string> confirmedRenames);
                     HashSet<string> newItemNames = DesktopNewItemDetector.FindNewItemNames(
                         previousIdentities,
-                        snapshot.Identities);
-                    bool identityLayoutChanged = ReconcileDesktopItemIdentities(snapshot);
+                        snapshot.Identities,
+                        confirmedRenames);
+                    _groupRangeSelectionAnchor = ReconcileSelectionForNewDesktopItems(
+                        _selectedItemNames,
+                        _groupRangeSelectionAnchor,
+                        newItemNames);
                     _desktopItems = snapshot.Items;
                     _desktopCategories = snapshot.Categories;
                     _reliableDesktopCategoryNames = snapshot.ReliableCategoryNames;

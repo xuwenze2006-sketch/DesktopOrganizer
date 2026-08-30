@@ -145,7 +145,9 @@ namespace DesktopOrganizer
             }
         }
 
-        private bool ReconcileDesktopItemIdentities(DesktopScanSnapshot snapshot)
+        private bool ReconcileDesktopItemIdentities(
+            DesktopScanSnapshot snapshot,
+            out Dictionary<string, string> confirmedRenames)
         {
             var renameMap = new Dictionary<string, DesktopItemRenameCandidate>(StringComparer.OrdinalIgnoreCase);
 
@@ -285,6 +287,10 @@ namespace DesktopOrganizer
                 renameMap.Remove(oldName);
             }
 
+            confirmedRenames = renameMap.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value.NewName,
+                StringComparer.OrdinalIgnoreCase);
             bool changed = ApplyDesktopRenameBatch(renameMap.Values.ToList());
             changed |= ReplacePersistedDesktopIdentities(snapshot.Identities);
             return changed;
@@ -308,13 +314,20 @@ namespace DesktopOrganizer
                 return false;
             }
 
+            _appLayout.ItemIdentities.TryGetValue(
+                oldName,
+                out DesktopItemIdentityInfo? storedIdentity);
             bool oldPathKnown =
                 (_desktopItems.TryGetValue(oldName, out string? currentOldPath) &&
                  PathsEqual(currentOldPath, operation.OldFullPath)) ||
-                (_appLayout.ItemIdentities.TryGetValue(oldName, out DesktopItemIdentityInfo? storedIdentity) &&
+                (storedIdentity != null &&
                  PathsEqual(storedIdentity.LastKnownPath, operation.OldFullPath));
 
-            if (!oldPathKnown)
+            snapshot.Identities.TryGetValue(
+                newName,
+                out DesktopItemIdentityInfo? scannedIdentity);
+            if (!oldPathKnown ||
+                !WatcherRenameIdentitiesAreCompatible(storedIdentity, scannedIdentity))
             {
                 return false;
             }
@@ -326,6 +339,19 @@ namespace DesktopOrganizer
                 operation.NewFullPath,
                 "watcher");
             return true;
+        }
+
+        internal static bool WatcherRenameIdentitiesAreCompatible(
+            DesktopItemIdentityInfo? storedIdentity,
+            DesktopItemIdentityInfo? scannedIdentity)
+        {
+            bool bothHaveStablePhysicalIdentities =
+                storedIdentity?.Kind == DesktopItemKind.FileSystem &&
+                scannedIdentity?.Kind == DesktopItemKind.FileSystem &&
+                !string.IsNullOrWhiteSpace(storedIdentity.FileId) &&
+                !string.IsNullOrWhiteSpace(scannedIdentity.FileId);
+            return !bothHaveStablePhysicalIdentities ||
+                PhysicalIdentityMatches(storedIdentity!, scannedIdentity!);
         }
 
         private bool ApplyDesktopRenameBatch(IReadOnlyCollection<DesktopItemRenameCandidate> renames)
