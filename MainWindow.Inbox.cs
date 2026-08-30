@@ -7,7 +7,13 @@ namespace DesktopOrganizer
         string MatchReason,
         string Reliability,
         string ReviewState,
-        bool CanAccept);
+        string TagsText,
+        bool CanAccept)
+    {
+        public string TagsSummary => string.IsNullOrWhiteSpace(TagsText)
+            ? "标签：无"
+            : $"标签：{TagsText}";
+    }
 
     internal sealed record ManualGroupChoice(string Id, string Name);
 
@@ -44,6 +50,10 @@ namespace DesktopOrganizer
                     pair.Value.ReviewState == InboxReviewState.Deferred
                         ? "以后处理"
                         : "待处理",
+                    ItemTagPolicy.FormatEditorText(
+                        _appLayout.ItemTags.TryGetValue(pair.Key, out List<string>? tags)
+                            ? tags
+                            : null),
                     pair.Value.Reliability == ClassificationReliability.Reliable))
                 .ToList();
 
@@ -60,6 +70,40 @@ namespace DesktopOrganizer
                 _appLayout.ItemIdentities,
                 _appLayout.Groups,
                 paused: false).Count;
+
+        internal bool TrySetInboxItemTags(
+            string displayName,
+            string? editorText,
+            out string message)
+        {
+            if (!_appLayout.InboxItems.TryGetValue(displayName, out InboxItemInfo? inboxItem) ||
+                !_appLayout.ItemIdentities.TryGetValue(
+                    displayName,
+                    out DesktopItemIdentityInfo? currentIdentity) ||
+                !InboxQueueManager.IdentitiesMatch(inboxItem.Identity, currentIdentity))
+            {
+                message = "该待整理项目已变化，请刷新桌面后重试；本次未修改标签。";
+                return false;
+            }
+
+            List<string> normalized = ItemTagPolicy.ParseEditorText(editorText);
+            bool changed = ItemTagPolicy.SetTags(
+                _appLayout.ItemTags,
+                displayName,
+                normalized);
+            if (changed)
+            {
+                SaveLayout();
+            }
+
+            message = !changed
+                ? $"“{displayName}”的本地标签未变化。"
+                : normalized.Count == 0
+                    ? $"已清除“{displayName}”的本地标签；收件箱和真实文件保持不变。"
+                    : $"已保存“{displayName}”的本地标签：{string.Join("、", normalized)}。";
+            StatusText.Text = message;
+            return true;
+        }
 
         internal bool TryAcceptInboxSuggestion(string displayName, out string message)
         {

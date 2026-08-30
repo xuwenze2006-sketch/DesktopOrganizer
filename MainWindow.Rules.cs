@@ -369,11 +369,7 @@ namespace DesktopOrganizer
                     {
                         continue;
                     }
-                    List<string> normalized = tags
-                        .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                        .Select(tag => tag.Trim())
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToList();
+                    List<string> normalized = ItemTagPolicy.Normalize(tags);
                     if (normalized.Count > 0)
                     {
                         safeTags[name] = normalized;
@@ -553,18 +549,10 @@ namespace DesktopOrganizer
             switch (planned.Action.Kind)
             {
                 case OrganizationRuleActionKind.AddTag:
-                    if (!_appLayout.ItemTags.TryGetValue(name, out List<string>? tags))
-                    {
-                        tags = new List<string>();
-                        _appLayout.ItemTags[name] = tags;
-                    }
-                    if (tags.Contains(planned.Action.TargetName, StringComparer.OrdinalIgnoreCase))
-                    {
-                        return false;
-                    }
-                    tags.Add(planned.Action.TargetName);
-                    tags.Sort(StringComparer.CurrentCultureIgnoreCase);
-                    return true;
+                    return ItemTagPolicy.AddTag(
+                        _appLayout.ItemTags,
+                        name,
+                        planned.Action.TargetName);
 
                 case OrganizationRuleActionKind.AddToVirtualGroup:
                     return ApplyRuleVirtualGroup(rule, planned);

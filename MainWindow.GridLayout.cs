@@ -450,7 +450,7 @@ namespace DesktopOrganizer
             }
             _appLayout.AutoClassificationOriginalPositions = normalizedOriginalPositions;
             _appLayout.InboxItems = NormalizeInboxItems(_appLayout.InboxItems);
-            _appLayout.ItemTags = NormalizeItemTags(_appLayout.ItemTags);
+            _appLayout.ItemTags = ItemTagPolicy.NormalizeDictionary(_appLayout.ItemTags);
             _appLayout.ItemFirstSeenUtcTicks = NormalizeItemTimes(_appLayout.ItemFirstSeenUtcTicks);
             _appLayout.ItemLastMovedUtcTicks = NormalizeItemTimes(_appLayout.ItemLastMovedUtcTicks);
             if (loadedVersion < 17 && _appLayout.ItemIdentities.Count > 0)
@@ -635,30 +635,6 @@ namespace DesktopOrganizer
                     item.Reliability = ClassificationReliability.Conservative;
                 }
                 result[name] = item;
-            }
-            return result;
-        }
-
-        private static Dictionary<string, List<string>> NormalizeItemTags(
-            IEnumerable<KeyValuePair<string, List<string>>> source)
-        {
-            var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            foreach ((string name, List<string>? tags) in source)
-            {
-                if (string.IsNullOrWhiteSpace(name) || tags == null)
-                {
-                    continue;
-                }
-                List<string> normalized = tags
-                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                    .Select(tag => tag.Trim())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(tag => tag, StringComparer.CurrentCultureIgnoreCase)
-                    .ToList();
-                if (normalized.Count > 0)
-                {
-                    result[name] = normalized;
-                }
             }
             return result;
         }

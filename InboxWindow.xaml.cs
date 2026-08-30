@@ -34,7 +34,11 @@ namespace DesktopOrganizer
 
         private void UpdateButtons()
         {
-            AcceptButton.IsEnabled = Selected?.CanAccept == true;
+            InboxListItemView? selected = Selected;
+            AcceptButton.IsEnabled = selected?.CanAccept == true;
+            SaveTagsButton.IsEnabled = selected != null;
+            TagEditorBox.IsEnabled = selected != null;
+            TagEditorBox.Text = selected?.TagsText ?? string.Empty;
             if (InboxList.Items.Count == 0)
             {
                 StatusText.Text = "当前没有待整理项目。";
@@ -59,6 +63,27 @@ namespace DesktopOrganizer
         private void Defer_Click(object sender, RoutedEventArgs e) =>
             RunSelectedAction((string name, out string message) =>
                 _mainWindow.TryDeferInboxItem(name, out message));
+
+        private void SaveTags_Click(object sender, RoutedEventArgs e)
+        {
+            InboxListItemView? selected = Selected;
+            if (selected == null)
+            {
+                StatusText.Text = "请先选择一个待整理项目。";
+                return;
+            }
+
+            string selectedName = selected.DisplayName;
+            bool succeeded = _mainWindow.TrySetInboxItemTags(
+                selectedName,
+                TagEditorBox.Text,
+                out string message);
+            if (succeeded)
+            {
+                Refresh(selectedName);
+            }
+            StatusText.Text = message;
+        }
 
         private void MoveToManualGroup_Click(object sender, RoutedEventArgs e)
         {
