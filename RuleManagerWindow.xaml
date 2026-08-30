@@ -245,7 +245,7 @@
                         Content="保存为草稿"
                         MinWidth="96"
                         Margin="0,0,8,0"
-                        ToolTip="Ctrl+S（窗口任意焦点）；保存后回到草稿并禁用"
+                        ToolTip="Ctrl+S（窗口任意焦点）；仅有未保存内容时可用，保存后回到草稿并禁用"
                         Click="SaveDraft_Click"/>
                 <Button x:Name="PreviewButton"
                         Content="逐项预览…"

@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Xml.Linq;
@@ -92,6 +93,39 @@ public sealed class RuleManagerUiContractTests
             RuleManagerWindow.HasUnsavedRuleEditor(
                 editorDirty,
                 editingRuleId));
+    }
+
+    [STATestMethod]
+    public void SaveDraftAndNewRuleButtons_FollowUnsavedEditorState()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        FieldInfo appLayoutField = typeof(MainWindow).GetField(
+            "_appLayout",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到当前布局。");
+        var layout = (AppLayoutData)(appLayoutField.GetValue(mainWindow)
+            ?? throw new AssertFailedException("当前布局尚未初始化。"));
+        layout.UserRules.Add(new UserOrganizationRuleInfo
+        {
+            Id = "clean-enabled-rule",
+            Name = "已启用规则",
+            Lifecycle = UserRuleLifecycle.Enabled,
+            Extensions = [".txt"],
+            ActionKind = OrganizationRuleActionKind.SendToInbox
+        });
+        var persistedWindow = new RuleManagerWindow(mainWindow);
+
+        Assert.IsFalse(persistedWindow.SaveDraftButton.IsEnabled);
+        Assert.IsTrue(persistedWindow.NewRuleButton.IsEnabled);
+
+        persistedWindow.RuleNameBox.Text = "已修改规则";
+
+        Assert.IsTrue(persistedWindow.SaveDraftButton.IsEnabled);
+        Assert.IsFalse(persistedWindow.NewRuleButton.IsEnabled);
+
+        var newRuleWindow = new RuleManagerWindow(new MainWindow(startQuietly: false));
+        Assert.IsTrue(newRuleWindow.SaveDraftButton.IsEnabled);
+        Assert.IsFalse(newRuleWindow.NewRuleButton.IsEnabled);
     }
 
     [TestMethod]
@@ -220,6 +254,7 @@ public sealed class RuleManagerUiContractTests
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Delete");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "窗口任意焦点");
+        StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "仅有未保存内容时可用");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "草稿");
         Assert.AreEqual("新建规则", newRuleButton.Attribute("Content")?.Value);
         Assert.AreEqual("NewRule_Click", newRuleButton.Attribute("Click")?.Value);

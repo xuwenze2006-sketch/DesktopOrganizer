@@ -613,18 +613,20 @@ namespace DesktopOrganizer
                 string.Equals(selected.Id, _editingRuleId, StringComparison.OrdinalIgnoreCase);
             UserRuleLifecycle? lifecycle = persistedSelection ? selected!.Lifecycle : null;
             bool canRunLifecycleAction = persistedSelection && !_editorDirty;
+            bool hasUnsavedEditor = HasUnsavedRuleEditor(
+                _editorDirty,
+                _editingRuleId);
 
             LifecycleText.Text = lifecycle.HasValue
                 ? UserOrganizationRulePolicy.DescribeLifecycle(lifecycle.Value)
                 : "尚未保存";
+            SaveDraftButton.IsEnabled = hasUnsavedEditor;
             PreviewButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.Draft;
             ExecuteOnceButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.Previewed;
             EnableButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.TrialApplied;
             DisableButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.Enabled;
             DeleteButton.IsEnabled = persistedSelection;
-            NewRuleButton.IsEnabled = !HasUnsavedRuleEditor(
-                _editorDirty,
-                _editingRuleId);
+            NewRuleButton.IsEnabled = !hasUnsavedEditor;
             int enabledCount = _mainWindow.GetEnabledUserRuleCount();
             DisableAllRulesButton.Content = $"全部停用 ({enabledCount})";
             DisableAllRulesButton.IsEnabled = enabledCount > 0 && !_editorDirty;
