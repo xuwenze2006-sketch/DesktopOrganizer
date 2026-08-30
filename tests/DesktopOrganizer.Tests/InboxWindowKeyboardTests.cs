@@ -109,6 +109,22 @@ public sealed class InboxWindowKeyboardTests
             InboxWindow.HasUnsavedTagEditorText(loadedText, currentText));
     }
 
+    [TestMethod]
+    [DataRow(false, MessageBoxResult.None, false)]
+    [DataRow(false, MessageBoxResult.Cancel, false)]
+    [DataRow(true, MessageBoxResult.OK, false)]
+    [DataRow(true, MessageBoxResult.Cancel, true)]
+    [DataRow(true, MessageBoxResult.None, true)]
+    public void ShouldCancelCloseWithUnsavedTags_RequiresExplicitDiscardConfirmation(
+        bool editorDirty,
+        MessageBoxResult confirmation,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            InboxWindow.ShouldCancelCloseWithUnsavedTags(editorDirty, confirmation));
+    }
+
     [STATestMethod]
     public void InboxSelectionChanged_WithUnsavedTags_RestoresOriginalItem()
     {
@@ -425,6 +441,7 @@ public sealed class InboxWindowKeyboardTests
         XElement saveTagsButton = FindNamedElement(document, xaml, "SaveTagsButton");
         XElement acceptAllReliableButton = FindNamedElement(document, xaml, "AcceptAllReliableButton");
         XElement groupSelector = FindNamedElement(document, xaml, "ManualGroupSelector");
+        XElement closeButton = FindButton(document, "关闭");
 
         Assert.AreEqual(
             "InboxList_PreviewKeyDown",
@@ -448,6 +465,9 @@ public sealed class InboxWindowKeyboardTests
         Assert.AreEqual("Enter", FindButton(document, "接受建议").Attribute("ToolTip")?.Value);
         Assert.AreEqual("Ctrl+Enter", FindButton(document, "留在桌面").Attribute("ToolTip")?.Value);
         Assert.AreEqual("Shift+Enter", FindButton(document, "以后再说").Attribute("ToolTip")?.Value);
+        Assert.AreEqual("InboxWindow_Closing", document.Root?.Attribute("Closing")?.Value);
+        Assert.AreEqual("True", closeButton.Attribute("IsCancel")?.Value);
+        Assert.IsNull(closeButton.Attribute("Click"));
     }
 
     private static XElement FindNamedElement(

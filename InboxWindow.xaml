@@ -7,6 +7,7 @@
         MinWidth="640"
         MinHeight="470"
         WindowStartupLocation="CenterOwner"
+        Closing="InboxWindow_Closing"
         ShowInTaskbar="False">
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -94,7 +95,7 @@
                         Click="AcceptAllReliable_Click"/>
                 <TextBlock x:Name="StatusText" Grid.Column="1" Margin="0,0,12,0"
                            VerticalAlignment="Center" Foreground="#FF64748B" TextWrapping="Wrap"/>
-                <Button Grid.Column="2" Content="关闭" MinWidth="76" IsCancel="True" Click="Close_Click"/>
+                <Button Grid.Column="2" Content="关闭" MinWidth="76" IsCancel="True"/>
             </Grid>
         </Grid>
     </Grid>

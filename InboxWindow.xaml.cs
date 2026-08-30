@@ -328,6 +328,38 @@ namespace DesktopOrganizer
             return true;
         }
 
+        private void InboxWindow_Closing(
+            object? sender,
+            System.ComponentModel.CancelEventArgs e)
+        {
+            bool editorDirty = HasUnsavedTagEditorText(
+                _loadedTagEditorText,
+                TagEditorBox.Text);
+            if (!editorDirty)
+            {
+                return;
+            }
+
+            MessageBoxResult confirmation = MessageBox.Show(
+                this,
+                "标签编辑内容尚未保存。关闭窗口并放弃这些修改？",
+                "放弃未保存标签",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning,
+                MessageBoxResult.Cancel);
+            e.Cancel = ShouldCancelCloseWithUnsavedTags(editorDirty, confirmation);
+            if (e.Cancel)
+            {
+                StatusText.Text = UnsavedTagEditorMessage;
+                TagEditorBox.Focus();
+            }
+        }
+
+        internal static bool ShouldCancelCloseWithUnsavedTags(
+            bool editorDirty,
+            MessageBoxResult confirmation) =>
+            editorDirty && confirmation != MessageBoxResult.OK;
+
         internal static int FindManualGroupSelectionIndex(
             IReadOnlyList<ManualGroupChoice> groups,
             string? selectedGroupId)
@@ -435,6 +467,5 @@ namespace DesktopOrganizer
             }
         }
 
-        private void Close_Click(object sender, RoutedEventArgs e) => Close();
     }
 }
