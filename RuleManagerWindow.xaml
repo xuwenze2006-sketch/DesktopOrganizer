@@ -41,6 +41,8 @@
                 <TextBlock Text="规则列表" FontWeight="SemiBold" FontSize="15" Margin="2,0,0,8"/>
                 <ListBox x:Name="RuleList"
                          Grid.Row="1"
+                         PreviewKeyDown="RuleList_PreviewKeyDown"
+                         ToolTip="方向键选择；Enter 执行当前唯一可用的下一生命周期动作"
                          SelectionChanged="RuleList_SelectionChanged">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -247,16 +249,19 @@
                         Content="逐项预览…"
                         MinWidth="92"
                         Margin="0,0,8,0"
+                        ToolTip="规则列表聚焦且草稿已保存时按 Enter"
                         Click="Preview_Click"/>
                 <Button x:Name="ExecuteOnceButton"
                         Content="执行一次…"
                         MinWidth="88"
                         Margin="0,0,8,0"
+                        ToolTip="规则列表聚焦且预览已确认时按 Enter"
                         Click="ExecuteOnce_Click"/>
                 <Button x:Name="EnableButton"
                         Content="启用自动应用…"
                         MinWidth="105"
                         Margin="0,0,8,0"
+                        ToolTip="规则列表聚焦且已成功执行一次时按 Enter"
                         Click="Enable_Click"/>
                 <Button x:Name="DisableButton"
                         Content="停用自动应用"

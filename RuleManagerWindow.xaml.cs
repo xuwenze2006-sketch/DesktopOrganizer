@@ -1,5 +1,13 @@
 namespace DesktopOrganizer
 {
+    internal enum RuleListKeyboardAction
+    {
+        None,
+        Preview,
+        ExecuteOnce,
+        Enable
+    }
+
     public partial class RuleManagerWindow : Window
     {
         private readonly MainWindow _mainWindow;
@@ -57,6 +65,57 @@ namespace DesktopOrganizer
                 return;
             }
             LoadSelectedEditor(selection);
+        }
+
+        private void RuleList_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            RuleListKeyboardAction action = ResolveRuleListKeyboardAction(
+                e.Key,
+                Keyboard.Modifiers,
+                e.IsRepeat,
+                PreviewButton.IsEnabled,
+                ExecuteOnceButton.IsEnabled,
+                EnableButton.IsEnabled);
+            if (action == RuleListKeyboardAction.None)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            switch (action)
+            {
+                case RuleListKeyboardAction.Preview:
+                    Preview_Click(PreviewButton, e);
+                    break;
+                case RuleListKeyboardAction.ExecuteOnce:
+                    ExecuteOnce_Click(ExecuteOnceButton, e);
+                    break;
+                case RuleListKeyboardAction.Enable:
+                    Enable_Click(EnableButton, e);
+                    break;
+            }
+        }
+
+        internal static RuleListKeyboardAction ResolveRuleListKeyboardAction(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool canPreview,
+            bool canExecuteOnce,
+            bool canEnable)
+        {
+            if (key != Key.Enter || modifiers != ModifierKeys.None || isRepeat)
+            {
+                return RuleListKeyboardAction.None;
+            }
+
+            return (canPreview, canExecuteOnce, canEnable) switch
+            {
+                (true, false, false) => RuleListKeyboardAction.Preview,
+                (false, true, false) => RuleListKeyboardAction.ExecuteOnce,
+                (false, false, true) => RuleListKeyboardAction.Enable,
+                _ => RuleListKeyboardAction.None
+            };
         }
 
         private void LoadSelectedEditor(UserRuleSummary summary)

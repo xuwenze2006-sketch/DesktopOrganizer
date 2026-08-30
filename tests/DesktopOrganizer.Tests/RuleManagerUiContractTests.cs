@@ -50,7 +50,38 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
-    public void RuleEditor_WiresSaveShortcutOnlyInsideEditor()
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, false, false, (int)RuleListKeyboardAction.Preview)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, true, false, (int)RuleListKeyboardAction.ExecuteOnce)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, false, true, (int)RuleListKeyboardAction.Enable)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, true, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.None, true, true, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Control, false, true, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, false, true, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Alt, false, true, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Space, ModifierKeys.None, false, true, false, false, (int)RuleListKeyboardAction.None)]
+    public void ResolveRuleListKeyboardAction_RequiresPlainInitialEnterAndOneAvailableStep(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool canPreview,
+        bool canExecuteOnce,
+        bool canEnable,
+        int expected)
+    {
+        Assert.AreEqual(
+            (RuleListKeyboardAction)expected,
+            RuleManagerWindow.ResolveRuleListKeyboardAction(
+                key,
+                modifiers,
+                isRepeat,
+                canPreview,
+                canExecuteOnce,
+                canEnable));
+    }
+
+    [TestMethod]
+    public void RuleEditorAndRuleList_WireShortcutsOnlyToTheirScopes()
     {
         XDocument document = LoadRuleManagerXaml();
         XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
@@ -62,9 +93,23 @@ public sealed class RuleManagerUiContractTests
             "RuleEditor_PreviewKeyDown",
             editor.Attribute("PreviewKeyDown")?.Value);
         Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
-        Assert.IsNull(ruleList.Attribute("PreviewKeyDown"));
+        Assert.AreEqual(
+            "RuleList_PreviewKeyDown",
+            ruleList.Attribute("PreviewKeyDown")?.Value);
+        StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Enter");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "草稿");
+        foreach (string buttonName in new[]
+                 {
+                     "PreviewButton",
+                     "ExecuteOnceButton",
+                     "EnableButton"
+                 })
+        {
+            StringAssert.Contains(
+                FindNamedElement(document, xaml, buttonName).Attribute("ToolTip")?.Value,
+                "Enter");
+        }
     }
 
     private static XElement FindNamedElement(
