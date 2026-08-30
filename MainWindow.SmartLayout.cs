@@ -17,6 +17,8 @@ namespace DesktopOrganizer
         {
             group.IsCollapsed = !group.IsCollapsed;
             ClampGroupToCanvas(group);
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = group.IsCollapsed
                 ? $"已收起“{group.Name}”"
@@ -48,6 +50,8 @@ namespace DesktopOrganizer
                 ClampGroupToCanvas(group);
             }
 
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = collapse ? "已收起全部分组" : "已展开全部分组";
         }

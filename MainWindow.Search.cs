@@ -95,6 +95,8 @@ namespace DesktopOrganizer
             RebuildDesktopIcons();
             if (layoutChanged)
             {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
                 SaveLayout();
             }
 

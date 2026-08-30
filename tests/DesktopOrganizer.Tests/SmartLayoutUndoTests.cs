@@ -193,6 +193,110 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void ToggleGroupCollapsed_InvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareGroup(window);
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokePrivateMethod(window, "ToggleGroupCollapsed", group);
+
+            Assert.IsTrue(group.IsCollapsed);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+            Assert.IsNotNull(snapshot);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void ToggleAllGroupsCollapsed_InvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo firstGroup = PrepareGroup(window);
+            GroupInfo secondGroup = new()
+            {
+                Id = "second-group",
+                Name = "已收起分类",
+                X = 340,
+                Y = 40,
+                Width = 280,
+                Height = 200,
+                IsCollapsed = true
+            };
+            GetField<AppLayoutData>(window, "_appLayout").Groups.Add(secondGroup);
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokePrivateMethod(window, "ToggleAllGroupsCollapsed");
+
+            Assert.IsTrue(firstGroup.IsCollapsed);
+            Assert.IsTrue(secondGroup.IsCollapsed);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+            Assert.IsNotNull(snapshot);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    [DataRow(true, true)]
+    [DataRow(false, false)]
+    public void LocateDesktopSearchResult_OnlyInvalidatesUndoWhenItExpandsGroup(
+        bool initiallyCollapsed,
+        bool shouldInvalidateUndo)
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "Located.txt";
+            GroupInfo group = PrepareGroup(window);
+            group.IsCollapsed = initiallyCollapsed;
+            group.IsSizeLocked = true;
+            group.ItemNames = [itemName];
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            window.LocateDesktopSearchResult(itemName);
+
+            Assert.IsFalse(group.IsCollapsed);
+            if (shouldInvalidateUndo)
+            {
+                Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+                Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+            }
+            else
+            {
+                Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+                Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+            }
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
@@ -258,6 +362,18 @@ public sealed class SmartLayoutUndoTests
         resizeMethod.Invoke(
             window,
             [thumb, new DragDeltaEventArgs(horizontalChange, verticalChange)]);
+    }
+
+    private static object? InvokePrivateMethod(
+        MainWindow window,
+        string methodName,
+        params object[] arguments)
+    {
+        MethodInfo method = typeof(MainWindow).GetMethod(
+            methodName,
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException($"未找到入口 {methodName}。");
+        return method.Invoke(window, arguments);
     }
 
     private static T GetField<T>(MainWindow window, string fieldName)
