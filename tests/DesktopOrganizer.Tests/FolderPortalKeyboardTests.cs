@@ -61,8 +61,10 @@ public sealed class FolderPortalKeyboardTests
     [TestMethod]
     [DataRow(Key.System, Key.Up, Key.Up)]
     [DataRow(Key.System, Key.Home, Key.Home)]
+    [DataRow(Key.System, Key.Back, Key.Back)]
     [DataRow(Key.System, Key.Left, Key.Left)]
     [DataRow(Key.Up, Key.None, Key.Up)]
+    [DataRow(Key.Back, Key.None, Key.Back)]
     public void ResolveFolderPortalKeyboardKey_UsesSystemKeyOnlyForAltEvents(
         Key key,
         Key systemKey,
@@ -82,7 +84,15 @@ public sealed class FolderPortalKeyboardTests
     [DataRow(Key.Up, ModifierKeys.Alt | ModifierKeys.Control, false, true, false)]
     [DataRow(Key.Left, ModifierKeys.Alt, false, true, false)]
     [DataRow(Key.Down, ModifierKeys.Alt, false, true, false)]
-    public void ShouldNavigateFolderPortalUpFromKeyboard_RequiresInitialAltUpBelowRoot(
+    [DataRow(Key.Back, ModifierKeys.None, false, true, true)]
+    [DataRow(Key.Back, ModifierKeys.None, true, true, false)]
+    [DataRow(Key.Back, ModifierKeys.None, false, false, false)]
+    [DataRow(Key.Back, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.Back, ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.Back, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.Back, ModifierKeys.Windows, false, true, false)]
+    [DataRow(Key.Back, ModifierKeys.Control | ModifierKeys.Shift, false, true, false)]
+    public void ShouldNavigateFolderPortalUpFromKeyboard_RequiresInitialSupportedShortcutBelowRoot(
         Key key,
         ModifierKeys modifiers,
         bool isRepeat,

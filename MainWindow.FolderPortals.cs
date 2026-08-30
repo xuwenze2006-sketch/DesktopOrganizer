@@ -246,7 +246,7 @@ namespace DesktopOrganizer
             };
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "←",
-                "返回上一级（只读，Alt+↑）",
+                "返回上一级（只读，Alt+↑ 或 Backspace）",
                 (_, _) => NavigateFolderPortalUp(portal)));
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "⌂",
@@ -352,7 +352,7 @@ namespace DesktopOrganizer
                 AllowDrop = false,
                 Focusable = true,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                ToolTip = "方向键选择；Enter 打开或进入；Shift+Enter 在资源管理器中显示；Ctrl+C 复制路径；Alt+↑ 返回上一级；Alt+Home 返回根目录；F5 手动刷新"
+                ToolTip = "方向键选择；Enter 打开或进入；Shift+Enter 在资源管理器中显示；Ctrl+C 复制路径；Alt+↑ 或 Backspace 返回上一级；Alt+Home 返回根目录；F5 手动刷新"
             };
             state.CurrentList = list;
             ScrollViewer.SetCanContentScroll(list, true);
@@ -903,10 +903,10 @@ namespace DesktopOrganizer
             ModifierKeys modifiers,
             bool isRepeat,
             bool canNavigateUp) =>
-            key == Key.Up &&
-            modifiers == ModifierKeys.Alt &&
             !isRepeat &&
-            canNavigateUp;
+            canNavigateUp &&
+            ((key == Key.Up && modifiers == ModifierKeys.Alt) ||
+             (key == Key.Back && modifiers == ModifierKeys.None));
 
         internal static bool ShouldNavigateFolderPortalRootFromKeyboard(
             Key key,
