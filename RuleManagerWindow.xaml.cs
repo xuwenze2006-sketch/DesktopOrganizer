@@ -116,6 +116,7 @@ namespace DesktopOrganizer
             {
                 e.Handled = true;
                 Delete_Click(DeleteButton, e);
+                RestoreRuleListFocusAfterKeyboardAction();
                 return;
             }
 
@@ -148,7 +149,29 @@ namespace DesktopOrganizer
                     Disable_Click(DisableButton, e);
                     break;
             }
+            RestoreRuleListFocusAfterKeyboardAction();
         }
+
+        private void RestoreRuleListFocusAfterKeyboardAction()
+        {
+            if (!ShouldRestoreRuleListFocusAfterKeyboardAction(
+                    IsVisible,
+                    RuleList.IsEnabled))
+            {
+                return;
+            }
+
+            if (Selected is UserRuleSummary selection)
+            {
+                RuleList.ScrollIntoView(selection);
+            }
+            RuleList.Focus();
+        }
+
+        internal static bool ShouldRestoreRuleListFocusAfterKeyboardAction(
+            bool windowIsVisible,
+            bool listIsEnabled) =>
+            windowIsVisible && listIsEnabled;
 
         internal static bool ShouldDeleteRuleFromKeyboard(
             Key key,

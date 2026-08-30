@@ -136,6 +136,23 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
+    [DataRow(true, true, true)]
+    [DataRow(false, true, false)]
+    [DataRow(true, false, false)]
+    [DataRow(false, false, false)]
+    public void ShouldRestoreRuleListFocus_RequiresVisibleWindowAndEnabledList(
+        bool windowIsVisible,
+        bool listIsEnabled,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            RuleManagerWindow.ShouldRestoreRuleListFocusAfterKeyboardAction(
+                windowIsVisible,
+                listIsEnabled));
+    }
+
+    [TestMethod]
     public void RuleWindowAndRuleList_WireShortcutsOnlyToTheirScopes()
     {
         XDocument document = LoadRuleManagerXaml();
@@ -159,6 +176,7 @@ public sealed class RuleManagerUiContractTests
             "RuleList_PreviewKeyDown",
             ruleList.Attribute("PreviewKeyDown")?.Value);
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Enter");
+        StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "连续");
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Delete");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "窗口任意焦点");
