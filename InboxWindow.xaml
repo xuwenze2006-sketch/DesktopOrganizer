@@ -23,7 +23,7 @@
 
         <ListBox x:Name="InboxList" Grid.Row="1" Margin="0,12,0,12"
                  PreviewKeyDown="InboxList_PreviewKeyDown"
-                 ToolTip="方向键选择；F2 编辑所选项目的本地标签"
+                 ToolTip="方向键选择；Enter 接受建议；Ctrl+Enter 留在桌面；Shift+Enter 以后再说；Ctrl+Shift+Enter 接受全部可靠建议；F2 编辑所选项目的本地标签"
                  SelectionChanged="InboxList_SelectionChanged">
             <ListBox.ItemTemplate>
                 <DataTemplate>

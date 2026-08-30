@@ -124,7 +124,12 @@ public sealed class InboxWindowKeyboardTests
         Assert.AreEqual(
             "InboxList_PreviewKeyDown",
             inboxList.Attribute("PreviewKeyDown")?.Value);
-        StringAssert.Contains(inboxList.Attribute("ToolTip")?.Value, "F2");
+        string? inboxListToolTip = inboxList.Attribute("ToolTip")?.Value;
+        StringAssert.Contains(inboxListToolTip, "Enter 接受建议");
+        StringAssert.Contains(inboxListToolTip, "Ctrl+Enter 留在桌面");
+        StringAssert.Contains(inboxListToolTip, "Shift+Enter 以后再说");
+        StringAssert.Contains(inboxListToolTip, "Ctrl+Shift+Enter 接受全部可靠建议");
+        StringAssert.Contains(inboxListToolTip, "F2 编辑所选项目的本地标签");
         Assert.AreEqual(
             "TagEditorBox_PreviewKeyDown",
             tagEditor.Attribute("PreviewKeyDown")?.Value);
