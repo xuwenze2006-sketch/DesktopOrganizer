@@ -83,17 +83,17 @@ namespace DesktopOrganizer
                 Child = content,
                 ToolTip = isShellNamespace
                     ? parentGroup == null
-                        ? $"Windows Shell 系统项目；双击打开，可拖入虚拟分类\nCtrl+单击可多选\n{shellParsingName}"
-                        : $"Windows Shell 系统项目；双击打开，拖到分类框外可变为自由图标\nCtrl+单击可多选；Shift+单击可连续选择\n{shellParsingName}"
+                        ? $"Windows Shell 系统项目；单击选择；双击打开，可拖入虚拟分类\nCtrl+单击可多选\n{shellParsingName}"
+                        : $"Windows Shell 系统项目；单击选择；双击打开，拖到分类框外可变为自由图标\nCtrl+单击可多选；Shift+单击可连续选择\n{shellParsingName}"
                     : Directory.Exists(fullPath)
                         ? parentGroup == null
-                            ? $"真实文件夹：拖入此处会移动真实文件\n双击打开；Ctrl+单击可多选\n{fullPath}"
-                            : $"真实文件夹：拖入此处会移动真实文件\n双击打开；Ctrl+单击可多选；Shift+单击可连续选择\n{fullPath}"
+                            ? $"真实文件夹：拖入此处会移动真实文件\n单击选择；双击打开；Ctrl+单击可多选\n{fullPath}"
+                            : $"真实文件夹：拖入此处会移动真实文件\n单击选择；双击打开；Ctrl+单击可多选；Shift+单击可连续选择\n{fullPath}"
                         : parentGroup == null
                             ? (_appLayout.IsEditMode
-                                ? $"双击打开；拖动可调整位置或移入真实文件夹/虚拟分类\nCtrl+单击可多选\n{fullPath}"
-                                : $"双击打开；可拖入真实文件夹或虚拟分类\nCtrl+单击可多选\n{fullPath}")
-                            : $"双击打开；拖到分类框外可变为自由图标\nCtrl+单击可多选；Shift+单击可连续选择；右键可批量操作\n{fullPath}",
+                                ? $"单击选择；双击打开；拖动可调整位置或移入真实文件夹/虚拟分类\nCtrl+单击可多选\n{fullPath}"
+                                : $"单击选择；双击打开；可拖入真实文件夹或虚拟分类\nCtrl+单击可多选\n{fullPath}")
+                            : $"单击选择；双击打开；拖到分类框外可变为自由图标\nCtrl+单击可多选；Shift+单击可连续选择；右键可批量操作\n{fullPath}",
                 SnapsToDevicePixels = true
             };
 
@@ -420,6 +420,43 @@ namespace DesktopOrganizer
             StatusText.Text = _selectedItemNames.Count == 0
                 ? "已清除选择"
                 : $"已选择 {_selectedItemNames.Count} 项；右键可批量操作，Esc 清除选择";
+        }
+
+        private void SelectSingleItem(FrameworkElement element)
+        {
+            string displayName = GetIconDisplayName(element);
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                return;
+            }
+
+            ReplaceSelectionWithSingleItem(_selectedItemNames, displayName);
+            _groupRangeSelectionAnchor = element.Tag is IconTag { Group: not null } tag
+                ? new GroupRangeSelectionAnchor(tag.Group.Id, displayName)
+                : null;
+            RefreshItemSelectionVisuals();
+            StatusText.Text = $"已选择“{displayName}”；Ctrl+单击可多选，右键可操作";
+        }
+
+        internal static bool ShouldBeginSingleItemSelection(
+            ModifierKeys modifiers,
+            int clickCount) =>
+            modifiers == ModifierKeys.None && clickCount == 1;
+
+        internal static bool ReplaceSelectionWithSingleItem(
+            ISet<string> selectedItemNames,
+            string displayName)
+        {
+            ArgumentNullException.ThrowIfNull(selectedItemNames);
+            if (string.IsNullOrWhiteSpace(displayName) ||
+                (selectedItemNames.Count == 1 && selectedItemNames.Contains(displayName)))
+            {
+                return false;
+            }
+
+            selectedItemNames.Clear();
+            selectedItemNames.Add(displayName);
+            return true;
         }
 
         private void ToggleGroupItemSelection(GroupInfo group)

@@ -26,6 +26,9 @@ namespace DesktopOrganizer
 
             _groupRangeSelectionAnchor = null;
             _pendingGroupedShiftRangeSelection = false;
+            _pendingSingleItemSelection = ShouldBeginSingleItemSelection(
+                Keyboard.Modifiers,
+                e.ClickCount);
             string clickedName = GetIconDisplayName(element);
             if (_selectedItemNames.Count > 0 && !_selectedItemNames.Contains(clickedName))
             {
@@ -148,6 +151,7 @@ namespace DesktopOrganizer
         {
             _pendingIconDragElement = null;
             _pendingGroupedShiftRangeSelection = false;
+            _pendingSingleItemSelection = false;
         }
 
         private void UpdatePhysicalFolderDropPreview(Point canvasPoint, FrameworkElement? draggedElement)
@@ -667,7 +671,13 @@ namespace DesktopOrganizer
             {
                 if (ReferenceEquals(sender, _pendingIconDragElement))
                 {
+                    bool applySingleSelection = _pendingSingleItemSelection;
+                    FrameworkElement? clickedElement = sender as FrameworkElement;
                     ClearPendingIconDrag();
+                    if (applySingleSelection && clickedElement != null)
+                    {
+                        SelectSingleItem(clickedElement);
+                    }
                     e.Handled = true;
                 }
 

@@ -88,6 +88,7 @@ namespace DesktopOrganizer
         private readonly HashSet<string> _selectedItemNames = new(StringComparer.OrdinalIgnoreCase);
         private GroupRangeSelectionAnchor? _groupRangeSelectionAnchor;
         private bool _pendingGroupedShiftRangeSelection;
+        private bool _pendingSingleItemSelection;
         private readonly HashSet<string> _pendingAutoClassificationCandidates = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, FrameworkElement> _groupDropTargets = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, FrameworkElement> _groupVisuals = new(StringComparer.OrdinalIgnoreCase);

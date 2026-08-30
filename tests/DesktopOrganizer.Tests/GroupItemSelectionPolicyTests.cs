@@ -7,6 +7,45 @@ namespace DesktopOrganizer.Tests;
 public sealed class GroupItemSelectionPolicyTests
 {
     [TestMethod]
+    public void ReplaceSelectionWithSingleItem_CollapsesMultiSelectionAndIsIdempotent()
+    {
+        var selected = new HashSet<string>(["A", "B", "stale"], StringComparer.OrdinalIgnoreCase);
+
+        bool firstChanged = MainWindow.ReplaceSelectionWithSingleItem(selected, "b");
+        bool secondChanged = MainWindow.ReplaceSelectionWithSingleItem(selected, "B");
+        bool blankChanged = MainWindow.ReplaceSelectionWithSingleItem(selected, "   ");
+
+        Assert.IsTrue(firstChanged);
+        Assert.IsFalse(secondChanged);
+        Assert.IsFalse(blankChanged);
+        Assert.AreEqual(1, selected.Count);
+        Assert.IsTrue(selected.Contains("B"));
+
+        var emptySelection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Assert.IsTrue(MainWindow.ReplaceSelectionWithSingleItem(emptySelection, "C"));
+        CollectionAssert.AreEqual(new[] { "C" }, emptySelection.ToArray());
+    }
+
+    [TestMethod]
+    [DataRow(ModifierKeys.None, 1, true)]
+    [DataRow(ModifierKeys.None, 2, false)]
+    [DataRow(ModifierKeys.Control, 1, false)]
+    [DataRow(ModifierKeys.Shift, 1, false)]
+    [DataRow(ModifierKeys.Alt, 1, false)]
+    [DataRow(ModifierKeys.Windows, 1, false)]
+    [DataRow(ModifierKeys.Control | ModifierKeys.Shift, 1, false)]
+    [DataRow(ModifierKeys.Alt | ModifierKeys.Shift, 1, false)]
+    public void ShouldBeginSingleItemSelection_RequiresPlainSingleClick(
+        ModifierKeys modifiers,
+        int clickCount,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldBeginSingleItemSelection(modifiers, clickCount));
+    }
+
+    [TestMethod]
     public void CreatePlanAndApply_PartialSelectionCompletesGroupAndPreservesOutsideSelection()
     {
         var selected = new HashSet<string>(["b.txt", "Outside"], StringComparer.OrdinalIgnoreCase);

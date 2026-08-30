@@ -40,6 +40,9 @@ namespace DesktopOrganizer
             }
 
             _pendingGroupedShiftRangeSelection = shiftRangeSelection;
+            _pendingSingleItemSelection = ShouldBeginSingleItemSelection(
+                Keyboard.Modifiers,
+                e.ClickCount);
             _pendingIconDragElement = element;
             _pendingIconMouseDownCanvasPoint = e.GetPosition(IconCanvas);
             _dragStartOffset = e.GetPosition(element);
@@ -191,11 +194,16 @@ namespace DesktopOrganizer
                 if (ReferenceEquals(sender, _pendingIconDragElement))
                 {
                     bool applyRangeSelection = _pendingGroupedShiftRangeSelection;
+                    bool applySingleSelection = _pendingSingleItemSelection;
                     FrameworkElement? endpointElement = sender as FrameworkElement;
                     ClearPendingIconDrag();
                     if (applyRangeSelection && endpointElement != null)
                     {
                         ApplyGroupedRangeSelection(endpointElement);
+                    }
+                    else if (applySingleSelection && endpointElement != null)
+                    {
+                        SelectSingleItem(endpointElement);
                     }
                     e.Handled = true;
                 }
