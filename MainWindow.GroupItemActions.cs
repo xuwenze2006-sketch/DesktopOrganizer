@@ -86,8 +86,8 @@ namespace DesktopOrganizer
                 e.Handled = true;
                 return;
             }
-            UpdatePhysicalFolderDropPreview(canvasPosition, element);
             UpdateGroupDropPreview(canvasPosition, element);
+            UpdatePhysicalFolderDropPreview(canvasPosition, element);
             e.Handled = true;
         }
 
@@ -153,7 +153,7 @@ namespace DesktopOrganizer
                 return false;
             }
 
-            StatusText.Text = $"可拖入真实文件夹/其它分类框，或拖到空白处移出“{tag.Group.Name}”";
+            StatusText.Text = $"可拖入其它分类框或在当前框排序；拖到空白处可移出“{tag.Group.Name}”；按住 Shift 可移入真实文件夹";
             return true;
         }
 
@@ -228,6 +228,8 @@ namespace DesktopOrganizer
             }
 
             group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+            group.ManuallyAssignedItemNames.RemoveAll(item =>
+                item.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (group.IsAutoCategory)
             {
                 // 用户明确移出自动分组后，不再让“取消分类”覆盖该项目的新位置。

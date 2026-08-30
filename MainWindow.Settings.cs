@@ -285,7 +285,9 @@ namespace DesktopOrganizer
             TryUndoLastFileMove();
         }
 
-        private static GroupInfo? CreateUndoGroupSnapshot(GroupInfo? group)
+        private static GroupInfo? CreateUndoGroupSnapshot(
+            GroupInfo? group,
+            string? itemName = null)
         {
             if (group == null)
             {
@@ -306,7 +308,12 @@ namespace DesktopOrganizer
                 UserRuleId = group.UserRuleId,
                 IsSizeLocked = group.IsSizeLocked,
                 SortMode = group.SortMode,
-                ItemNames = new List<string>()
+                ItemNames = new List<string>(),
+                ManuallyAssignedItemNames = string.IsNullOrWhiteSpace(itemName)
+                    ? group.ManuallyAssignedItemNames.ToList()
+                    : group.ManuallyAssignedItemNames
+                        .Where(name => name.Equals(itemName, StringComparison.OrdinalIgnoreCase))
+                        .ToList()
             };
         }
 

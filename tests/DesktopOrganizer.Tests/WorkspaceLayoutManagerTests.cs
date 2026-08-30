@@ -14,12 +14,16 @@ public sealed class WorkspaceLayoutManagerTests
         WorkspaceProfileInfo workspace = WorkspaceLayoutManager.CreateAndActivate(layout, "工作", now);
         layout.FreeIcons["one.txt"].X = 999;
         layout.Groups[0].Name = "changed";
+        layout.Groups[0].ManuallyAssignedItemNames.Clear();
         layout.FolderPortals[0].Name = "changed portal";
 
         Assert.AreEqual(workspace.Id, layout.ActiveWorkspaceId);
         Assert.AreEqual(10, workspace.Layout.FreeIcons["one.txt"].X);
         Assert.AreEqual("分组", workspace.Layout.Groups[0].Name);
         Assert.AreEqual("rule-1", workspace.Layout.Groups[0].UserRuleId);
+        CollectionAssert.AreEqual(
+            new[] { "one.txt" },
+            workspace.Layout.Groups[0].ManuallyAssignedItemNames);
         Assert.AreEqual("资料入口", workspace.Layout.FolderPortals[0].Name);
         Assert.AreEqual(now, workspace.CreatedUtc);
     }
@@ -43,6 +47,7 @@ public sealed class WorkspaceLayoutManagerTests
             "学习",
             DateTime.UnixEpoch.AddMinutes(1));
         layout.FreeIcons["one.txt"].X = 30;
+        layout.Groups[0].ManuallyAssignedItemNames.Clear();
 
         bool activated = WorkspaceLayoutManager.TryActivate(
             layout,
@@ -54,6 +59,9 @@ public sealed class WorkspaceLayoutManagerTests
         Assert.AreEqual(30, second.Layout.FreeIcons["one.txt"].X);
         Assert.AreEqual(120, layout.FolderPortals[0].X);
         Assert.AreEqual("stable-id", layout.ItemIdentities["one.txt"].FileId);
+        CollectionAssert.AreEqual(
+            new[] { "one.txt" },
+            layout.Groups[0].ManuallyAssignedItemNames);
     }
 
     [TestMethod]
@@ -105,7 +113,10 @@ public sealed class WorkspaceLayoutManagerTests
         Assert.IsTrue(layout.Workspaces.All(workspace =>
             !workspace.Layout.FreeIcons.ContainsKey("one.txt") &&
             workspace.Layout.Groups.All(group =>
-                !group.ItemNames.Contains("one.txt", StringComparer.OrdinalIgnoreCase))));
+                !group.ItemNames.Contains("one.txt", StringComparer.OrdinalIgnoreCase) &&
+                !group.ManuallyAssignedItemNames.Contains(
+                    "one.txt",
+                    StringComparer.OrdinalIgnoreCase))));
     }
 
     [TestMethod]
@@ -126,6 +137,7 @@ public sealed class WorkspaceLayoutManagerTests
                             {
                                 Id = "same",
                                 ItemNames = ["one.txt", "ONE.TXT", " "],
+                                ManuallyAssignedItemNames = ["ONE.TXT", "ghost.txt", " ", "one.txt"],
                                 SortMode = (GroupSortMode)999
                             }
                         ],
@@ -147,8 +159,11 @@ public sealed class WorkspaceLayoutManagerTests
         Assert.AreEqual("未命名分组", snapshot.Groups[0].Name);
         Assert.AreEqual(GroupSortMode.Custom, snapshot.Groups[1].SortMode);
         CollectionAssert.AreEqual(new[] { "one.txt" }, snapshot.Groups[1].ItemNames);
+        CollectionAssert.AreEqual(
+            new[] { "one.txt" },
+            snapshot.Groups[1].ManuallyAssignedItemNames);
         Assert.AreEqual(1, snapshot.DesktopTopology.Count);
-        Assert.AreEqual(2, snapshot.Version);
+        Assert.AreEqual(3, snapshot.Version);
     }
 
     [TestMethod]
@@ -186,7 +201,8 @@ public sealed class WorkspaceLayoutManagerTests
                 Id = "group-1",
                 Name = "分组",
                 UserRuleId = "rule-1",
-                ItemNames = [name]
+                ItemNames = [name],
+                ManuallyAssignedItemNames = [name]
             }
         ],
         DesktopTopology =

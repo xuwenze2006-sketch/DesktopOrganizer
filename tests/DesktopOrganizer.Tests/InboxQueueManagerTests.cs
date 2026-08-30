@@ -271,6 +271,35 @@ public sealed class InboxQueueManagerTests
     }
 
     [TestMethod]
+    public void CreateAcceptancePlan_ManuallyAssignedAutoMember_IsProtectedWithoutMutation()
+    {
+        DesktopItemIdentityInfo identity = Physical(@"C:\Desktop\manual-auto.txt", "volume:ma", 52);
+        Dictionary<string, InboxItemInfo> inbox = CreateInbox(
+            "manual-auto.txt",
+            identity,
+            ClassificationReliability.Reliable);
+        var automatic = new GroupInfo
+        {
+            Id = "automatic",
+            IsAutoCategory = true,
+            ItemNames = ["manual-auto.txt"],
+            ManuallyAssignedItemNames = ["MANUAL-AUTO.TXT"]
+        };
+        string before = JsonSerializer.Serialize(new { inbox, automatic });
+
+        InboxActionResult result = InboxQueueManager.TryCreateAcceptancePlan(
+            inbox,
+            Current(("manual-auto.txt", identity)),
+            new[] { automatic },
+            "manual-auto.txt",
+            out InboxAcceptancePlan? plan);
+
+        Assert.AreEqual(InboxActionOutcome.ManualGroupProtected, result.Outcome);
+        Assert.IsNull(plan);
+        Assert.AreEqual(before, JsonSerializer.Serialize(new { inbox, automatic }));
+    }
+
+    [TestMethod]
     public void ReliableAcceptance_PlanIsSideEffectFreeAndCompletionConsumesMatchingEntry()
     {
         DesktopItemIdentityInfo identity = Physical(@"C:\Desktop\accept.txt", "volume:a", 60);
@@ -447,6 +476,8 @@ public sealed class InboxQueueManagerTests
         Assert.AreEqual(0, inbox.Count);
         Assert.AreEqual(0, automatic.ItemNames.Count);
         CollectionAssert.AreEqual(new[] { "folder" }, manual.ItemNames);
+        CollectionAssert.AreEqual(new[] { "folder" }, manual.ManuallyAssignedItemNames);
+        Assert.AreEqual(GroupSortMode.Custom, manual.SortMode);
         Assert.AreEqual(0, free.Count);
         Assert.AreEqual(0, original.Count);
     }

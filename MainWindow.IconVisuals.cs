@@ -394,6 +394,8 @@ namespace DesktopOrganizer
             foreach ((string name, GroupInfo group, _) in removalRequests)
             {
                 group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+                group.ManuallyAssignedItemNames.RemoveAll(item =>
+                    item.Equals(name, StringComparison.OrdinalIgnoreCase));
                 _appLayout.FreeIcons[name] = plannedPositions[name];
                 if (group.IsAutoCategory)
                 {

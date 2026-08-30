@@ -214,6 +214,9 @@ namespace DesktopOrganizer
                     ItemNames = group.ItemNames
                         .Where(name => !removedNames.Contains(name))
                         .ToList(),
+                    ManuallyAssignedItemNames = group.ManuallyAssignedItemNames
+                        .Where(name => !removedNames.Contains(name))
+                        .ToList(),
                     IsCollapsed = group.IsCollapsed,
                     IsAutoCategory = group.IsAutoCategory,
                     AutoCategoryKey = group.AutoCategoryKey,
@@ -381,7 +384,7 @@ namespace DesktopOrganizer
         private void NormalizeLayout()
         {
             int loadedVersion = _appLayout.Version;
-            _appLayout.Version = 18;
+            _appLayout.Version = 19;
             _appLayout.FreeIcons ??= new Dictionary<string, IconPosition>();
             _appLayout.Groups ??= new List<GroupInfo>();
             _appLayout.DesktopTopology ??= new List<DesktopMonitorLayoutInfo>();
@@ -502,6 +505,19 @@ namespace DesktopOrganizer
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
+                var canonicalItemNames = group.ItemNames.ToDictionary(
+                    name => name,
+                    name => name,
+                    StringComparer.OrdinalIgnoreCase);
+                var seenManualAssignments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                group.ManuallyAssignedItemNames = (group.ManuallyAssignedItemNames ?? new List<string>())
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => canonicalItemNames.TryGetValue(name, out string? canonicalName)
+                        ? canonicalName
+                        : null)
+                    .Where(name => name != null && seenManualAssignments.Add(name))
+                    .Select(name => name!)
+                    .ToList();
                 if (!Enum.IsDefined(typeof(GroupSortMode), group.SortMode))
                 {
                     group.SortMode = GroupSortMode.Custom;
@@ -536,6 +552,8 @@ namespace DesktopOrganizer
                     foreach (GroupInfo group in _appLayout.Groups)
                     {
                         group.ItemNames.RemoveAll(item =>
+                            item.Equals(name, StringComparison.OrdinalIgnoreCase));
+                        group.ManuallyAssignedItemNames.RemoveAll(item =>
                             item.Equals(name, StringComparison.OrdinalIgnoreCase));
                     }
                 }

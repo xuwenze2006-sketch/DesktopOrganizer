@@ -28,9 +28,13 @@ namespace DesktopOrganizer
             var moves = new List<AutoCategoryMembershipMove>();
             foreach (GroupInfo group in groups.Where(candidate => candidate.IsAutoCategory))
             {
+                var manuallyAssignedNames = new HashSet<string>(
+                    group.ManuallyAssignedItemNames ?? Enumerable.Empty<string>(),
+                    StringComparer.OrdinalIgnoreCase);
                 foreach (string name in group.ItemNames)
                 {
-                    if (!reliableCategoryNames.Contains(name) ||
+                    if (manuallyAssignedNames.Contains(name) ||
+                        !reliableCategoryNames.Contains(name) ||
                         !categories.TryGetValue(name, out DesktopCategoryDefinition? targetCategory) ||
                         targetCategory is null ||
                         string.Equals(
@@ -78,6 +82,8 @@ namespace DesktopOrganizer
                     continue;
                 }
 
+                source.ManuallyAssignedItemNames?.RemoveAll(name =>
+                    name.Equals(move.ItemName, StringComparison.OrdinalIgnoreCase));
                 appliedMoves.Add(move);
                 affectedGroups.Add(source);
             }
@@ -122,19 +128,51 @@ namespace DesktopOrganizer
                     }
                 }
 
-                target.ItemNames = target.ItemNames
+                IEnumerable<string> normalizedItems = target.ItemNames
                     .Where(itemExists)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
-                    .ToList();
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+                target.ItemNames = target.SortMode == GroupSortMode.Custom
+                    ? normalizedItems.ToList()
+                    : normalizedItems
+                        .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                        .ToList();
                 affectedGroups.Add(target);
             }
 
             groups.RemoveAll(group =>
                 group.IsAutoCategory && group.ItemNames.Count == 0);
+            foreach (GroupInfo group in groups)
+            {
+                NormalizeManualAssignments(group);
+            }
             return new AutoCategoryMembershipUpdateResult(
                 Changed: true,
                 affectedGroups.Where(groups.Contains).ToList());
+        }
+
+        private static void NormalizeManualAssignments(GroupInfo group)
+        {
+            var canonicalNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string name in group.ItemNames)
+            {
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    canonicalNames.TryAdd(name, name);
+                }
+            }
+            var normalized = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string name in group.ManuallyAssignedItemNames ?? Enumerable.Empty<string>())
+            {
+                if (!string.IsNullOrWhiteSpace(name) &&
+                    canonicalNames.TryGetValue(name, out string? canonicalName) &&
+                    seen.Add(canonicalName))
+                {
+                    normalized.Add(canonicalName);
+                }
+            }
+
+            group.ManuallyAssignedItemNames = normalized;
         }
     }
 }

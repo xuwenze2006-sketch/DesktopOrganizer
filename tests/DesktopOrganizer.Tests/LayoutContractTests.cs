@@ -11,7 +11,7 @@ public sealed class LayoutContractTests
     {
         var layout = new AppLayoutData();
 
-        Assert.AreEqual(18, layout.Version);
+        Assert.AreEqual(19, layout.Version);
         Assert.IsTrue(layout.SnapToGrid);
         Assert.IsTrue(layout.PushReflowEnabled);
         Assert.IsTrue(layout.AutoCollapseControlPanel);
@@ -30,7 +30,7 @@ public sealed class LayoutContractTests
     {
         var original = new AppLayoutData
         {
-            Version = 18,
+            Version = 19,
             SaveGeneration = 42,
             SnapToGrid = false,
             AutoClassifyNewItems = true,
@@ -53,6 +53,7 @@ public sealed class LayoutContractTests
                     Id = "group-1",
                     Name = "文档",
                     ItemNames = ["readme.txt"],
+                    ManuallyAssignedItemNames = ["readme.txt"],
                     SortMode = GroupSortMode.Name,
                     IsAutoCategory = true,
                     AutoCategoryKey = "documents",
@@ -147,7 +148,7 @@ public sealed class LayoutContractTests
         AppLayoutData restored = JsonSerializer.Deserialize<AppLayoutData>(json)
             ?? throw new AssertFailedException("布局 JSON 反序列化返回 null。");
 
-        Assert.AreEqual(18, restored.Version);
+        Assert.AreEqual(19, restored.Version);
         Assert.AreEqual(42L, restored.SaveGeneration);
         Assert.IsFalse(restored.SnapToGrid);
         Assert.IsTrue(restored.AutoClassifyNewItems);
@@ -161,6 +162,9 @@ public sealed class LayoutContractTests
         Assert.AreEqual(11.5, restored.FreeIcons["readme.txt"].X);
         Assert.AreEqual(GroupSortMode.Name, restored.Groups[0].SortMode);
         Assert.AreEqual("documents", restored.Groups[0].AutoCategoryKey);
+        CollectionAssert.AreEqual(
+            new[] { "readme.txt" },
+            restored.Groups[0].ManuallyAssignedItemNames);
         Assert.AreEqual(96u, restored.DesktopTopology[0].DpiX);
         Assert.AreEqual("volume:file-id", restored.ItemIdentities["readme.txt"].FileId);
         Assert.AreEqual(223456789L, restored.ItemIdentities["readme.txt"].LastWriteTimeUtcTicks);
@@ -177,5 +181,17 @@ public sealed class LayoutContractTests
         Assert.AreEqual(@"C:\Data", restored.FolderPortals[0].RootPath);
         Assert.AreEqual(@"Projects\Current", restored.FolderPortals[0].CurrentRelativePath);
         Assert.IsTrue(restored.FolderPortals[0].IsCollapsed);
+    }
+
+    [TestMethod]
+    public void LegacyGroupWithoutManualAssignments_UsesEmptyCompatibleDefault()
+    {
+        GroupInfo restored = JsonSerializer.Deserialize<GroupInfo>(
+            """{"ItemNames":["legacy.txt"]}""")
+            ?? throw new AssertFailedException("旧分组 JSON 反序列化返回 null。");
+
+        CollectionAssert.AreEqual(new[] { "legacy.txt" }, restored.ItemNames);
+        Assert.IsNotNull(restored.ManuallyAssignedItemNames);
+        Assert.AreEqual(0, restored.ManuallyAssignedItemNames.Count);
     }
 }

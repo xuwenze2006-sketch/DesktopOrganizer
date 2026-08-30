@@ -44,6 +44,12 @@ namespace DesktopOrganizer
         public double Height { get; set; } = 200;
         public List<string> ItemNames { get; set; } = new();
 
+        /// <summary>
+        /// 用户明确拖入当前分类框的项目。自动分类与规则不得改写这些人工归属；
+        /// 该列表始终是 ItemNames 的大小写不敏感子集。
+        /// </summary>
+        public List<string> ManuallyAssignedItemNames { get; set; } = new();
+
         /// <summary>收起时只显示标题栏，减少桌面遮挡；Height 始终保存展开高度。</summary>
         public bool IsCollapsed { get; set; }
 
@@ -94,7 +100,7 @@ namespace DesktopOrganizer
     /// </summary>
     internal sealed class WorkspaceLayoutState
     {
-        public int Version { get; set; } = 1;
+        public int Version { get; set; } = 3;
         public double? ControlPanelX { get; set; }
         public double? ControlPanelY { get; set; }
         public RecycleBinWidgetLayoutInfo RecycleBinWidget { get; set; } = new();
@@ -118,7 +124,7 @@ namespace DesktopOrganizer
     /// <summary>布局持久化根对象。</summary>
     internal sealed class AppLayoutData
     {
-        public int Version { get; set; } = 18;
+        public int Version { get; set; } = 19;
         public long SaveGeneration { get; set; }
         public bool SnapToGrid { get; set; } = true;
         public bool PushReflowEnabled { get; set; } = true;

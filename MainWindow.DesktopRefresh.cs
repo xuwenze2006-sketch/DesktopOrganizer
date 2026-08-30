@@ -680,6 +680,12 @@ namespace DesktopOrganizer
                         changed = true;
                     }
                 }
+
+                var retainedNames = new HashSet<string>(
+                    group.ItemNames,
+                    StringComparer.OrdinalIgnoreCase);
+                changed |= group.ManuallyAssignedItemNames.RemoveAll(name =>
+                    !retainedNames.Contains(name)) > 0;
             }
 
             // 自动分类没有项目时直接移除，避免留下截图中那种空白大框；手工空分组保留。

@@ -366,7 +366,7 @@ namespace DesktopOrganizer
             {
                 WorkspaceId = workspaceId,
                 SourceGroupId = group?.Id,
-                SourceGroup = ToJournalGroupSnapshot(group),
+                SourceGroup = ToJournalGroupSnapshot(group, displayName),
                 SourceGroupItemIndex = groupIndex,
                 FreePosition = ToJournalPosition(freePosition),
                 AutoClassificationOriginalPosition = ToJournalPosition(autoPosition)
@@ -381,7 +381,9 @@ namespace DesktopOrganizer
         private static IconPosition? FromJournalPosition(FileOperationPositionSnapshot? position) =>
             position == null ? null : new IconPosition { X = position.X, Y = position.Y };
 
-        private static FileOperationGroupSnapshot? ToJournalGroupSnapshot(GroupInfo? group) =>
+        private static FileOperationGroupSnapshot? ToJournalGroupSnapshot(
+            GroupInfo? group,
+            string? itemName = null) =>
             group == null
                 ? null
                 : new FileOperationGroupSnapshot
@@ -397,7 +399,12 @@ namespace DesktopOrganizer
                     AutoCategoryKey = group.AutoCategoryKey,
                     UserRuleId = group.UserRuleId,
                     IsSizeLocked = group.IsSizeLocked,
-                    SortMode = group.SortMode.ToString()
+                    SortMode = group.SortMode.ToString(),
+                    ManuallyAssignedItemNames = string.IsNullOrWhiteSpace(itemName)
+                        ? group.ManuallyAssignedItemNames.ToList()
+                        : group.ManuallyAssignedItemNames
+                            .Where(name => name.Equals(itemName, StringComparison.OrdinalIgnoreCase))
+                            .ToList()
                 };
 
         private static GroupInfo? FromJournalGroupSnapshot(FileOperationGroupSnapshot? group)
@@ -422,7 +429,11 @@ namespace DesktopOrganizer
                 UserRuleId = group.UserRuleId,
                 IsSizeLocked = group.IsSizeLocked,
                 SortMode = Enum.IsDefined(sortMode) ? sortMode : GroupSortMode.Custom,
-                ItemNames = new List<string>()
+                ItemNames = new List<string>(),
+                ManuallyAssignedItemNames = (group.ManuallyAssignedItemNames ?? new List<string>())
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()
             };
         }
 
@@ -479,6 +490,8 @@ namespace DesktopOrganizer
             {
                 group.ItemNames.RemoveAll(item =>
                     item.Equals(displayName, StringComparison.OrdinalIgnoreCase));
+                group.ManuallyAssignedItemNames.RemoveAll(item =>
+                    item.Equals(displayName, StringComparison.OrdinalIgnoreCase));
             }
             layout.FreeIcons.Remove(displayName);
 
@@ -510,6 +523,15 @@ namespace DesktopOrganizer
                     0,
                     originalGroup.ItemNames.Count);
                 originalGroup.ItemNames.Insert(restoreIndex, displayName);
+                if (placement.SourceGroup?.ManuallyAssignedItemNames.Contains(
+                        displayName,
+                        StringComparer.OrdinalIgnoreCase) == true &&
+                    !originalGroup.ManuallyAssignedItemNames.Contains(
+                        displayName,
+                        StringComparer.OrdinalIgnoreCase))
+                {
+                    originalGroup.ManuallyAssignedItemNames.Add(displayName);
+                }
             }
             else
             {

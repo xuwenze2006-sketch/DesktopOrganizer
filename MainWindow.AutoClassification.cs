@@ -73,8 +73,9 @@ namespace DesktopOrganizer
                 Dictionary<string, string> existing = snapshot.Items;
                 var manualGroupedNames = new HashSet<string>(
                     _appLayout.Groups
-                        .Where(group => !group.IsAutoCategory)
-                        .SelectMany(group => group.ItemNames),
+                        .SelectMany(group => group.IsAutoCategory
+                            ? group.ManuallyAssignedItemNames
+                            : group.ItemNames),
                     StringComparer.OrdinalIgnoreCase);
 
                 List<string> candidateNames = existing.Keys
@@ -329,10 +330,25 @@ namespace DesktopOrganizer
             Dictionary<DesktopCategoryDefinition, List<string>> plan,
             Dictionary<string, string> existing)
         {
-            var previousAutoGroups = _appLayout.Groups
+            List<GroupInfo> previousGroups = _appLayout.Groups
                 .Where(group => group.IsAutoCategory && !string.IsNullOrWhiteSpace(group.AutoCategoryKey))
+                .ToList();
+            var previousAutoGroups = previousGroups
                 .GroupBy(group => group.AutoCategoryKey!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
+            var manualAssignmentsByCategory = previousGroups
+                .GroupBy(group => group.AutoCategoryKey!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    grouping => grouping.Key,
+                    grouping => grouping
+                        .SelectMany(group => group.ItemNames.Where(name =>
+                            group.ManuallyAssignedItemNames.Contains(
+                                name,
+                                StringComparer.OrdinalIgnoreCase)))
+                        .Where(existing.ContainsKey)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList(),
+                    StringComparer.OrdinalIgnoreCase);
 
             var candidateNames = new HashSet<string>(
                 plan.SelectMany(pair => pair.Value),
@@ -354,17 +370,47 @@ namespace DesktopOrganizer
                 _appLayout.FreeIcons.Remove(name);
             }
 
+            var rebuiltCategoryKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach ((DesktopCategoryDefinition category, List<string> names) in plan
                          .OrderBy(pair => pair.Key.Order))
             {
-                if (names.Count == 0)
+                previousAutoGroups.TryGetValue(category.Key, out GroupInfo? previous);
+                List<string> manualAssignments = manualAssignmentsByCategory.TryGetValue(
+                    category.Key,
+                    out List<string>? preservedManualAssignments)
+                    ? preservedManualAssignments
+                    : new List<string>();
+                List<string> plannedNames = names
+                    .Where(existing.ContainsKey)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (plannedNames.Count == 0 && manualAssignments.Count == 0)
                 {
                     continue;
                 }
 
                 GroupInfo group;
-                if (previousAutoGroups.TryGetValue(category.Key, out GroupInfo? previous))
+                if (previous != null)
                 {
+                    var retainedNames = new HashSet<string>(
+                        plannedNames.Concat(manualAssignments),
+                        StringComparer.OrdinalIgnoreCase);
+                    List<string> combinedNames = previous.SortMode == GroupSortMode.Custom
+                        ? previous.ItemNames
+                            .Where(retainedNames.Contains)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList()
+                        : retainedNames
+                            .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                            .ToList();
+                    foreach (string name in manualAssignments.Concat(plannedNames))
+                    {
+                        if (!combinedNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            combinedNames.Add(name);
+                        }
+                    }
+
                     group = new GroupInfo
                     {
                         Id = previous.Id,
@@ -378,17 +424,49 @@ namespace DesktopOrganizer
                         SortMode = previous.SortMode,
                         IsAutoCategory = true,
                         AutoCategoryKey = category.Key,
-                        ItemNames = names.Where(existing.ContainsKey).ToList()
+                        ItemNames = combinedNames,
+                        ManuallyAssignedItemNames = manualAssignments
                     };
                     ClampGroupToCanvas(group);
                 }
                 else
                 {
-                    group = CreateAutoCategoryGroup(category, names.Where(existing.ContainsKey));
+                    group = CreateAutoCategoryGroup(category, plannedNames);
                 }
 
                 UpdateAutoCategoryGroupSize(group);
                 _appLayout.Groups.Add(group);
+                rebuiltCategoryKeys.Add(category.Key);
+            }
+
+            foreach ((string categoryKey, GroupInfo previous) in previousAutoGroups)
+            {
+                if (rebuiltCategoryKeys.Contains(categoryKey) ||
+                    !manualAssignmentsByCategory.TryGetValue(
+                        categoryKey,
+                        out List<string>? manualAssignments) ||
+                    manualAssignments.Count == 0)
+                {
+                    continue;
+                }
+
+                var manualSet = new HashSet<string>(
+                    manualAssignments,
+                    StringComparer.OrdinalIgnoreCase);
+                previous.ItemNames = previous.ItemNames
+                    .Where(manualSet.Contains)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                foreach (string name in manualAssignments)
+                {
+                    if (!previous.ItemNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        previous.ItemNames.Add(name);
+                    }
+                }
+                previous.ManuallyAssignedItemNames = manualAssignments;
+                UpdateAutoCategoryGroupSize(previous);
+                _appLayout.Groups.Add(previous);
             }
 
             RebuildDesktopIconsAndSaveLayout();
@@ -442,11 +520,14 @@ namespace DesktopOrganizer
                     }
                 }
 
-                group.ItemNames = group.ItemNames
+                IEnumerable<string> normalizedNames = group.ItemNames
                     .Where(existing.ContainsKey)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
-                    .ToList();
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+                group.ItemNames = group.SortMode == GroupSortMode.Custom
+                    ? normalizedNames.ToList()
+                    : normalizedNames
+                        .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                        .ToList();
                 UpdateAutoCategoryGroupSize(group);
             }
 

@@ -88,7 +88,8 @@ public sealed class FileOperationJournalTests
                 {
                     Id = "group-1",
                     Name = "规则分组",
-                    UserRuleId = "rule-1"
+                    UserRuleId = "rule-1",
+                    ManuallyAssignedItemNames = ["item.txt"]
                 },
                 SourceGroupItemIndex = 4,
                 FreePosition = new FileOperationPositionSnapshot { X = 12.5, Y = 30.25 },
@@ -138,6 +139,9 @@ public sealed class FileOperationJournalTests
             Assert.AreEqual("earlier-entry", restored.UndoOfEntryId);
             Assert.AreEqual("workspace-1", restored.LayoutSnapshot?.SourceWorkspaceId);
             Assert.AreEqual("rule-1", restored.LayoutSnapshot?.SourceGroup?.UserRuleId);
+            CollectionAssert.AreEqual(
+                new[] { "item.txt" },
+                restored.LayoutSnapshot?.SourceGroup?.ManuallyAssignedItemNames);
             Assert.AreEqual(12.5, restored.LayoutSnapshot?.FreePosition?.X);
             CollectionAssert.AreEqual(
                 new[] { "重要", "资料" },

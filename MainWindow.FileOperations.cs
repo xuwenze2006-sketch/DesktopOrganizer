@@ -141,6 +141,8 @@ namespace DesktopOrganizer
             {
                 layoutGroup.ItemNames.RemoveAll(item =>
                     item.Equals(displayName, StringComparison.OrdinalIgnoreCase));
+                layoutGroup.ManuallyAssignedItemNames.RemoveAll(item =>
+                    item.Equals(displayName, StringComparison.OrdinalIgnoreCase));
             }
 
             _appLayout.FreeIcons.Remove(displayName);
@@ -1099,6 +1101,15 @@ namespace DesktopOrganizer
                         originalGroup.ItemNames.Count);
                     originalGroup.ItemNames.Insert(restoreIndex, record.DisplayName);
                 }
+                if (record.SourceGroupSnapshot?.ManuallyAssignedItemNames.Contains(
+                        record.DisplayName,
+                        StringComparer.OrdinalIgnoreCase) == true &&
+                    !originalGroup.ManuallyAssignedItemNames.Contains(
+                        record.DisplayName,
+                        StringComparer.OrdinalIgnoreCase))
+                {
+                    originalGroup.ManuallyAssignedItemNames.Add(record.DisplayName);
+                }
                 _appLayout.FreeIcons.Remove(record.DisplayName);
             }
             else
@@ -1150,6 +1161,15 @@ namespace DesktopOrganizer
                         0,
                         originalGroup.ItemNames.Count);
                     originalGroup.ItemNames.Insert(restoreIndex, record.DisplayName);
+                }
+                if (record.SourceGroupSnapshot?.ManuallyAssignedItemNames.Contains(
+                        record.DisplayName,
+                        StringComparer.OrdinalIgnoreCase) == true &&
+                    !originalGroup.ManuallyAssignedItemNames.Contains(
+                        record.DisplayName,
+                        StringComparer.OrdinalIgnoreCase))
+                {
+                    originalGroup.ManuallyAssignedItemNames.Add(record.DisplayName);
                 }
                 layout.FreeIcons.Remove(record.DisplayName);
             }

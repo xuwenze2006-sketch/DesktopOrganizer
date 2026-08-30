@@ -137,6 +137,8 @@ namespace DesktopOrganizer
                 {
                     group.ItemNames.RemoveAll(item =>
                         item.Equals(displayName, StringComparison.OrdinalIgnoreCase));
+                    group.ManuallyAssignedItemNames.RemoveAll(item =>
+                        item.Equals(displayName, StringComparison.OrdinalIgnoreCase));
                 }
                 workspace.Layout.FreeIcons.Remove(displayName);
                 workspace.Layout.AutoClassificationOriginalPositions.Remove(displayName);
@@ -158,7 +160,7 @@ namespace DesktopOrganizer
 
         public static WorkspaceLayoutState Capture(AppLayoutData layout) => new()
         {
-            Version = 2,
+            Version = 3,
             ControlPanelX = layout.ControlPanelX,
             ControlPanelY = layout.ControlPanelY,
             RecycleBinWidget = Clone(layout.RecycleBinWidget),
@@ -250,7 +252,7 @@ namespace DesktopOrganizer
 
         private static void Normalize(WorkspaceLayoutState snapshot)
         {
-            snapshot.Version = 2;
+            snapshot.Version = 3;
             snapshot.RecycleBinWidget ??= new RecycleBinWidgetLayoutInfo();
             snapshot.FreeIcons ??= new Dictionary<string, IconPosition>();
             snapshot.Groups ??= new List<GroupInfo>();
@@ -335,25 +337,45 @@ namespace DesktopOrganizer
             IsVisible = widget.IsVisible
         };
 
-        private static GroupInfo Clone(GroupInfo group) => new()
+        private static GroupInfo Clone(GroupInfo group)
         {
-            Id = group.Id,
-            Name = group.Name,
-            X = group.X,
-            Y = group.Y,
-            Width = group.Width,
-            Height = group.Height,
-            ItemNames = (group.ItemNames ?? new List<string>())
+            List<string> itemNames = (group.ItemNames ?? new List<string>())
                 .Where(item => !string.IsNullOrWhiteSpace(item))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList(),
-            IsCollapsed = group.IsCollapsed,
-            IsAutoCategory = group.IsAutoCategory,
-            AutoCategoryKey = group.AutoCategoryKey,
-            UserRuleId = group.UserRuleId,
-            IsSizeLocked = group.IsSizeLocked,
-            SortMode = group.SortMode
-        };
+                .ToList();
+            var canonicalItemNames = itemNames.ToDictionary(
+                item => item,
+                item => item,
+                StringComparer.OrdinalIgnoreCase);
+            var seenManualAssignments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            List<string> manuallyAssignedItemNames =
+                (group.ManuallyAssignedItemNames ?? new List<string>())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => canonicalItemNames.TryGetValue(item, out string? canonicalItem)
+                    ? canonicalItem
+                    : null)
+                .Where(item => item != null && seenManualAssignments.Add(item))
+                .Select(item => item!)
+                .ToList();
+
+            return new GroupInfo
+            {
+                Id = group.Id,
+                Name = group.Name,
+                X = group.X,
+                Y = group.Y,
+                Width = group.Width,
+                Height = group.Height,
+                ItemNames = itemNames,
+                ManuallyAssignedItemNames = manuallyAssignedItemNames,
+                IsCollapsed = group.IsCollapsed,
+                IsAutoCategory = group.IsAutoCategory,
+                AutoCategoryKey = group.AutoCategoryKey,
+                UserRuleId = group.UserRuleId,
+                IsSizeLocked = group.IsSizeLocked,
+                SortMode = group.SortMode
+            };
+        }
 
         private static DesktopMonitorLayoutInfo Clone(DesktopMonitorLayoutInfo monitor) => new()
         {

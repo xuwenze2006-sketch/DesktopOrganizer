@@ -113,6 +113,26 @@ public sealed class AutoCategoryMembershipPlannerTests
     }
 
     [TestMethod]
+    public void Plan_ManuallyAssignedAutoMember_DoesNotMove()
+    {
+        GroupInfo source = CreateAutoGroup("source", "folders", "Project");
+        source.ManuallyAssignedItemNames = ["project"];
+        var categories = new Dictionary<string, DesktopCategoryDefinition>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Project"] = DevelopmentProjects
+        };
+
+        IReadOnlyList<AutoCategoryMembershipMove> moves =
+            AutoCategoryMembershipPlanner.Plan(
+                new[] { source },
+                categories,
+                new HashSet<string>(new[] { "Project" }, StringComparer.OrdinalIgnoreCase),
+                paused: false);
+
+        Assert.AreEqual(0, moves.Count);
+    }
+
+    [TestMethod]
     public void Apply_ExistingTarget_MergesAndRemovesEmptySource()
     {
         GroupInfo source = CreateAutoGroup("source", "folders", "Project");
@@ -186,6 +206,32 @@ public sealed class AutoCategoryMembershipPlannerTests
         Assert.AreEqual(2, groups.Count);
         CollectionAssert.AreEqual(new[] { "Folder" }, folders.ItemNames);
         CollectionAssert.AreEqual(new[] { "Project" }, projects.ItemNames);
+    }
+
+    [TestMethod]
+    public void Apply_CustomTarget_PreservesStoredOrderAndCleansManualMarkers()
+    {
+        GroupInfo source = CreateAutoGroup("source", "folders", "Project", "Keep");
+        source.ManuallyAssignedItemNames = ["Project", "Keep", "missing"];
+        GroupInfo target = CreateAutoGroup(
+            "target",
+            "development-projects",
+            "Zulu",
+            "Alpha");
+        target.ManuallyAssignedItemNames = ["alpha", "stale"];
+        var groups = new List<GroupInfo> { source, target };
+
+        AutoCategoryMembershipUpdateResult result = AutoCategoryMembershipPlanner.Apply(
+            groups,
+            [new AutoCategoryMembershipMove("Project", "source", DevelopmentProjects)],
+            _ => true,
+            category => CreateAutoGroup("unexpected", category.Key));
+
+        Assert.IsTrue(result.Changed);
+        CollectionAssert.AreEqual(new[] { "Keep" }, source.ItemNames);
+        CollectionAssert.AreEqual(new[] { "Keep" }, source.ManuallyAssignedItemNames);
+        CollectionAssert.AreEqual(new[] { "Zulu", "Alpha", "Project" }, target.ItemNames);
+        CollectionAssert.AreEqual(new[] { "Alpha" }, target.ManuallyAssignedItemNames);
     }
 
     private static GroupInfo CreateAutoGroup(string id, string categoryKey, params string[] names) =>

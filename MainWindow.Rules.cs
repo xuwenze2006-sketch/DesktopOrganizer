@@ -460,9 +460,12 @@ namespace DesktopOrganizer
             {
                 _appLayout.ItemIdentities.TryGetValue(name, out DesktopItemIdentityInfo? identity);
                 GroupInfo? manualGroup = _appLayout.Groups.FirstOrDefault(group =>
-                    !group.IsAutoCategory &&
-                    string.IsNullOrWhiteSpace(group.UserRuleId) &&
-                    group.ItemNames.Contains(name, StringComparer.OrdinalIgnoreCase));
+                    ((!group.IsAutoCategory &&
+                      string.IsNullOrWhiteSpace(group.UserRuleId) &&
+                      group.ItemNames.Contains(name, StringComparer.OrdinalIgnoreCase)) ||
+                     group.ManuallyAssignedItemNames.Contains(
+                         name,
+                         StringComparer.OrdinalIgnoreCase)));
                 bool reliable = _reliableDesktopCategoryNames.Contains(name);
                 bool isDirectory = identity?.IsDirectory == true;
                 bool? hasMarker = !isDirectory || identity?.Kind == DesktopItemKind.ShellNamespace
@@ -500,6 +503,15 @@ namespace DesktopOrganizer
                     !ShellItemLocation.AreEquivalent(currentLocation, action.Location))
                 {
                     error = "桌面项目在执行前发生变化；规则没有应用。";
+                    return false;
+                }
+                if (action.Action.Kind != OrganizationRuleActionKind.AddTag &&
+                    _appLayout.Groups.Any(group =>
+                        group.ManuallyAssignedItemNames.Contains(
+                            action.DisplayName,
+                            StringComparer.OrdinalIgnoreCase)))
+                {
+                    error = "桌面项目在预览后被手工归组；规则没有应用。";
                     return false;
                 }
             }
@@ -604,6 +616,8 @@ namespace DesktopOrganizer
                 }
                 changed |= group.ItemNames.RemoveAll(item =>
                     item.Equals(name, StringComparison.OrdinalIgnoreCase)) > 0;
+                changed |= group.ManuallyAssignedItemNames.RemoveAll(item =>
+                    item.Equals(name, StringComparison.OrdinalIgnoreCase)) > 0;
             }
             if (!target.ItemNames.Contains(name, StringComparer.OrdinalIgnoreCase))
             {
@@ -629,6 +643,8 @@ namespace DesktopOrganizer
                          group.IsAutoCategory || !string.IsNullOrWhiteSpace(group.UserRuleId)))
             {
                 changed |= group.ItemNames.RemoveAll(item =>
+                    item.Equals(name, StringComparison.OrdinalIgnoreCase)) > 0;
+                changed |= group.ManuallyAssignedItemNames.RemoveAll(item =>
                     item.Equals(name, StringComparison.OrdinalIgnoreCase)) > 0;
             }
             if (!_appLayout.InboxItems.ContainsKey(name) &&

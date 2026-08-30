@@ -244,9 +244,12 @@ namespace DesktopOrganizer
 
             if (groups.Any(group =>
                     group is not null &&
-                    !group.IsAutoCategory &&
-                    string.IsNullOrWhiteSpace(group.UserRuleId) &&
-                    group.ItemNames?.Contains(actualName!, StringComparer.OrdinalIgnoreCase) == true))
+                    ((!group.IsAutoCategory &&
+                      string.IsNullOrWhiteSpace(group.UserRuleId) &&
+                      group.ItemNames?.Contains(actualName!, StringComparer.OrdinalIgnoreCase) == true) ||
+                     group.ManuallyAssignedItemNames?.Contains(
+                         actualName!,
+                         StringComparer.OrdinalIgnoreCase) == true)))
             {
                 return new InboxActionResult(
                     InboxActionOutcome.ManualGroupProtected,
@@ -431,11 +434,16 @@ namespace DesktopOrganizer
             {
                 group.ItemNames.RemoveAll(item =>
                     item.Equals(actualName, StringComparison.OrdinalIgnoreCase));
+                group.ManuallyAssignedItemNames ??= new List<string>();
+                group.ManuallyAssignedItemNames.RemoveAll(item =>
+                    item.Equals(actualName, StringComparison.OrdinalIgnoreCase));
             }
             if (!target.ItemNames.Contains(actualName!, StringComparer.OrdinalIgnoreCase))
             {
                 target.ItemNames.Add(actualName!);
             }
+            target.ManuallyAssignedItemNames.Add(actualName!);
+            target.SortMode = GroupSortMode.Custom;
 
             freeIcons.Remove(FindActualKey(freeIcons, actualName!) ?? actualName!);
             autoClassificationOriginalPositions.Remove(

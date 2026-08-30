@@ -279,6 +279,8 @@ namespace DesktopOrganizer
             {
                 candidate.ItemNames.RemoveAll(name =>
                     name.Equals(plan.DisplayName, StringComparison.OrdinalIgnoreCase));
+                candidate.ManuallyAssignedItemNames.RemoveAll(name =>
+                    name.Equals(plan.DisplayName, StringComparison.OrdinalIgnoreCase));
             }
 
             GroupInfo? target = _appLayout.Groups.LastOrDefault(candidate =>

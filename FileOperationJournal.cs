@@ -41,6 +41,7 @@ namespace DesktopOrganizer
         public string? UserRuleId { get; set; }
         public bool IsSizeLocked { get; set; }
         public string SortMode { get; set; } = "Custom";
+        public List<string> ManuallyAssignedItemNames { get; set; } = new();
     }
 
     /// <summary>一个项目在某个命名工作区中的视觉位置快照。</summary>

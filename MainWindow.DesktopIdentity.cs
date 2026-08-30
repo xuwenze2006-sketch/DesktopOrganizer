@@ -360,6 +360,10 @@ namespace DesktopOrganizer
                 foreach (GroupInfo group in workspace.Layout.Groups)
                 {
                     group.ItemNames = TransformNameList(group.ItemNames, renameMap, targetNames);
+                    group.ManuallyAssignedItemNames = TransformNameList(
+                        group.ManuallyAssignedItemNames,
+                        renameMap,
+                        targetNames);
                 }
             }
             if (_pushPreviewOriginalPositions != null)
@@ -374,6 +378,10 @@ namespace DesktopOrganizer
             foreach (GroupInfo group in _appLayout.Groups)
             {
                 group.ItemNames = TransformNameList(group.ItemNames, renameMap, targetNames);
+                group.ManuallyAssignedItemNames = TransformNameList(
+                    group.ManuallyAssignedItemNames,
+                    renameMap,
+                    targetNames);
             }
 
             List<string> selectedNames = TransformNameList(
@@ -483,6 +491,10 @@ namespace DesktopOrganizer
                 {
                     record.SourceGroupSnapshot.ItemNames = TransformNameList(
                         record.SourceGroupSnapshot.ItemNames,
+                        renameMap,
+                        targetNames);
+                    record.SourceGroupSnapshot.ManuallyAssignedItemNames = TransformNameList(
+                        record.SourceGroupSnapshot.ManuallyAssignedItemNames,
                         renameMap,
                         targetNames);
                 }

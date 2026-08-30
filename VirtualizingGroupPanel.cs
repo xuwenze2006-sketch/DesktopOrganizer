@@ -75,6 +75,29 @@ namespace DesktopOrganizer
         }
 
         /// <summary>
+        /// 将面板局部坐标换算为当前完整项目快照中的插入边界。
+        /// 拖动源被 <see cref="DetachForDrag"/> 抑制后仍保留在 <see cref="_items"/>
+        /// 中，因此这里传递的项目数包含拖动源；移除源项目后的索引校正由
+        /// <see cref="GroupItemDropPolicy"/> 在应用重排时完成。
+        /// </summary>
+        public int CalculateInsertionBoundary(Point position) =>
+            GroupItemDropPolicy.CalculateInsertionBoundary(
+                position.X,
+                position.Y,
+                _columnCount,
+                _slotWidth,
+                _rowHeight,
+                _verticalOffset,
+                _items.Count);
+
+        /// <summary>
+        /// 返回与当前已渲染槽位完全一致的项目顺序。拖动期间源项目仍保留在该快照中，
+        /// 供落点边界和排序应用共享同一份顺序基准。
+        /// </summary>
+        public IReadOnlyList<string> GetItemNamesSnapshot() =>
+            _items.Select(item => item.DisplayName).ToArray();
+
+        /// <summary>
         /// 将已实现的图标从虚拟化面板中取出用于拖动，并阻止同一索引在拖动结束前被重新创建。
         /// </summary>
         public bool DetachForDrag(FrameworkElement element)

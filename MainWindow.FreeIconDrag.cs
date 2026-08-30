@@ -87,13 +87,12 @@ namespace DesktopOrganizer
                 return;
             }
 
-            UpdatePhysicalFolderDropPreview(canvasPosition, _draggedElement as FrameworkElement);
             UpdateGroupDropPreview(canvasPosition, _draggedElement as FrameworkElement);
-            if (_activePhysicalFolderDropPath != null)
+            UpdatePhysicalFolderDropPreview(canvasPosition, _draggedElement as FrameworkElement);
+            if (_activePhysicalFolderDropPath != null || _activeGroupDropTarget != null)
             {
-                // 真实文件夹投放具有最高优先级。进入文件夹目标后必须立即撤销
-                // 挤压预览，否则目标文件夹本身会被挤走，状态提示也会被
-                // “插入到图标前”覆盖，最终动作可能随动画时机发生变化。
+                // 分类框和真实文件夹投放期间不显示自由图标挤压预览，避免目标
+                // 被动画挤走或状态提示被“插入到图标前”覆盖。
                 CancelPushPreview(restoreVisuals: true);
             }
             else if (_dragAllowsLayoutMove)
@@ -176,9 +175,37 @@ namespace DesktopOrganizer
                 }
             }
 
+            bool preferPhysicalFolder =
+                (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+            if (_activeGroupDropTarget != null && !preferPhysicalFolder)
+            {
+                ClearPhysicalFolderDropPreview();
+                GroupInfo? sourceGroup = draggedElement?.Tag is IconTag sourceTag
+                    ? sourceTag.Group ?? _groupedIconDragSourceGroup
+                    : null;
+                string groupStatus = GetGroupDropStatus(_activeGroupDropTarget, sourceGroup);
+                StatusText.Text = string.IsNullOrWhiteSpace(nextPath)
+                    ? groupStatus
+                    : $"{groupStatus}；按住 Shift 可移入真实文件夹“{Path.GetFileName(nextPath)}”";
+                return;
+            }
+
+            if (preferPhysicalFolder &&
+                nextVisual is Border &&
+                !string.IsNullOrWhiteSpace(nextPath))
+            {
+                // 每次事件都会先重算分类框目标；即使真实文件夹目标未变化，
+                // 也必须先清掉刚恢复的分类框预览，保证最终提示与动作互斥。
+                ClearGroupDropPreview();
+            }
+
             if (ReferenceEquals(nextVisual, _activePhysicalFolderDropVisual) &&
                 string.Equals(nextPath, _activePhysicalFolderDropPath, StringComparison.OrdinalIgnoreCase))
             {
+                if (!string.IsNullOrWhiteSpace(nextPath))
+                {
+                    StatusText.Text = $"松开可移入真实文件夹“{Path.GetFileName(nextPath)}”";
+                }
                 return;
             }
 
@@ -188,6 +215,7 @@ namespace DesktopOrganizer
                 return;
             }
 
+            ClearGroupDropPreview();
             _activePhysicalFolderDropVisual = targetBorder;
             _activePhysicalFolderDropPath = nextPath;
             targetBorder.BorderBrush = FolderDropBorderBrush;
@@ -210,13 +238,6 @@ namespace DesktopOrganizer
 
         private void UpdateGroupDropPreview(Point canvasPoint, FrameworkElement? draggedElement)
         {
-            // 真实文件夹目标优先，避免文件夹图标位于分类框内部时被虚拟分类截获。
-            if (_activePhysicalFolderDropPath != null)
-            {
-                ClearGroupDropPreview();
-                return;
-            }
-
             GroupInfo? sourceGroup = draggedElement?.Tag is IconTag tag
                 ? tag.Group ?? _groupedIconDragSourceGroup
                 : null;
@@ -224,8 +245,7 @@ namespace DesktopOrganizer
             GroupInfo? nextGroup = null;
             foreach (GroupInfo group in _appLayout.Groups)
             {
-                if (ReferenceEquals(group, sourceGroup) ||
-                    !_groupDropTargets.TryGetValue(group.Id, out FrameworkElement? visual) ||
+                if (!_groupDropTargets.TryGetValue(group.Id, out FrameworkElement? visual) ||
                     !visual.IsVisible)
                 {
                     continue;
@@ -255,7 +275,53 @@ namespace DesktopOrganizer
             targetBorder.BorderBrush = GroupDropBorderBrush;
             targetBorder.BorderThickness = new Thickness(2);
             targetBorder.Background = GroupDropHighlightBrush;
-            StatusText.Text = $"松开可加入虚拟分类“{nextGroup.Name}”（不会移动真实文件）";
+            StatusText.Text = GetGroupDropStatus(nextGroup, sourceGroup);
+        }
+
+        private static string GetGroupDropStatus(GroupInfo targetGroup, GroupInfo? sourceGroup) =>
+            ReferenceEquals(targetGroup, sourceGroup)
+                ? $"松开可调整“{targetGroup.Name}”中的图标顺序"
+                : $"松开可加入虚拟分类“{targetGroup.Name}”（不会移动真实文件）";
+
+        private (List<string> VisibleOrder, int Boundary) GetGroupDropPlacement(
+            GroupInfo targetGroup,
+            Point canvasPoint)
+        {
+            if (!_groupItemPanels.TryGetValue(targetGroup.Id, out VirtualizingGroupPanel? panel) ||
+                !panel.IsVisible)
+            {
+                List<string> fallbackOrder = GetSortedGroupItemNames(
+                        targetGroup,
+                        _desktopItems)
+                    .ToList();
+                return (fallbackOrder, fallbackOrder.Count);
+            }
+
+            List<string> renderedOrder = panel.GetItemNamesSnapshot().ToList();
+            try
+            {
+                Point panelPoint = IconCanvas.TranslatePoint(canvasPoint, panel);
+                if (panel.ActualWidth <= 0 ||
+                    panel.ActualHeight <= 0 ||
+                    panelPoint.X < 0 ||
+                    panelPoint.Y < 0 ||
+                    panelPoint.X >= panel.ActualWidth ||
+                    panelPoint.Y >= panel.ActualHeight)
+                {
+                    // 标题栏、边框和滚动条也属于分类框投放区域，但不代表具体排序槽位。
+                    return (renderedOrder, renderedOrder.Count);
+                }
+                return (renderedOrder, panel.CalculateInsertionBoundary(panelPoint));
+            }
+            catch (InvalidOperationException)
+            {
+                // 布局刷新或显示器切换期间视觉树可能短暂断开；此时安全地追加到末尾。
+                return (renderedOrder, renderedOrder.Count);
+            }
+            catch (ArgumentException)
+            {
+                return (renderedOrder, renderedOrder.Count);
+            }
         }
 
         private void ClearGroupDropPreview()
@@ -428,7 +494,7 @@ namespace DesktopOrganizer
                 targetFolderPath,
                 allowAutoRename,
                 originalGroup?.Id,
-                CreateUndoGroupSnapshot(originalGroup),
+                CreateUndoGroupSnapshot(originalGroup, displayName),
                 originalGroupItemIndex,
                 originalFreePosition,
                 autoClassificationOriginalPosition,
@@ -567,20 +633,20 @@ namespace DesktopOrganizer
             }
 
             UIElement dragged = _draggedElement;
+            Point finalCanvasPoint = e.GetPosition(IconCanvas);
             bool folderPortalBlocked = false;
             if (dragged is FrameworkElement draggedFrameworkElement)
             {
                 // MouseUp 前先恢复旧预览，再按最终光标位置更新拖动视觉和全部目标，
                 // 避免快速移动时沿用上一个 MouseMove 的坐标或挤压结果。
-                Point finalPoint = e.GetPosition(IconCanvas);
-                double finalLeft = finalPoint.X - _dragStartOffset.X;
-                double finalTop = finalPoint.Y - _dragStartOffset.Y;
+                double finalLeft = finalCanvasPoint.X - _dragStartOffset.X;
+                double finalTop = finalCanvasPoint.Y - _dragStartOffset.Y;
                 ClampIconCoordinates(ref finalLeft, ref finalTop);
                 Canvas.SetLeft(draggedFrameworkElement, finalLeft);
                 Canvas.SetTop(draggedFrameworkElement, finalTop);
 
                 CancelPushPreview(restoreVisuals: true);
-                folderPortalBlocked = IsPointOverFolderPortal(finalPoint) ||
+                folderPortalBlocked = IsPointOverFolderPortal(finalCanvasPoint) ||
                     IntersectsFolderPortal(new Rect(
                         finalLeft,
                         finalTop,
@@ -593,8 +659,8 @@ namespace DesktopOrganizer
                 }
                 else
                 {
-                    UpdatePhysicalFolderDropPreview(finalPoint, draggedFrameworkElement);
-                    UpdateGroupDropPreview(finalPoint, draggedFrameworkElement);
+                    UpdateGroupDropPreview(finalCanvasPoint, draggedFrameworkElement);
+                    UpdatePhysicalFolderDropPreview(finalCanvasPoint, draggedFrameworkElement);
                 }
                 if (!folderPortalBlocked &&
                     _activePhysicalFolderDropPath == null &&
@@ -626,7 +692,6 @@ namespace DesktopOrganizer
                 double top = SafeCanvasCoordinate(Canvas.GetTop(dragged));
                 string name = tag.DisplayName;
                 GroupInfo? sourceGroup = tag.Group ?? _groupedIconDragSourceGroup;
-                var center = new Point(left + IconCellWidth / 2, top + IconCellHeight / 2);
                 bool dropHandled = false;
 
                 if (folderPortalBlocked)
@@ -637,8 +702,8 @@ namespace DesktopOrganizer
                     dropHandled = true;
                 }
 
-                // 真实文件夹投放优先于虚拟分类框。这样即使文件夹图标位于分类框内部，
-                // 把项目准确拖到该文件夹图标上仍会执行真实文件移动。
+                // 两类预览在 MouseUp 前已经互斥：分类框内默认执行虚拟归组，
+                // 分类框内只有按住 Shift 命中文件夹图标时才进入真实文件移动。
                 if (!string.IsNullOrWhiteSpace(physicalFolderTargetPath))
                 {
                     CancelPushPreview(restoreVisuals: true);
@@ -658,40 +723,43 @@ namespace DesktopOrganizer
 
                 if (!dropHandled)
                 {
-                    GroupInfo? targetGroup = previewedGroupTarget ?? _appLayout.Groups.LastOrDefault(group =>
-                        GetGroupBounds(group).Contains(center));
+                    GroupInfo? targetGroup = previewedGroupTarget;
 
                     if (targetGroup != null)
                     {
                         CancelPushPreview(restoreVisuals: true);
                         bool movedBetweenGroups = sourceGroup != null && !ReferenceEquals(sourceGroup, targetGroup);
-                        if (ReferenceEquals(sourceGroup, targetGroup))
-                        {
-                            targetGroup.SortMode = GroupSortMode.Custom;
-                        }
-
                         if (sourceGroup?.IsAutoCategory == true && movedBetweenGroups)
                         {
                             _appLayout.AutoClassificationOriginalPositions.Remove(name);
                         }
 
-                        foreach (GroupInfo group in _appLayout.Groups)
+                        (List<string> targetVisibleOrder, int insertionBoundary) =
+                            GetGroupDropPlacement(targetGroup, finalCanvasPoint);
+                        GroupItemDropResult dropResult = GroupItemDropPolicy.Apply(
+                            _appLayout.Groups,
+                            name,
+                            sourceGroup?.Id,
+                            targetGroup.Id,
+                            insertionBoundary,
+                            targetVisibleOrder);
+                        if (!dropResult.Applied)
                         {
-                            group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+                            RestoreDraggedIconAfterRejectedDrop(dragged, sourceGroup);
+                            StatusText.Text = $"未能调整“{name}”的虚拟分类，图标已恢复";
                         }
-
-                        if (!targetGroup.ItemNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+                        else
                         {
-                            targetGroup.ItemNames.Add(name);
+                            _appLayout.FreeIcons.Remove(name);
+                            RebuildDesktopIcons();
+                            StatusText.Text = sourceGroup == null
+                                ? $"已将“{name}”加入虚拟分类“{targetGroup.Name}”；真实文件未移动"
+                                : dropResult.MovedBetweenGroups
+                                    ? $"已将“{name}”移动到虚拟分类“{targetGroup.Name}”；真实文件未移动"
+                                    : dropResult.Changed
+                                        ? $"已调整“{name}”在“{targetGroup.Name}”中的自定义顺序"
+                                        : $"“{name}”在“{targetGroup.Name}”中的位置未改变";
                         }
-
-                        _appLayout.FreeIcons.Remove(name);
-                        RebuildDesktopIcons();
-                        StatusText.Text = sourceGroup == null
-                            ? $"已将“{name}”加入虚拟分类“{targetGroup.Name}”；真实文件未移动"
-                            : movedBetweenGroups
-                                ? $"已将“{name}”移动到虚拟分类“{targetGroup.Name}”；真实文件未移动"
-                                : $"已调整“{name}”在“{targetGroup.Name}”中的自定义顺序";
                     }
                     else if (_dragAllowsLayoutMove && TryCommitPushPreview(name, dragged, out int shiftedCount))
                     {
@@ -740,6 +808,8 @@ namespace DesktopOrganizer
                                 foreach (GroupInfo group in _appLayout.Groups)
                                 {
                                     group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
+                                    group.ManuallyAssignedItemNames.RemoveAll(item =>
+                                        item.Equals(name, StringComparison.OrdinalIgnoreCase));
                                 }
 
                                 if (sourceGroup.IsAutoCategory)
