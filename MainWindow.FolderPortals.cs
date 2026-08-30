@@ -351,7 +351,7 @@ namespace DesktopOrganizer
                 AllowDrop = false,
                 Focusable = true,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                ToolTip = "方向键选择；Enter 打开或进入"
+                ToolTip = "方向键选择；Enter 打开或进入；Ctrl+C 复制路径"
             };
             ScrollViewer.SetCanContentScroll(list, true);
             VirtualizingPanel.SetIsVirtualizing(list, true);
@@ -363,6 +363,17 @@ namespace DesktopOrganizer
             {
                 PortalDirectoryEntry? entry =
                     (list.SelectedItem as FrameworkElement)?.Tag as PortalDirectoryEntry;
+                if (ShouldCopyFolderPortalPathFromKeyboard(
+                        eventArgs.Key,
+                        Keyboard.Modifiers,
+                        eventArgs.IsRepeat,
+                        entry != null))
+                {
+                    eventArgs.Handled = true;
+                    CopyFolderPortalPath(portal, entry!.FullPath);
+                    return;
+                }
+
                 if (!ShouldOpenFolderPortalEntryFromKeyboard(
                         eventArgs.Key,
                         Keyboard.Modifiers,
@@ -498,7 +509,11 @@ namespace DesktopOrganizer
             };
             menu.Items.Add(reveal);
 
-            var copy = new MenuItem { Header = "复制路径" };
+            var copy = new MenuItem
+            {
+                Header = "复制路径",
+                InputGestureText = "Ctrl+C"
+            };
             copy.Click += (_, _) => CopyFolderPortalPath(portal, entry.FullPath);
             menu.Items.Add(copy);
             return menu;
@@ -834,6 +849,16 @@ namespace DesktopOrganizer
             bool hasEntry) =>
             key == Key.Enter &&
             modifiers == ModifierKeys.None &&
+            !isRepeat &&
+            hasEntry;
+
+        internal static bool ShouldCopyFolderPortalPathFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasEntry) =>
+            key == Key.C &&
+            modifiers == ModifierKeys.Control &&
             !isRepeat &&
             hasEntry;
 
