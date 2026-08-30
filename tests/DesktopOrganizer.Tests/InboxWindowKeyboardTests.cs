@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Xml.Linq;
@@ -88,6 +89,72 @@ public sealed class InboxWindowKeyboardTests
             InboxWindow.ShouldReturnFocusToInboxList(
                 saveSucceeded,
                 hasSelection));
+    }
+
+    [TestMethod]
+    [DataRow(null, null, false)]
+    [DataRow("", "", false)]
+    [DataRow("原标签", "原标签", false)]
+    [DataRow("原标签", "新标签", true)]
+    [DataRow("原标签", "", true)]
+    [DataRow("", "新标签", true)]
+    public void HasUnsavedTagEditorText_ComparesAgainstLoadedText(
+        string? loadedText,
+        string? currentText,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            InboxWindow.HasUnsavedTagEditorText(loadedText, currentText));
+    }
+
+    [STATestMethod]
+    public void InboxSelectionChanged_WithUnsavedTags_RestoresOriginalItem()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        FieldInfo appLayoutField = typeof(MainWindow).GetField(
+            "_appLayout",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到当前布局。");
+        var layout = (AppLayoutData)(appLayoutField.GetValue(mainWindow)
+            ?? throw new AssertFailedException("当前布局尚未初始化。"));
+        layout.InboxItems.Clear();
+        layout.ItemTags.Clear();
+        layout.InboxItems["a-first.txt"] = new InboxItemInfo
+        {
+            DetectedUtc = DateTime.UnixEpoch,
+            UpdatedUtc = DateTime.UnixEpoch,
+            SuggestedCategoryName = "文档",
+            MatchReason = "测试",
+            ReviewState = InboxReviewState.Pending
+        };
+        layout.InboxItems["b-second.txt"] = new InboxItemInfo
+        {
+            DetectedUtc = DateTime.UnixEpoch.AddSeconds(1),
+            UpdatedUtc = DateTime.UnixEpoch.AddSeconds(1),
+            SuggestedCategoryName = "文档",
+            MatchReason = "测试",
+            ReviewState = InboxReviewState.Pending
+        };
+        layout.ItemTags["a-first.txt"] = ["原标签"];
+        layout.ItemTags["b-second.txt"] = ["第二项标签"];
+        var window = new InboxWindow(mainWindow);
+        object originalSelection = window.InboxList.SelectedItem;
+
+        window.TagEditorBox.Text = "未保存草稿";
+        window.InboxList.SelectedIndex = 1;
+
+        Assert.AreSame(originalSelection, window.InboxList.SelectedItem);
+        Assert.AreEqual(0, window.InboxList.SelectedIndex);
+        Assert.AreEqual("未保存草稿", window.TagEditorBox.Text);
+        StringAssert.Contains(window.StatusText.Text, "Ctrl+S");
+
+        window.TagEditorBox.Text = "原标签";
+        window.InboxList.SelectedIndex = 1;
+
+        Assert.AreEqual(1, window.InboxList.SelectedIndex);
+        Assert.AreEqual("第二项标签", window.TagEditorBox.Text);
+        Assert.AreEqual(string.Empty, window.StatusText.Text);
     }
 
     [TestMethod]

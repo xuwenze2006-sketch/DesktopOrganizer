@@ -10,7 +10,12 @@ namespace DesktopOrganizer
 
     public partial class InboxWindow : Window
     {
+        private const string UnsavedTagSelectionMessage =
+            "标签尚未保存；请先按 Ctrl+S 保存，或恢复原内容后再切换项目。";
+
         private readonly MainWindow _mainWindow;
+        private string _loadedTagEditorText = string.Empty;
+        private bool _suppressInboxSelectionChange;
 
         internal InboxWindow(MainWindow mainWindow)
         {
@@ -28,14 +33,22 @@ namespace DesktopOrganizer
             string? selectedManualGroupId =
                 (ManualGroupSelector.SelectedItem as ManualGroupChoice)?.Id;
             List<InboxListItemView> items = _mainWindow.GetInboxItems().ToList();
-            InboxList.ItemsSource = items;
-            int selectedIndex = items.FindIndex(item =>
-                item.DisplayName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
-            InboxList.SelectedIndex = selectedIndex >= 0
-                ? selectedIndex
-                : ResolvePostActionSelectionIndex(
-                    fallbackIndex ?? 0,
-                    items.Count);
+            _suppressInboxSelectionChange = true;
+            try
+            {
+                InboxList.ItemsSource = items;
+                int selectedIndex = items.FindIndex(item =>
+                    item.DisplayName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+                InboxList.SelectedIndex = selectedIndex >= 0
+                    ? selectedIndex
+                    : ResolvePostActionSelectionIndex(
+                        fallbackIndex ?? 0,
+                        items.Count);
+            }
+            finally
+            {
+                _suppressInboxSelectionChange = false;
+            }
             List<ManualGroupChoice> groups = _mainWindow.GetManualInboxGroups().ToList();
             ManualGroupSelector.ItemsSource = groups;
             ManualGroupSelector.SelectedIndex = FindManualGroupSelectionIndex(
@@ -47,8 +60,35 @@ namespace DesktopOrganizer
             UpdateButtons();
         }
 
-        private void InboxList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        private void InboxList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressInboxSelectionChange)
+            {
+                return;
+            }
+
+            InboxListItemView? previousSelection =
+                e.RemovedItems.OfType<InboxListItemView>().FirstOrDefault();
+            if (previousSelection != null &&
+                HasUnsavedTagEditorText(_loadedTagEditorText, TagEditorBox.Text))
+            {
+                _suppressInboxSelectionChange = true;
+                try
+                {
+                    InboxList.SelectedItem = previousSelection;
+                }
+                finally
+                {
+                    _suppressInboxSelectionChange = false;
+                }
+
+                StatusText.Text = UnsavedTagSelectionMessage;
+                TagEditorBox.Focus();
+                return;
+            }
+
             UpdateButtons();
+        }
 
         private void InboxList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
@@ -99,10 +139,18 @@ namespace DesktopOrganizer
             AcceptButton.IsEnabled = selected?.CanAccept == true;
             SaveTagsButton.IsEnabled = selected != null;
             TagEditorBox.IsEnabled = selected != null;
-            TagEditorBox.Text = selected?.TagsText ?? string.Empty;
+            _loadedTagEditorText = selected?.TagsText ?? string.Empty;
+            TagEditorBox.Text = _loadedTagEditorText;
             if (InboxList.Items.Count == 0)
             {
                 StatusText.Text = "当前没有待整理项目。";
+            }
+            else if (string.Equals(
+                         StatusText.Text,
+                         UnsavedTagSelectionMessage,
+                         StringComparison.Ordinal))
+            {
+                StatusText.Text = string.Empty;
             }
         }
 
@@ -233,6 +281,14 @@ namespace DesktopOrganizer
             bool saveSucceeded,
             bool hasSelection) =>
             saveSucceeded && hasSelection;
+
+        internal static bool HasUnsavedTagEditorText(
+            string? loadedText,
+            string? currentText) =>
+            !string.Equals(
+                loadedText ?? string.Empty,
+                currentText ?? string.Empty,
+                StringComparison.Ordinal);
 
         internal static int FindManualGroupSelectionIndex(
             IReadOnlyList<ManualGroupChoice> groups,
