@@ -76,7 +76,7 @@ namespace DesktopOrganizer
             }
 
             e.Handled = TryExecuteKeyboardAction(
-                ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
+                ResolveKeyboardAction(e.Key, Keyboard.Modifiers, e.IsRepeat));
         }
 
         private void TagEditorBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -194,9 +194,10 @@ namespace DesktopOrganizer
 
         internal static InboxKeyboardAction ResolveKeyboardAction(
             Key key,
-            ModifierKeys modifiers)
+            ModifierKeys modifiers,
+            bool isRepeat)
         {
-            if (key != Key.Enter)
+            if (key != Key.Enter || isRepeat)
             {
                 return InboxKeyboardAction.None;
             }

@@ -10,20 +10,24 @@ namespace DesktopOrganizer.Tests;
 public sealed class InboxWindowKeyboardTests
 {
     [TestMethod]
-    [DataRow(Key.Enter, ModifierKeys.None, (int)InboxKeyboardAction.AcceptSuggestion)]
-    [DataRow(Key.Enter, ModifierKeys.Control, (int)InboxKeyboardAction.LeaveOnDesktop)]
-    [DataRow(Key.Enter, ModifierKeys.Shift, (int)InboxKeyboardAction.Defer)]
-    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, (int)InboxKeyboardAction.None)]
-    [DataRow(Key.Enter, ModifierKeys.Alt, (int)InboxKeyboardAction.None)]
-    [DataRow(Key.Space, ModifierKeys.None, (int)InboxKeyboardAction.None)]
-    public void ResolveKeyboardAction_RequiresExactEnterShortcut(
+    [DataRow(Key.Enter, ModifierKeys.None, false, (int)InboxKeyboardAction.AcceptSuggestion)]
+    [DataRow(Key.Enter, ModifierKeys.Control, false, (int)InboxKeyboardAction.LeaveOnDesktop)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, false, (int)InboxKeyboardAction.Defer)]
+    [DataRow(Key.Enter, ModifierKeys.None, true, (int)InboxKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Control, true, (int)InboxKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, true, (int)InboxKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, (int)InboxKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Alt, false, (int)InboxKeyboardAction.None)]
+    [DataRow(Key.Space, ModifierKeys.None, false, (int)InboxKeyboardAction.None)]
+    public void ResolveKeyboardAction_RequiresExactInitialEnterShortcut(
         Key key,
         ModifierKeys modifiers,
+        bool isRepeat,
         int expected)
     {
         Assert.AreEqual(
             (InboxKeyboardAction)expected,
-            InboxWindow.ResolveKeyboardAction(key, modifiers));
+            InboxWindow.ResolveKeyboardAction(key, modifiers, isRepeat));
     }
 
     [TestMethod]
