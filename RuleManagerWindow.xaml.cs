@@ -191,6 +191,23 @@ namespace DesktopOrganizer
             bool listIsEnabled) =>
             windowIsVisible && listIsEnabled;
 
+        internal static string? ResolvePostDeleteRuleSelectionId(
+            IReadOnlyList<string> orderedRuleIds,
+            int deletedIndex)
+        {
+            if (deletedIndex < 0 ||
+                deletedIndex >= orderedRuleIds.Count ||
+                orderedRuleIds.Count <= 1)
+            {
+                return null;
+            }
+
+            int adjacentIndex = deletedIndex + 1 < orderedRuleIds.Count
+                ? deletedIndex + 1
+                : deletedIndex - 1;
+            return orderedRuleIds[adjacentIndex];
+        }
+
         internal static bool ShouldDeleteRuleFromKeyboard(
             Key key,
             ModifierKeys modifiers,
@@ -571,12 +588,19 @@ namespace DesktopOrganizer
             {
                 return;
             }
+
+            string? nextSelectionId = ResolvePostDeleteRuleSelectionId(
+                RuleList.Items
+                    .Cast<UserRuleSummary>()
+                    .Select(summary => summary.Id)
+                    .ToList(),
+                RuleList.SelectedIndex);
             if (!_mainWindow.TryDeleteUserRule(rule.Id, out string error))
             {
                 SetStatus(error, isError: true);
                 return;
             }
-            RefreshList();
+            RefreshList(nextSelectionId);
             SetStatus("规则已删除。", isError: false);
         }
 

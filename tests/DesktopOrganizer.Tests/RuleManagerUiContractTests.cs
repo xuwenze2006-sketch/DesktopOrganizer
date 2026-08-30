@@ -239,6 +239,50 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
+    public void ResolvePostDeleteRuleSelectionId_PrefersNextThenPrevious()
+    {
+        IReadOnlyList<string> ruleIds = ["a", "b", "c"];
+
+        Assert.AreEqual("b", RuleManagerWindow.ResolvePostDeleteRuleSelectionId(ruleIds, 0));
+        Assert.AreEqual("c", RuleManagerWindow.ResolvePostDeleteRuleSelectionId(ruleIds, 1));
+        Assert.AreEqual("b", RuleManagerWindow.ResolvePostDeleteRuleSelectionId(ruleIds, 2));
+        Assert.IsNull(RuleManagerWindow.ResolvePostDeleteRuleSelectionId(["only"], 0));
+        Assert.IsNull(RuleManagerWindow.ResolvePostDeleteRuleSelectionId([], 0));
+        Assert.IsNull(RuleManagerWindow.ResolvePostDeleteRuleSelectionId(ruleIds, -1));
+        Assert.IsNull(RuleManagerWindow.ResolvePostDeleteRuleSelectionId(ruleIds, 3));
+    }
+
+    [STATestMethod]
+    public void RefreshList_WithPostDeleteId_LoadsAdjacentRuleAndEditor()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        FieldInfo appLayoutField = typeof(MainWindow).GetField(
+            "_appLayout",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到当前布局。");
+        var layout = (AppLayoutData)(appLayoutField.GetValue(mainWindow)
+            ?? throw new AssertFailedException("当前布局尚未初始化。"));
+        layout.UserRules.Clear();
+        layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "a", Name = "A 规则" });
+        layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "b", Name = "B 规则" });
+        layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "c", Name = "C 规则" });
+        var window = new RuleManagerWindow(mainWindow);
+        window.RuleList.SelectedIndex = 1;
+        layout.UserRules.RemoveAll(rule => rule.Id == "b");
+        MethodInfo refreshListMethod = typeof(RuleManagerWindow).GetMethod(
+            "RefreshList",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到规则列表刷新入口。");
+
+        refreshListMethod.Invoke(window, ["c"]);
+
+        var selected = window.RuleList.SelectedItem as UserRuleSummary;
+        Assert.IsNotNull(selected);
+        Assert.AreEqual("c", selected.Id);
+        Assert.AreEqual("C 规则", window.RuleNameBox.Text);
+    }
+
+    [TestMethod]
     public void RuleWindowAndRuleList_WireShortcutsOnlyToTheirScopes()
     {
         XDocument document = LoadRuleManagerXaml();
