@@ -27,20 +27,43 @@ public sealed class InboxWindowKeyboardTests
     }
 
     [TestMethod]
-    public void InboxWindow_WiresKeyboardHandlerOnlyToList()
+    [DataRow(Key.S, ModifierKeys.Control, false, true)]
+    [DataRow(Key.S, ModifierKeys.None, false, false)]
+    [DataRow(Key.S, ModifierKeys.Control, true, false)]
+    [DataRow(Key.S, ModifierKeys.Control | ModifierKeys.Shift, false, false)]
+    [DataRow(Key.S, ModifierKeys.Alt, false, false)]
+    [DataRow(Key.Enter, ModifierKeys.Control, false, false)]
+    public void ShouldSaveTagsFromKeyboard_RequiresExactNonRepeatControlS(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            InboxWindow.ShouldSaveTagsFromKeyboard(key, modifiers, isRepeat));
+    }
+
+    [TestMethod]
+    public void InboxWindow_WiresKeyboardHandlersOnlyToTheirTargetControls()
     {
         XDocument document = LoadInboxWindowXaml();
         XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
         XElement inboxList = FindNamedElement(document, xaml, "InboxList");
         XElement tagEditor = FindNamedElement(document, xaml, "TagEditorBox");
+        XElement saveTagsButton = FindNamedElement(document, xaml, "SaveTagsButton");
         XElement groupSelector = FindNamedElement(document, xaml, "ManualGroupSelector");
 
         Assert.AreEqual(
             "InboxList_PreviewKeyDown",
             inboxList.Attribute("PreviewKeyDown")?.Value);
+        Assert.AreEqual(
+            "TagEditorBox_PreviewKeyDown",
+            tagEditor.Attribute("PreviewKeyDown")?.Value);
         Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
-        Assert.IsNull(tagEditor.Attribute("PreviewKeyDown"));
         Assert.IsNull(groupSelector.Attribute("PreviewKeyDown"));
+        StringAssert.Contains(tagEditor.Attribute("ToolTip")?.Value, "Ctrl+S");
+        Assert.AreEqual("Ctrl+S", saveTagsButton.Attribute("ToolTip")?.Value);
         Assert.AreEqual("Enter", FindButton(document, "接受建议").Attribute("ToolTip")?.Value);
         Assert.AreEqual("Ctrl+Enter", FindButton(document, "留在桌面").Attribute("ToolTip")?.Value);
         Assert.AreEqual("Shift+Enter", FindButton(document, "以后再说").Attribute("ToolTip")?.Value);

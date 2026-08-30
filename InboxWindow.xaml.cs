@@ -46,6 +46,20 @@ namespace DesktopOrganizer
                 ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
         }
 
+        private void TagEditorBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!ShouldSaveTagsFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            SaveTags_Click(sender, e);
+        }
+
         private void UpdateButtons()
         {
             InboxListItemView? selected = Selected;
@@ -148,6 +162,14 @@ namespace DesktopOrganizer
                 _ => InboxKeyboardAction.None
             };
         }
+
+        internal static bool ShouldSaveTagsFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat) =>
+            key == Key.S &&
+            modifiers == ModifierKeys.Control &&
+            !isRepeat;
 
         private void RunSelectedAction(InboxAction action)
         {

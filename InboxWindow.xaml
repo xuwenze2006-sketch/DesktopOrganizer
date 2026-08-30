@@ -63,9 +63,11 @@
                 <TextBlock Text="本地标签" Margin="0,0,10,0" VerticalAlignment="Center"/>
                 <TextBox x:Name="TagEditorBox" Grid.Column="1" Height="32" Padding="8,4"
                          VerticalContentAlignment="Center"
-                         ToolTip="用逗号、分号或换行分隔；标签内部可以包含空格"/>
+                         PreviewKeyDown="TagEditorBox_PreviewKeyDown"
+                         ToolTip="用逗号、分号或换行分隔；标签内部可以包含空格；Ctrl+S 保存"/>
                 <Button x:Name="SaveTagsButton" Grid.Column="2" Content="保存标签"
-                        MinWidth="88" Margin="10,0,0,0" Click="SaveTags_Click"/>
+                        MinWidth="88" Margin="10,0,0,0" ToolTip="Ctrl+S"
+                        Click="SaveTags_Click"/>
             </Grid>
             <StackPanel Grid.Row="1" Margin="0,10,0,0" Orientation="Horizontal">
                 <Button x:Name="AcceptButton" Content="接受建议" MinWidth="88" Margin="0,0,8,0"
