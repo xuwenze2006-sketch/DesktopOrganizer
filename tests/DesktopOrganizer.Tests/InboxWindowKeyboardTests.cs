@@ -45,6 +45,31 @@ public sealed class InboxWindowKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(Key.F2, ModifierKeys.None, false, true, true)]
+    [DataRow(Key.F2, ModifierKeys.None, false, false, false)]
+    [DataRow(Key.F2, ModifierKeys.None, true, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Windows, false, true, false)]
+    [DataRow(Key.F3, ModifierKeys.None, false, true, false)]
+    public void ShouldFocusTagsFromKeyboard_RequiresExactInitialF2AndEditableSelection(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool canEditTags,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            InboxWindow.ShouldFocusTagsFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                canEditTags));
+    }
+
+    [TestMethod]
     [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, true, true)]
     [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, true, true, false)]
     [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, false, false)]
@@ -82,6 +107,7 @@ public sealed class InboxWindowKeyboardTests
         Assert.AreEqual(
             "InboxList_PreviewKeyDown",
             inboxList.Attribute("PreviewKeyDown")?.Value);
+        StringAssert.Contains(inboxList.Attribute("ToolTip")?.Value, "F2");
         Assert.AreEqual(
             "TagEditorBox_PreviewKeyDown",
             tagEditor.Attribute("PreviewKeyDown")?.Value);

@@ -42,6 +42,18 @@ namespace DesktopOrganizer
 
         private void InboxList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (ShouldFocusTagsFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    TagEditorBox.IsEnabled) &&
+                TagEditorBox.Focus())
+            {
+                TagEditorBox.SelectAll();
+                e.Handled = true;
+                return;
+            }
+
             if (ShouldAcceptAllReliableFromKeyboard(
                     e.Key,
                     Keyboard.Modifiers,
@@ -181,6 +193,16 @@ namespace DesktopOrganizer
             key == Key.S &&
             modifiers == ModifierKeys.Control &&
             !isRepeat;
+
+        internal static bool ShouldFocusTagsFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool canEditTags) =>
+            key == Key.F2 &&
+            modifiers == ModifierKeys.None &&
+            !isRepeat &&
+            canEditTags;
 
         internal static bool ShouldAcceptAllReliableFromKeyboard(
             Key key,
