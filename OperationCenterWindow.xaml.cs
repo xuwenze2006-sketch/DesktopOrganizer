@@ -49,6 +49,8 @@ namespace DesktopOrganizer
 
         private void RefreshView()
         {
+            bool selectedRowHadKeyboardFocus =
+                IsKeyboardFocusWithinSelectedJournalRow();
             string? selectedEntryId = (JournalGrid.SelectedItem as OperationRow)?.Id;
             FileOperationJournalData journal = _journalProvider() ??
                 new FileOperationJournalData();
@@ -70,9 +72,13 @@ namespace DesktopOrganizer
                 .Select(entry => CreateRow(entry, successfullyUndoneEntryIds))
                 .ToList();
             JournalGrid.ItemsSource = rows;
-            JournalGrid.SelectedIndex = FindRestoredSelectionIndex(
+            int restoredSelectionIndex = FindRestoredSelectionIndex(
                 rows.Select(row => row.Id),
                 selectedEntryId);
+            JournalGrid.SelectedIndex = restoredSelectionIndex;
+            OperationRow? restoredRow = restoredSelectionIndex >= 0
+                ? rows[restoredSelectionIndex]
+                : null;
 
             int succeededCount = entries.Count(entry =>
                 entry.State == FileOperationJournalState.Succeeded);
@@ -102,6 +108,30 @@ namespace DesktopOrganizer
                 ProtectionWarningBorder.Visibility = Visibility.Collapsed;
                 EmptyText.Text = "尚无真实文件操作记录。";
             }
+
+            bool shouldRestoreKeyboardFocus = ShouldRestoreJournalGridFocus(
+                selectedRowHadKeyboardFocus,
+                restoredRow != null,
+                IsVisible,
+                JournalGrid.IsEnabled);
+            if (shouldRestoreKeyboardFocus && restoredRow != null)
+            {
+                JournalGrid.ScrollIntoView(restoredRow);
+                JournalGrid.Focus();
+            }
+        }
+
+        private bool IsKeyboardFocusWithinSelectedJournalRow()
+        {
+            if (JournalGrid.SelectedItem is not OperationRow selectedRow ||
+                Keyboard.FocusedElement is not DependencyObject focusedElement)
+            {
+                return false;
+            }
+
+            return ItemsControl.ContainerFromElement(JournalGrid, focusedElement)
+                    is DataGridRow focusedRow &&
+                ReferenceEquals(focusedRow.Item, selectedRow);
         }
 
         private static OperationRow CreateRow(
@@ -142,6 +172,16 @@ namespace DesktopOrganizer
             }
             return -1;
         }
+
+        internal static bool ShouldRestoreJournalGridFocus(
+            bool selectedRowHadKeyboardFocus,
+            bool sameEntryRestored,
+            bool windowIsVisible,
+            bool gridIsEnabled) =>
+            selectedRowHadKeyboardFocus &&
+            sameEntryRestored &&
+            windowIsVisible &&
+            gridIsEnabled;
 
         private static DateTime GetSortTime(FileOperationJournalEntry entry) =>
             entry.CompletedUtc ?? entry.StartedUtc ?? entry.RequestedUtc;

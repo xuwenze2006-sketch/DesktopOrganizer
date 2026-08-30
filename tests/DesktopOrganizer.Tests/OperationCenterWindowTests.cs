@@ -39,6 +39,11 @@ public sealed class OperationCenterWindowTests
             ((string?)element.Attribute("Text"))?.Contains(
                 "Ctrl+C",
                 StringComparison.Ordinal) == true));
+        Assert.IsTrue(document.Descendants().Any(element =>
+            element.Name.LocalName == "TextBlock" &&
+            ((string?)element.Attribute("Text"))?.Contains(
+                "每秒自动刷新",
+                StringComparison.Ordinal) == true));
 
         XElement copyButton = FindNamedElement(
             document,
@@ -76,6 +81,28 @@ public sealed class OperationCenterWindowTests
             OperationCenterWindow.FindRestoredSelectionIndex(
                 ["new", "other"],
                 null));
+    }
+
+    [TestMethod]
+    [DataRow(true, true, true, true, true)]
+    [DataRow(false, true, true, true, false)]
+    [DataRow(true, false, true, true, false)]
+    [DataRow(true, true, false, true, false)]
+    [DataRow(true, true, true, false, false)]
+    public void ShouldRestoreJournalGridFocus_RequiresFocusedRestoredRowAndLiveGrid(
+        bool selectedRowHadKeyboardFocus,
+        bool sameEntryRestored,
+        bool windowIsVisible,
+        bool gridIsEnabled,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            OperationCenterWindow.ShouldRestoreJournalGridFocus(
+                selectedRowHadKeyboardFocus,
+                sameEntryRestored,
+                windowIsVisible,
+                gridIsEnabled));
     }
 
     private static void AssertClipboardBinding(
