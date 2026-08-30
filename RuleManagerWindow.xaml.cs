@@ -96,6 +96,17 @@ namespace DesktopOrganizer
 
         private void RuleList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (ShouldDeleteRuleFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    DeleteButton.IsEnabled))
+            {
+                e.Handled = true;
+                Delete_Click(DeleteButton, e);
+                return;
+            }
+
             RuleListKeyboardAction action = ResolveRuleListKeyboardAction(
                 e.Key,
                 Keyboard.Modifiers,
@@ -122,6 +133,16 @@ namespace DesktopOrganizer
                     break;
             }
         }
+
+        internal static bool ShouldDeleteRuleFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool canDelete) =>
+            key == Key.Delete &&
+            modifiers == ModifierKeys.None &&
+            !isRepeat &&
+            canDelete;
 
         internal static RuleListKeyboardAction ResolveRuleListKeyboardAction(
             Key key,

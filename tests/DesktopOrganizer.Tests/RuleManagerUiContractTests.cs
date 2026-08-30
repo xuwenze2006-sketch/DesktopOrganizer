@@ -106,6 +106,31 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
+    [DataRow(Key.Delete, ModifierKeys.None, false, true, true)]
+    [DataRow(Key.Delete, ModifierKeys.None, false, false, false)]
+    [DataRow(Key.Delete, ModifierKeys.None, true, true, false)]
+    [DataRow(Key.Delete, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.Delete, ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.Delete, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.Delete, ModifierKeys.Windows, false, true, false)]
+    [DataRow(Key.Back, ModifierKeys.None, false, true, false)]
+    public void ShouldDeleteRuleFromKeyboard_RequiresExactInitialDeleteAndAvailableRule(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool canDelete,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            RuleManagerWindow.ShouldDeleteRuleFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                canDelete));
+    }
+
+    [TestMethod]
     public void RuleEditorAndRuleList_WireShortcutsOnlyToTheirScopes()
     {
         XDocument document = LoadRuleManagerXaml();
@@ -113,6 +138,7 @@ public sealed class RuleManagerUiContractTests
         XElement editor = FindNamedElement(document, xaml, "RuleEditorScroll");
         XElement ruleList = FindNamedElement(document, xaml, "RuleList");
         XElement saveButton = FindNamedElement(document, xaml, "SaveDraftButton");
+        XElement deleteButton = FindNamedElement(document, xaml, "DeleteButton");
         XElement newRuleButton = document.Descendants().Single(element =>
             element.Name.LocalName == "Button" &&
             string.Equals(
@@ -130,9 +156,12 @@ public sealed class RuleManagerUiContractTests
             "RuleList_PreviewKeyDown",
             ruleList.Attribute("PreviewKeyDown")?.Value);
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Enter");
+        StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Delete");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "草稿");
         StringAssert.Contains(newRuleButton.Attribute("ToolTip")?.Value, "Ctrl+N");
+        StringAssert.Contains(deleteButton.Attribute("ToolTip")?.Value, "Delete");
+        Assert.AreEqual("Delete_Click", deleteButton.Attribute("Click")?.Value);
         foreach (string buttonName in new[]
                  {
                      "PreviewButton",

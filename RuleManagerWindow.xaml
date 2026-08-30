@@ -43,7 +43,7 @@
                 <ListBox x:Name="RuleList"
                          Grid.Row="1"
                          PreviewKeyDown="RuleList_PreviewKeyDown"
-                         ToolTip="方向键选择；Enter 执行当前唯一可用的下一生命周期动作"
+                         ToolTip="方向键选择；Enter 执行当前唯一可用的下一生命周期动作；Delete 删除所选规则"
                          SelectionChanged="RuleList_SelectionChanged">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -273,6 +273,7 @@
                 <Button x:Name="DeleteButton"
                         Content="删除规则…"
                         MinWidth="82"
+                        ToolTip="规则列表聚焦时按 Delete；确认后只删除规则，不改变已有虚拟整理结果或真实文件"
                         Click="Delete_Click"/>
             </WrapPanel>
             <Button Grid.Column="1"
