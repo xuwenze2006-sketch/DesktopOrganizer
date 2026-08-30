@@ -33,6 +33,25 @@ public sealed class DesktopSearchWindowKeyboardTests
     }
 
     [TestMethod]
+    public void ResolveRefreshedSelectionIndex_PreservesOnlyExistingExplicitSelection()
+    {
+        string[] displayNames = ["alpha.txt", "Beta.txt", "gamma.txt"];
+
+        Assert.AreEqual(
+            1,
+            DesktopSearchWindow.ResolveRefreshedSelectionIndex(displayNames, "beta.TXT"));
+        Assert.AreEqual(
+            0,
+            DesktopSearchWindow.ResolveRefreshedSelectionIndex(displayNames, null));
+        Assert.AreEqual(
+            0,
+            DesktopSearchWindow.ResolveRefreshedSelectionIndex(displayNames, "missing.txt"));
+        Assert.AreEqual(
+            -1,
+            DesktopSearchWindow.ResolveRefreshedSelectionIndex([], "alpha.txt"));
+    }
+
+    [TestMethod]
     [DataRow(Key.Enter, ModifierKeys.None, false, (int)DesktopSearchKeyboardAction.Locate)]
     [DataRow(Key.Enter, ModifierKeys.Control, false, (int)DesktopSearchKeyboardAction.Open)]
     [DataRow(Key.Enter, ModifierKeys.Shift, false, (int)DesktopSearchKeyboardAction.Reveal)]
@@ -137,6 +156,41 @@ public sealed class DesktopSearchWindowKeyboardTests
         Assert.IsTrue(window.ResultActionPanel.IsEnabled);
     }
 
+    [STATestMethod]
+    public void RefreshResults_PreservesExplicitSelectionWithoutPinningAutomaticSelection()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        Dictionary<string, string> desktopItems = GetDesktopItems(mainWindow);
+        string identity = Guid.NewGuid().ToString("N");
+        string alphabeticFirst = $"a-{identity}-common.txt";
+        string rankedFirst = $"common-{identity}.txt";
+        desktopItems[alphabeticFirst] = $@"C:\Desktop\{alphabeticFirst}";
+        desktopItems[rankedFirst] = $@"C:\Desktop\{rankedFirst}";
+        var window = new DesktopSearchWindow(mainWindow);
+
+        Assert.AreEqual(alphabeticFirst, GetSelectedDisplayName(window));
+
+        window.QueryBox.Text = "common";
+        Assert.AreEqual(rankedFirst, GetSelectedDisplayName(window));
+
+        window.QueryBox.Text = string.Empty;
+        Assert.AreEqual(alphabeticFirst, GetSelectedDisplayName(window));
+
+        window.ResultsList.SelectedIndex = 1;
+        Assert.AreEqual(rankedFirst, GetSelectedDisplayName(window));
+
+        window.QueryBox.Text = identity;
+        Assert.AreEqual(1, window.ResultsList.SelectedIndex);
+        Assert.AreEqual(rankedFirst, GetSelectedDisplayName(window));
+
+        window.QueryBox.Text = $"a-{identity}";
+        Assert.AreEqual(alphabeticFirst, GetSelectedDisplayName(window));
+
+        window.QueryBox.Text = string.Empty;
+        Assert.AreEqual(0, window.ResultsList.SelectedIndex);
+        Assert.AreEqual(alphabeticFirst, GetSelectedDisplayName(window));
+    }
+
     [TestMethod]
     public void SearchWindow_WiresWindowQueryShortcutAndControlActions()
     {
@@ -214,6 +268,28 @@ public sealed class DesktopSearchWindowKeyboardTests
                     (string?)element.Attribute("Content"),
                     content,
                     StringComparison.Ordinal));
+
+    private static Dictionary<string, string> GetDesktopItems(MainWindow mainWindow)
+    {
+        FieldInfo desktopItemsField = typeof(MainWindow).GetField(
+            "_desktopItems",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到已加载桌面项目集合。");
+        return (Dictionary<string, string>)(desktopItemsField.GetValue(mainWindow)
+            ?? throw new AssertFailedException("已加载桌面项目集合尚未初始化。"));
+    }
+
+    private static string GetSelectedDisplayName(DesktopSearchWindow window)
+    {
+        object selectedItem = window.ResultsList.SelectedItem
+            ?? throw new AssertFailedException("搜索结果未选中项目。");
+        PropertyInfo displayNameProperty = selectedItem.GetType().GetProperty(
+            "DisplayName",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("搜索结果缺少显示名称。");
+        return (string)(displayNameProperty.GetValue(selectedItem)
+            ?? throw new AssertFailedException("搜索结果显示名称为空。"));
+    }
 
     private static XDocument LoadSearchWindowXaml(
         [CallerFilePath] string sourceFilePath = "")

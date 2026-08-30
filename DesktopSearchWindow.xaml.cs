@@ -11,6 +11,8 @@ namespace DesktopOrganizer
     public partial class DesktopSearchWindow : Window
     {
         private readonly MainWindow _mainWindow;
+        private string? _explicitSelectionDisplayName;
+        private bool _isRefreshingResults;
 
         private sealed record SmartViewChoice(DesktopSmartView View, string Name);
 
@@ -86,8 +88,35 @@ namespace DesktopOrganizer
                 .SearchLoadedDesktopItems(QueryBox.Text, view)
                 .Select(result => new SearchListItem(result))
                 .ToList();
-            ResultsList.ItemsSource = items;
-            ResultsList.SelectedIndex = items.Count > 0 ? 0 : -1;
+            string? explicitSelectionDisplayName = _explicitSelectionDisplayName;
+            int selectionIndex = ResolveRefreshedSelectionIndex(
+                items.Select(item => item.DisplayName).ToList(),
+                explicitSelectionDisplayName);
+            bool preservedExplicitSelection =
+                explicitSelectionDisplayName is not null &&
+                selectionIndex >= 0 &&
+                items[selectionIndex].DisplayName.Equals(
+                    explicitSelectionDisplayName,
+                    StringComparison.OrdinalIgnoreCase);
+
+            _isRefreshingResults = true;
+            try
+            {
+                ResultsList.ItemsSource = items;
+                ResultsList.SelectedIndex = selectionIndex;
+                if (preservedExplicitSelection)
+                {
+                    ResultsList.ScrollIntoView(items[selectionIndex]);
+                }
+            }
+            finally
+            {
+                _isRefreshingResults = false;
+            }
+            if (!preservedExplicitSelection)
+            {
+                _explicitSelectionDisplayName = null;
+            }
             ResultCountText.Text = $"{items.Count} 项";
             UpdateResultActionAvailability();
         }
@@ -129,6 +158,10 @@ namespace DesktopOrganizer
 
         private void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (!_isRefreshingResults)
+            {
+                _explicitSelectionDisplayName = Selected?.DisplayName;
+            }
             if (ResultActionPanel is not null)
             {
                 UpdateResultActionAvailability();
@@ -259,6 +292,31 @@ namespace DesktopOrganizer
                 return direction < 0 ? itemCount - 1 : 0;
             }
             return Math.Clamp(currentIndex + direction, 0, itemCount - 1);
+        }
+
+        internal static int ResolveRefreshedSelectionIndex(
+            IReadOnlyList<string> displayNames,
+            string? explicitSelectionDisplayName)
+        {
+            if (displayNames.Count == 0)
+            {
+                return -1;
+            }
+            if (explicitSelectionDisplayName is null)
+            {
+                return 0;
+            }
+
+            for (int index = 0; index < displayNames.Count; index++)
+            {
+                if (displayNames[index].Equals(
+                        explicitSelectionDisplayName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return index;
+                }
+            }
+            return 0;
         }
     }
 }
