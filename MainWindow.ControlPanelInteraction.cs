@@ -359,6 +359,7 @@ namespace DesktopOrganizer
             }
 
             ClearPhysicalFolderDropPreview();
+            ClearGroupDropPreview();
             CancelPushPreview(restoreVisuals: restoreDraggedVisual);
             EndPushPreviewSession();
             _draggedElement = null;

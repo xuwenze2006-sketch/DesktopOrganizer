@@ -25,6 +25,9 @@ namespace DesktopOrganizer
         private double _viewportHeight;
         private double _verticalOffset;
         private bool _isStable = true;
+        private Border? _insertionIndicator;
+        private int? _insertionIndicatorBoundary;
+        private double _insertionIndicatorLocalY;
 
         public VirtualizingGroupPanel(
             IReadOnlyList<GroupVirtualItem> items,
@@ -90,6 +93,43 @@ namespace DesktopOrganizer
                 _verticalOffset,
                 _items.Count);
 
+        /// <summary>在鼠标对应的插入边界显示轻量指示条，并返回该边界。</summary>
+        public int ShowInsertionIndicator(Point position, Brush brush)
+        {
+            ArgumentNullException.ThrowIfNull(brush);
+            int boundary = CalculateInsertionBoundary(position);
+            _insertionIndicatorBoundary = boundary;
+            _insertionIndicatorLocalY = position.Y;
+            if (_insertionIndicator == null)
+            {
+                _insertionIndicator = new Border
+                {
+                    CornerRadius = new CornerRadius(2),
+                    IsHitTestVisible = false,
+                    SnapsToDevicePixels = true
+                };
+                SetZIndex(_insertionIndicator, 1000);
+                Children.Add(_insertionIndicator);
+            }
+
+            _insertionIndicator.Background = brush;
+            InvalidateArrange();
+            return boundary;
+        }
+
+        public void ClearInsertionIndicator()
+        {
+            if (_insertionIndicator == null)
+            {
+                return;
+            }
+
+            Children.Remove(_insertionIndicator);
+            _insertionIndicator = null;
+            _insertionIndicatorBoundary = null;
+            InvalidateArrange();
+        }
+
         /// <summary>
         /// 返回与当前已渲染槽位完全一致的项目顺序。拖动期间源项目仍保留在该快照中，
         /// 供落点边界和排序应用共享同一份顺序基准。
@@ -144,6 +184,7 @@ namespace DesktopOrganizer
             {
                 child.Measure(new Size(_slotWidth, _rowHeight));
             }
+            _insertionIndicator?.Measure(new Size(4, _rowHeight));
 
             return new Size(availableWidth, availableHeight);
         }
@@ -157,6 +198,19 @@ namespace DesktopOrganizer
                 double x = column * _slotWidth;
                 double y = row * _rowHeight - _verticalOffset;
                 child.Arrange(new Rect(x, y, _slotWidth, _rowHeight));
+            }
+
+            if (_insertionIndicator != null && _insertionIndicatorBoundary is int boundary)
+            {
+                _insertionIndicator.Arrange(
+                    GroupItemDropPolicy.CalculateInsertionIndicatorRect(
+                        boundary,
+                        _insertionIndicatorLocalY,
+                        _columnCount,
+                        _slotWidth,
+                        _rowHeight,
+                        _verticalOffset,
+                        _items.Count));
             }
 
             return finalSize;

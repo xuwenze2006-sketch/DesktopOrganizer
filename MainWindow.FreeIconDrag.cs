@@ -258,24 +258,62 @@ namespace DesktopOrganizer
                 }
             }
 
-            if (ReferenceEquals(nextVisual, _activeGroupDropVisual) &&
-                ReferenceEquals(nextGroup, _activeGroupDropTarget))
-            {
-                return;
-            }
-
-            ClearGroupDropPreview();
             if (nextVisual is not Border targetBorder || nextGroup == null)
             {
+                ClearGroupDropPreview();
                 return;
             }
 
-            _activeGroupDropVisual = targetBorder;
-            _activeGroupDropTarget = nextGroup;
-            targetBorder.BorderBrush = GroupDropBorderBrush;
-            targetBorder.BorderThickness = new Thickness(2);
-            targetBorder.Background = GroupDropHighlightBrush;
+            bool targetChanged =
+                !ReferenceEquals(nextVisual, _activeGroupDropVisual) ||
+                !ReferenceEquals(nextGroup, _activeGroupDropTarget);
+            if (targetChanged)
+            {
+                ClearGroupDropPreview();
+                _activeGroupDropVisual = targetBorder;
+                _activeGroupDropTarget = nextGroup;
+                targetBorder.BorderBrush = GroupDropBorderBrush;
+                targetBorder.BorderThickness = new Thickness(2);
+                targetBorder.Background = GroupDropHighlightBrush;
+            }
+
+            UpdateGroupInsertionIndicator(nextGroup, canvasPoint);
             StatusText.Text = GetGroupDropStatus(nextGroup, sourceGroup);
+        }
+
+        private void UpdateGroupInsertionIndicator(GroupInfo targetGroup, Point canvasPoint)
+        {
+            if (!_groupItemPanels.TryGetValue(targetGroup.Id, out VirtualizingGroupPanel? panel) ||
+                !panel.IsVisible)
+            {
+                return;
+            }
+
+            try
+            {
+                Point panelPoint = IconCanvas.TranslatePoint(canvasPoint, panel);
+                if (panel.ActualWidth > 0 &&
+                    panel.ActualHeight > 0 &&
+                    panelPoint.X >= 0 &&
+                    panelPoint.Y >= 0 &&
+                    panelPoint.X < panel.ActualWidth &&
+                    panelPoint.Y < panel.ActualHeight)
+                {
+                    panel.ShowInsertionIndicator(panelPoint, GroupDropBorderBrush);
+                }
+                else
+                {
+                    panel.ClearInsertionIndicator();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                panel.ClearInsertionIndicator();
+            }
+            catch (ArgumentException)
+            {
+                panel.ClearInsertionIndicator();
+            }
         }
 
         private static string GetGroupDropStatus(GroupInfo targetGroup, GroupInfo? sourceGroup) =>
@@ -326,6 +364,12 @@ namespace DesktopOrganizer
 
         private void ClearGroupDropPreview()
         {
+            if (_activeGroupDropTarget is GroupInfo activeGroup &&
+                _groupItemPanels.TryGetValue(activeGroup.Id, out VirtualizingGroupPanel? panel))
+            {
+                panel.ClearInsertionIndicator();
+            }
+
             if (_activeGroupDropVisual is Border previousBorder &&
                 _activeGroupDropTarget is GroupInfo previousGroup)
             {

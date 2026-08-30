@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Windows;
 
 namespace DesktopOrganizer.Tests;
 
@@ -54,6 +55,87 @@ public sealed class GroupItemDropPolicyTests
             0,
             GroupItemDropPolicy.CalculateInsertionBoundary(
                 20, 20, 3, 100, 80, 0, itemCount: 0));
+    }
+
+    [TestMethod]
+    public void CalculateInsertionIndicatorRect_TracksRowBoundariesAndScrollOffset()
+    {
+        Rect insideFirstRow = GroupItemDropPolicy.CalculateInsertionIndicatorRect(
+            insertionBoundary: 2,
+            localY: 20,
+            columnCount: 3,
+            slotWidth: 100,
+            rowHeight: 80,
+            verticalOffset: 0,
+            itemCount: 8);
+        Rect nextRowStart = GroupItemDropPolicy.CalculateInsertionIndicatorRect(
+            insertionBoundary: 3,
+            localY: 100,
+            columnCount: 3,
+            slotWidth: 100,
+            rowHeight: 80,
+            verticalOffset: 0,
+            itemCount: 8);
+        Rect scrolled = GroupItemDropPolicy.CalculateInsertionIndicatorRect(
+            insertionBoundary: 6,
+            localY: 20,
+            columnCount: 3,
+            slotWidth: 100,
+            rowHeight: 80,
+            verticalOffset: 160,
+            itemCount: 8);
+
+        Assert.AreEqual(new Rect(198, 8, 4, 64), insideFirstRow);
+        Assert.AreEqual(new Rect(0, 88, 4, 64), nextRowStart);
+        Assert.AreEqual(new Rect(0, 8, 4, 64), scrolled);
+    }
+
+    [TestMethod]
+    public void CalculateInsertionIndicatorRect_AppendingAfterLastItemStaysVisible()
+    {
+        Rect partialLastRow = GroupItemDropPolicy.CalculateInsertionIndicatorRect(
+            insertionBoundary: 5,
+            localY: 100,
+            columnCount: 3,
+            slotWidth: 100,
+            rowHeight: 80,
+            verticalOffset: 0,
+            itemCount: 5);
+        Rect fullLastRow = GroupItemDropPolicy.CalculateInsertionIndicatorRect(
+            insertionBoundary: 6,
+            localY: 100,
+            columnCount: 3,
+            slotWidth: 100,
+            rowHeight: 80,
+            verticalOffset: 0,
+            itemCount: 6);
+
+        Assert.AreEqual(new Rect(198, 88, 4, 64), partialLastRow);
+        Assert.AreEqual(new Rect(296, 88, 4, 64), fullLastRow);
+    }
+
+    [TestMethod]
+    public void CalculateInsertionIndicatorRect_WrappedBoundaryStaysNearPointerRow()
+    {
+        Rect previousRowEnd = GroupItemDropPolicy.CalculateInsertionIndicatorRect(
+            insertionBoundary: 6,
+            localY: 100,
+            columnCount: 3,
+            slotWidth: 100,
+            rowHeight: 80,
+            verticalOffset: 0,
+            itemCount: 8);
+        Rect nextRowStart = GroupItemDropPolicy.CalculateInsertionIndicatorRect(
+            insertionBoundary: 6,
+            localY: 170,
+            columnCount: 3,
+            slotWidth: 100,
+            rowHeight: 80,
+            verticalOffset: 0,
+            itemCount: 8);
+
+        Assert.AreEqual(new Rect(296, 88, 4, 64), previousRowEnd);
+        Assert.AreEqual(new Rect(0, 168, 4, 64), nextRowStart);
     }
 
     [TestMethod]

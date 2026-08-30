@@ -104,6 +104,88 @@ namespace DesktopOrganizer
         }
 
         /// <summary>
+        /// 返回插入边界在虚拟化网格中的可视指示条。行尾边界显示在下一行开头；
+        /// 只有“追加到完整末行”保留在末项右侧，避免指示条落到尚不存在的新行。
+        /// </summary>
+        public static Rect CalculateInsertionIndicatorRect(
+            int insertionBoundary,
+            double localY,
+            int columnCount,
+            double slotWidth,
+            double rowHeight,
+            double verticalOffset,
+            int itemCount)
+        {
+            if (columnCount <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(columnCount));
+            }
+
+            if (!double.IsFinite(slotWidth) || slotWidth <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(slotWidth));
+            }
+
+            if (!double.IsFinite(rowHeight) || rowHeight <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(rowHeight));
+            }
+
+            if (!double.IsFinite(localY))
+            {
+                throw new ArgumentOutOfRangeException(nameof(localY));
+            }
+
+            if (!double.IsFinite(verticalOffset))
+            {
+                throw new ArgumentOutOfRangeException(nameof(verticalOffset));
+            }
+
+            if (itemCount < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(itemCount));
+            }
+
+            int boundary = Math.Clamp(insertionBoundary, 0, itemCount);
+            int row;
+            int column;
+            int boundaryRow = boundary / columnCount;
+            int pointerRow = Math.Max(
+                0,
+                (int)Math.Floor(
+                    Math.Max(0, localY + Math.Max(0, verticalOffset)) /
+                    rowHeight));
+            bool preferPreviousRow =
+                boundary > 0 &&
+                boundary % columnCount == 0 &&
+                (pointerRow < boundaryRow || boundary == itemCount);
+            if (preferPreviousRow)
+            {
+                row = boundaryRow - 1;
+                column = columnCount;
+            }
+            else
+            {
+                row = boundary / columnCount;
+                column = boundary % columnCount;
+            }
+
+            const double thickness = 4;
+            double inset = Math.Min(8, rowHeight / 4);
+            double gridWidth = columnCount * slotWidth;
+            double x = Math.Clamp(
+                column * slotWidth - thickness / 2,
+                0,
+                Math.Max(0, gridWidth - thickness));
+            double y = row * rowHeight - Math.Max(0, verticalOffset) + inset;
+            return new Rect(
+                x,
+                y,
+                Math.Min(thickness, gridWidth),
+                Math.Max(4, rowHeight - inset * 2));
+        }
+
+        /// <summary>
         /// 将项目插入目标分类框。targetVisibleOrder 必须是投放发生前目标框的
         /// 当前可见顺序；这样从名称/类型等自动排序切换到 Custom 时不会跳回旧顺序。
         /// </summary>
