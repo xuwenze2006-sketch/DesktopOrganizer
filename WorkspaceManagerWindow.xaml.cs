@@ -240,6 +240,12 @@ namespace DesktopOrganizer
         private void UpdatePreview()
         {
             WorkspaceListItem? item = Selected;
+            bool hasSelection = item != null;
+            DuplicateWorkspaceButton.IsEnabled = hasSelection;
+            ActivateWorkspaceButton.IsEnabled = item?.IsActive == false;
+            OverwriteWorkspaceButton.IsEnabled = hasSelection;
+            RenameWorkspaceButton.IsEnabled = hasSelection;
+            DeleteWorkspaceButton.IsEnabled = hasSelection;
             string impactText = item?.IsActive == true
                 ? "当前工作区；快照会在布局保存时更新。"
                 : $"{FormatSwitchImpact(item == null

@@ -51,13 +51,13 @@
             <WrapPanel>
                 <Button Content="新建当前快照" MinWidth="105" Margin="0,0,8,0" Click="Create_Click"
                         ToolTip="Ctrl+N；从当前屏幕布局创建并激活新的视觉快照"/>
-                <Button Content="复制快照…" MinWidth="88" Margin="0,0,8,0" Click="Duplicate_Click"
+                <Button x:Name="DuplicateWorkspaceButton" Content="复制快照…" MinWidth="88" Margin="0,0,8,0" Click="Duplicate_Click"
                         ToolTip="Ctrl+D；从所选工作区创建独立副本，不切换当前布局"/>
-                <Button Content="切换并恢复…" MinWidth="100" Margin="0,0,8,0" Click="Activate_Click"/>
-                <Button Content="用当前布局覆盖…" MinWidth="115" Margin="0,0,8,0" Click="Overwrite_Click"
+                <Button x:Name="ActivateWorkspaceButton" Content="切换并恢复…" MinWidth="100" Margin="0,0,8,0" Click="Activate_Click"/>
+                <Button x:Name="OverwriteWorkspaceButton" Content="用当前布局覆盖…" MinWidth="115" Margin="0,0,8,0" Click="Overwrite_Click"
                         ToolTip="Ctrl+S；确认后用当前视觉布局覆盖所选快照，不修改真实文件"/>
-                <Button Content="重命名" MinWidth="76" Margin="0,0,8,0" Click="Rename_Click"/>
-                <Button Content="删除…" MinWidth="70" Click="Delete_Click"
+                <Button x:Name="RenameWorkspaceButton" Content="重命名" MinWidth="76" Margin="0,0,8,0" Click="Rename_Click"/>
+                <Button x:Name="DeleteWorkspaceButton" Content="删除…" MinWidth="70" Click="Delete_Click"
                         ToolTip="Delete；确认后只删除所选视觉快照，不改变当前屏幕布局或真实文件"/>
             </WrapPanel>
             <Button Grid.Column="1" Content="关闭" MinWidth="76" IsCancel="True" Click="Close_Click"/>

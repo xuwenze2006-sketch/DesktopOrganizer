@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Xml.Linq;
@@ -268,6 +269,62 @@ public sealed class WorkspaceManagerUiContractTests
         Assert.IsNull(WorkspaceManagerWindow.ResolvePostDeleteSelectionId([], 0));
         Assert.IsNull(WorkspaceManagerWindow.ResolvePostDeleteSelectionId(workspaceIds, -1));
         Assert.IsNull(WorkspaceManagerWindow.ResolvePostDeleteSelectionId(workspaceIds, 3));
+    }
+
+    [STATestMethod]
+    public void WorkspaceCommandButtons_FollowSelectionAndActiveState()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        FieldInfo appLayoutField = typeof(MainWindow).GetField(
+            "_appLayout",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到当前布局。");
+        var layout = (AppLayoutData)(appLayoutField.GetValue(mainWindow)
+            ?? throw new AssertFailedException("当前布局尚未初始化。"));
+        layout.Workspaces.Clear();
+        layout.ActiveWorkspaceId = null;
+        var emptyWindow = new WorkspaceManagerWindow(mainWindow);
+
+        Assert.IsFalse(emptyWindow.DuplicateWorkspaceButton.IsEnabled);
+        Assert.IsFalse(emptyWindow.ActivateWorkspaceButton.IsEnabled);
+        Assert.IsFalse(emptyWindow.OverwriteWorkspaceButton.IsEnabled);
+        Assert.IsFalse(emptyWindow.RenameWorkspaceButton.IsEnabled);
+        Assert.IsFalse(emptyWindow.DeleteWorkspaceButton.IsEnabled);
+
+        layout.Workspaces.Add(new WorkspaceProfileInfo
+        {
+            Id = "active",
+            Name = "A 当前"
+        });
+        layout.Workspaces.Add(new WorkspaceProfileInfo
+        {
+            Id = "inactive",
+            Name = "B 备用"
+        });
+        layout.ActiveWorkspaceId = "active";
+        var populatedWindow = new WorkspaceManagerWindow(mainWindow);
+
+        Assert.IsTrue(populatedWindow.DuplicateWorkspaceButton.IsEnabled);
+        Assert.IsFalse(populatedWindow.ActivateWorkspaceButton.IsEnabled);
+        Assert.IsTrue(populatedWindow.OverwriteWorkspaceButton.IsEnabled);
+        Assert.IsTrue(populatedWindow.RenameWorkspaceButton.IsEnabled);
+        Assert.IsTrue(populatedWindow.DeleteWorkspaceButton.IsEnabled);
+
+        populatedWindow.WorkspaceList.SelectedIndex = 1;
+
+        Assert.IsTrue(populatedWindow.DuplicateWorkspaceButton.IsEnabled);
+        Assert.IsTrue(populatedWindow.ActivateWorkspaceButton.IsEnabled);
+        Assert.IsTrue(populatedWindow.OverwriteWorkspaceButton.IsEnabled);
+        Assert.IsTrue(populatedWindow.RenameWorkspaceButton.IsEnabled);
+        Assert.IsTrue(populatedWindow.DeleteWorkspaceButton.IsEnabled);
+
+        populatedWindow.WorkspaceList.SelectedIndex = -1;
+
+        Assert.IsFalse(populatedWindow.DuplicateWorkspaceButton.IsEnabled);
+        Assert.IsFalse(populatedWindow.ActivateWorkspaceButton.IsEnabled);
+        Assert.IsFalse(populatedWindow.OverwriteWorkspaceButton.IsEnabled);
+        Assert.IsFalse(populatedWindow.RenameWorkspaceButton.IsEnabled);
+        Assert.IsFalse(populatedWindow.DeleteWorkspaceButton.IsEnabled);
     }
 
     private static XDocument LoadWorkspaceManagerXaml(
