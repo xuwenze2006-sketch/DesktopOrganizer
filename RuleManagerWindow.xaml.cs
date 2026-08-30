@@ -114,6 +114,18 @@ namespace DesktopOrganizer
 
         private void RuleList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (ShouldFocusRuleNameFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    Selected != null && RuleNameBox.IsEnabled) &&
+                RuleNameBox.Focus())
+            {
+                RuleNameBox.SelectAll();
+                e.Handled = true;
+                return;
+            }
+
             if (ShouldDeleteRuleFromKeyboard(
                     e.Key,
                     Keyboard.Modifiers,
@@ -188,6 +200,16 @@ namespace DesktopOrganizer
             modifiers == ModifierKeys.None &&
             !isRepeat &&
             canDelete;
+
+        internal static bool ShouldFocusRuleNameFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool canEditSelectedRuleName) =>
+            key == Key.F2 &&
+            modifiers == ModifierKeys.None &&
+            !isRepeat &&
+            canEditSelectedRuleName;
 
         internal static RuleListKeyboardAction ResolveRuleListKeyboardAction(
             Key key,

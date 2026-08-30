@@ -155,6 +155,31 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
+    [DataRow(Key.F2, ModifierKeys.None, false, true, true)]
+    [DataRow(Key.F2, ModifierKeys.None, false, false, false)]
+    [DataRow(Key.F2, ModifierKeys.None, true, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Windows, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, false)]
+    public void ShouldFocusRuleNameFromKeyboard_RequiresExactInitialF2AndEditableSelection(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool canEditSelectedRuleName,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            RuleManagerWindow.ShouldFocusRuleNameFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                canEditSelectedRuleName));
+    }
+
+    [TestMethod]
     [DataRow(true, true, true)]
     [DataRow(false, true, false)]
     [DataRow(true, false, false)]
@@ -191,6 +216,7 @@ public sealed class RuleManagerUiContractTests
             ruleList.Attribute("PreviewKeyDown")?.Value);
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Enter");
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "连续");
+        StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "F2 编辑所选规则名称");
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Delete");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "窗口任意焦点");

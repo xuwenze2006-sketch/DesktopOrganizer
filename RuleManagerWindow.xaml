@@ -43,7 +43,7 @@
                 <ListBox x:Name="RuleList"
                          Grid.Row="1"
                          PreviewKeyDown="RuleList_PreviewKeyDown"
-                         ToolTip="方向键选择；连续按 Enter 推进当前唯一可用的生命周期动作；Delete 删除所选规则"
+                         ToolTip="方向键选择；F2 编辑所选规则名称；连续按 Enter 推进当前唯一可用的生命周期动作；Delete 删除所选规则"
                          SelectionChanged="RuleList_SelectionChanged">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
