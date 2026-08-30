@@ -7,6 +7,45 @@ namespace DesktopOrganizer.Tests;
 public sealed class FolderPortalKeyboardTests
 {
     [TestMethod]
+    [DataRow(Key.System, Key.Up, Key.Up)]
+    [DataRow(Key.System, Key.Left, Key.Left)]
+    [DataRow(Key.Up, Key.None, Key.Up)]
+    public void ResolveFolderPortalKeyboardKey_UsesSystemKeyOnlyForAltEvents(
+        Key key,
+        Key systemKey,
+        Key expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ResolveFolderPortalKeyboardKey(key, systemKey));
+    }
+
+    [TestMethod]
+    [DataRow(Key.Up, ModifierKeys.Alt, false, true, true)]
+    [DataRow(Key.Up, ModifierKeys.Alt, true, true, false)]
+    [DataRow(Key.Up, ModifierKeys.Alt, false, false, false)]
+    [DataRow(Key.Up, ModifierKeys.None, false, true, false)]
+    [DataRow(Key.Up, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.Up, ModifierKeys.Alt | ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.Left, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.Down, ModifierKeys.Alt, false, true, false)]
+    public void ShouldNavigateFolderPortalUpFromKeyboard_RequiresInitialAltUpBelowRoot(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool canNavigateUp,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldNavigateFolderPortalUpFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                canNavigateUp));
+    }
+
+    [TestMethod]
     [DataRow(Key.Enter, ModifierKeys.None, false, true, true)]
     [DataRow(Key.Enter, ModifierKeys.None, true, true, false)]
     [DataRow(Key.Enter, ModifierKeys.None, false, false, false)]

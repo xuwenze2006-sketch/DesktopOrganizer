@@ -245,7 +245,7 @@ namespace DesktopOrganizer
             };
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "←",
-                "返回上一级（只读）",
+                "返回上一级（只读，Alt+↑）",
                 (_, _) => NavigateFolderPortalUp(portal)));
             buttons.Children.Add(CreateFolderPortalHeaderButton(
                 "⌂",
@@ -351,7 +351,7 @@ namespace DesktopOrganizer
                 AllowDrop = false,
                 Focusable = true,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                ToolTip = "方向键选择；Enter 打开或进入；Ctrl+C 复制路径"
+                ToolTip = "方向键选择；Enter 打开或进入；Ctrl+C 复制路径；Alt+↑ 返回上一级"
             };
             ScrollViewer.SetCanContentScroll(list, true);
             VirtualizingPanel.SetIsVirtualizing(list, true);
@@ -361,10 +361,24 @@ namespace DesktopOrganizer
             list.PreviewDrop += FolderPortal_BlockDrop;
             list.PreviewKeyDown += (_, eventArgs) =>
             {
+                Key actualKey = ResolveFolderPortalKeyboardKey(
+                    eventArgs.Key,
+                    eventArgs.SystemKey);
+                if (ShouldNavigateFolderPortalUpFromKeyboard(
+                        actualKey,
+                        Keyboard.Modifiers,
+                        eventArgs.IsRepeat,
+                        !string.IsNullOrWhiteSpace(portal.CurrentRelativePath)))
+                {
+                    eventArgs.Handled = true;
+                    NavigateFolderPortalUp(portal);
+                    return;
+                }
+
                 PortalDirectoryEntry? entry =
                     (list.SelectedItem as FrameworkElement)?.Tag as PortalDirectoryEntry;
                 if (ShouldCopyFolderPortalPathFromKeyboard(
-                        eventArgs.Key,
+                        actualKey,
                         Keyboard.Modifiers,
                         eventArgs.IsRepeat,
                         entry != null))
@@ -375,7 +389,7 @@ namespace DesktopOrganizer
                 }
 
                 if (!ShouldOpenFolderPortalEntryFromKeyboard(
-                        eventArgs.Key,
+                        actualKey,
                         Keyboard.Modifiers,
                         eventArgs.IsRepeat,
                         entry != null))
@@ -841,6 +855,21 @@ namespace DesktopOrganizer
             // 文件和重解析点只交给 Shell 外部打开；重解析目录绝不进入 Portal 内部。
             OpenPath(entry.FullPath);
         }
+
+        internal static Key ResolveFolderPortalKeyboardKey(
+            Key key,
+            Key systemKey) =>
+            key == Key.System ? systemKey : key;
+
+        internal static bool ShouldNavigateFolderPortalUpFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool canNavigateUp) =>
+            key == Key.Up &&
+            modifiers == ModifierKeys.Alt &&
+            !isRepeat &&
+            canNavigateUp;
 
         internal static bool ShouldOpenFolderPortalEntryFromKeyboard(
             Key key,
