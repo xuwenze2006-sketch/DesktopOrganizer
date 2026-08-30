@@ -1090,6 +1090,8 @@ namespace DesktopOrganizer
                 return;
             }
 
+            string? selectedEntryPath =
+                GetSelectedFolderPortalEntryPath(state.CurrentList);
             bool previousListHadFocus = state.CurrentList?.IsKeyboardFocusWithin == true;
             RemoveFolderPortalVisual(portal.Id, cancelRead: false, removeRuntimeState: false);
             FrameworkElement visual = CreateFolderPortalVisual(portal, state);
@@ -1106,14 +1108,56 @@ namespace DesktopOrganizer
                     portal.Id,
                     out FolderPortalRuntimeState? currentState) &&
                 ReferenceEquals(currentState, state);
+            ListBox? replacementList = state.CurrentList;
+            int restoredSelectionIndex = FindFolderPortalRestoredSelectionIndex(
+                state.LastSuccessfulResult?.Entries.Select(entry => entry.FullPath) ??
+                    Enumerable.Empty<string>(),
+                selectedEntryPath);
+            if (isCurrentState &&
+                replacementList != null &&
+                restoredSelectionIndex >= 0)
+            {
+                replacementList.SelectedIndex = restoredSelectionIndex;
+                replacementList.ScrollIntoView(
+                    replacementList.Items[restoredSelectionIndex]);
+            }
+
             if (ShouldRestoreFolderPortalListFocus(
                     previousListHadFocus,
                     _isClosing,
                     isCurrentState,
-                    state.CurrentList != null))
+                    replacementList != null))
             {
-                state.CurrentList!.Focus();
+                replacementList!.Focus();
             }
+        }
+
+        private static string? GetSelectedFolderPortalEntryPath(ListBox? list) =>
+            ((list?.SelectedItem as FrameworkElement)?.Tag as PortalDirectoryEntry)?.FullPath;
+
+        internal static int FindFolderPortalRestoredSelectionIndex(
+            IEnumerable<string> entryPaths,
+            string? selectedEntryPath)
+        {
+            ArgumentNullException.ThrowIfNull(entryPaths);
+            if (string.IsNullOrWhiteSpace(selectedEntryPath))
+            {
+                return -1;
+            }
+
+            int index = 0;
+            foreach (string entryPath in entryPaths)
+            {
+                if (string.Equals(
+                        entryPath,
+                        selectedEntryPath,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return index;
+                }
+                index++;
+            }
+            return -1;
         }
 
         internal static bool ShouldRestoreFolderPortalListFocus(

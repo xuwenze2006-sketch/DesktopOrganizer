@@ -7,6 +7,36 @@ namespace DesktopOrganizer.Tests;
 public sealed class FolderPortalKeyboardTests
 {
     [TestMethod]
+    public void FindRestoredSelectionIndex_FollowsSameFullPathAcrossReorder()
+    {
+        Assert.AreEqual(
+            1,
+            MainWindow.FindFolderPortalRestoredSelectionIndex(
+                [@"C:\Root\Second.txt", @"C:\Root\First.txt"],
+                @"c:\root\FIRST.txt"));
+    }
+
+    [TestMethod]
+    public void FindRestoredSelectionIndex_DoesNotSelectMissingOrSameNamedEntry()
+    {
+        Assert.AreEqual(
+            -1,
+            MainWindow.FindFolderPortalRestoredSelectionIndex(
+                [@"C:\Other\Selected.txt", @"C:\Root\Replacement.txt"],
+                @"C:\Root\Selected.txt"));
+        Assert.AreEqual(
+            -1,
+            MainWindow.FindFolderPortalRestoredSelectionIndex(
+                [@"C:\Root\First.txt"],
+                null));
+        Assert.AreEqual(
+            -1,
+            MainWindow.FindFolderPortalRestoredSelectionIndex(
+                Array.Empty<string>(),
+                @"C:\Root\First.txt"));
+    }
+
+    [TestMethod]
     [DataRow(true, false, true, true, true)]
     [DataRow(false, false, true, true, false)]
     [DataRow(true, true, true, true, false)]
