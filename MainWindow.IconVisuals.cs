@@ -253,6 +253,9 @@ namespace DesktopOrganizer
                 {
                     _selectedItemNames.Clear();
                     _selectedItemNames.Add(displayName);
+                    _groupRangeSelectionAnchor = parentGroup == null
+                        ? null
+                        : new GroupRangeSelectionAnchor(parentGroup.Id, displayName);
                     RefreshItemSelectionVisuals();
                 }
 
