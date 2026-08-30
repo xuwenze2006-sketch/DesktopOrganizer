@@ -118,6 +118,31 @@ public sealed class FolderPortalKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(Key.Enter, ModifierKeys.Shift, false, true, true)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, true, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, false, false, false)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.Space, ModifierKeys.Shift, false, true, false)]
+    public void ShouldRevealFolderPortalEntryFromKeyboard_RequiresExactInitialShiftEnterOnEntry(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool hasEntry,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldRevealFolderPortalEntryFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                hasEntry));
+    }
+
+    [TestMethod]
     [DataRow(Key.C, ModifierKeys.Control, false, true, true)]
     [DataRow(Key.C, ModifierKeys.Control, true, true, false)]
     [DataRow(Key.C, ModifierKeys.Control, false, false, false)]

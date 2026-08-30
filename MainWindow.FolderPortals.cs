@@ -351,7 +351,7 @@ namespace DesktopOrganizer
                 AllowDrop = false,
                 Focusable = true,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                ToolTip = "方向键选择；Enter 打开或进入；Ctrl+C 复制路径；Alt+↑ 返回上一级；Alt+Home 返回根目录；F5 手动刷新"
+                ToolTip = "方向键选择；Enter 打开或进入；Shift+Enter 在资源管理器中显示；Ctrl+C 复制路径；Alt+↑ 返回上一级；Alt+Home 返回根目录；F5 手动刷新"
             };
             ScrollViewer.SetCanContentScroll(list, true);
             VirtualizingPanel.SetIsVirtualizing(list, true);
@@ -405,6 +405,17 @@ namespace DesktopOrganizer
                 {
                     eventArgs.Handled = true;
                     CopyFolderPortalPath(portal, entry!.FullPath);
+                    return;
+                }
+
+                if (ShouldRevealFolderPortalEntryFromKeyboard(
+                        actualKey,
+                        Keyboard.Modifiers,
+                        eventArgs.IsRepeat,
+                        entry != null))
+                {
+                    eventArgs.Handled = true;
+                    RevealFolderPortalEntry(portal, entry!);
                     return;
                 }
 
@@ -533,14 +544,12 @@ namespace DesktopOrganizer
             open.Click += (_, _) => OpenFolderPortalEntry(portal, entry);
             menu.Items.Add(open);
 
-            var reveal = new MenuItem { Header = "在资源管理器中显示" };
-            reveal.Click += (_, _) =>
+            var reveal = new MenuItem
             {
-                if (CanUseFolderPortalPath(portal, entry.FullPath))
-                {
-                    RevealInExplorer(entry.FullPath);
-                }
+                Header = "在资源管理器中显示",
+                InputGestureText = "Shift+Enter"
             };
+            reveal.Click += (_, _) => RevealFolderPortalEntry(portal, entry);
             menu.Items.Add(reveal);
 
             var copy = new MenuItem
@@ -917,6 +926,16 @@ namespace DesktopOrganizer
             !isRepeat &&
             hasEntry;
 
+        internal static bool ShouldRevealFolderPortalEntryFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasEntry) =>
+            key == Key.Enter &&
+            modifiers == ModifierKeys.Shift &&
+            !isRepeat &&
+            hasEntry;
+
         internal static bool ShouldCopyFolderPortalPathFromKeyboard(
             Key key,
             ModifierKeys modifiers,
@@ -943,6 +962,16 @@ namespace DesktopOrganizer
             }
 
             return true;
+        }
+
+        private void RevealFolderPortalEntry(
+            FolderPortalInfo portal,
+            PortalDirectoryEntry entry)
+        {
+            if (CanUseFolderPortalPath(portal, entry.FullPath))
+            {
+                RevealInExplorer(entry.FullPath);
+            }
         }
 
         private void CopyFolderPortalPath(FolderPortalInfo portal, string path)
