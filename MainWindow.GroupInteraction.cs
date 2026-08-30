@@ -343,6 +343,11 @@ namespace DesktopOrganizer
                 return;
             }
 
+            DeleteGroup(group);
+        }
+
+        private void DeleteGroup(GroupInfo group)
+        {
             List<string> releasedNames = group.ItemNames
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Where(name => _desktopItems.ContainsKey(name))
@@ -399,6 +404,8 @@ namespace DesktopOrganizer
             }
 
             _appLayout.Groups.Remove(group);
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = $"已删除分组“{group.Name}”，恢复 {releasedPositions.Count} 个自由图标";
         }

@@ -612,6 +612,94 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void DeleteGroup_InvalidatesUndoWhenReleasedIconOccupiesSnapshotPosition()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "Released.txt";
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.Groups.Clear();
+            layout.FolderPortals.Clear();
+            layout.SnapToGrid = false;
+            layout.CompactGroupLayout = false;
+            layout.RecycleBinWidget.IsVisible = false;
+            SetField(
+                window,
+                "_desktopGeometry",
+                new DesktopGeometry(
+                [
+                    new DesktopMonitorRegion
+                    {
+                        DeviceName = "TEST",
+                        Bounds = new Rect(0, 0, 1200, 800),
+                        WorkArea = new Rect(0, 0, 1200, 800),
+                        IsPrimary = true
+                    }
+                ]));
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+            var remainingGroup = new GroupInfo
+            {
+                Id = "remaining-group",
+                Name = "保留分类",
+                X = 20,
+                Y = 256,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true
+            };
+            var deletedGroup = new GroupInfo
+            {
+                Id = "deleted-group",
+                Name = "待删除分类",
+                X = 500,
+                Y = 400,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true,
+                ItemNames = [itemName]
+            };
+            layout.Groups.Add(remainingGroup);
+            layout.Groups.Add(deletedGroup);
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            remainingGroup.X = 500;
+            remainingGroup.Y = 400;
+            deletedGroup.X = 20;
+            deletedGroup.Y = 112;
+
+            InvokePrivateMethod(window, "DeleteGroup", deletedGroup);
+
+            Assert.HasCount(1, layout.Groups);
+            Assert.AreSame(remainingGroup, layout.Groups[0]);
+            Assert.AreEqual(500, remainingGroup.X, 0.001);
+            Assert.AreEqual(400, remainingGroup.Y, 0.001);
+            Assert.IsTrue(layout.FreeIcons.TryGetValue(itemName, out IconPosition? releasedPosition));
+            Assert.IsNotNull(releasedPosition);
+            Assert.AreEqual(20, releasedPosition.X, 0.001);
+            Assert.AreEqual(256, releasedPosition.Y, 0.001);
+            Assert.IsTrue(new Rect(
+                20,
+                256,
+                remainingGroup.Width,
+                remainingGroup.Height).Contains(new Point(
+                    releasedPosition.X,
+                    releasedPosition.Y)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
