@@ -5,17 +5,46 @@ namespace DesktopOrganizer
     {
         private void DesktopSearchButton_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new DesktopSearchWindow(this);
-            if (_isAttachedToDesktop)
-            {
-                dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            }
-            else
-            {
-                dialog.Owner = this;
-            }
-            dialog.ShowDialog();
+            TryShowDesktopSearchDialog();
         }
+
+        private bool TryShowDesktopSearchDialog()
+        {
+            if (!TryReserveDesktopSearchDialog(ref _desktopSearchDialogReservation))
+            {
+                return false;
+            }
+
+            return ShowReservedDesktopSearchDialog();
+        }
+
+        private bool ShowReservedDesktopSearchDialog()
+        {
+            try
+            {
+                var dialog = new DesktopSearchWindow(this);
+                if (_isAttachedToDesktop)
+                {
+                    dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                }
+                else
+                {
+                    dialog.Owner = this;
+                }
+                dialog.ShowDialog();
+                return true;
+            }
+            finally
+            {
+                ReleaseDesktopSearchDialog(ref _desktopSearchDialogReservation);
+            }
+        }
+
+        internal static bool TryReserveDesktopSearchDialog(ref int reservation) =>
+            Interlocked.CompareExchange(ref reservation, 1, 0) == 0;
+
+        internal static void ReleaseDesktopSearchDialog(ref int reservation) =>
+            Interlocked.Exchange(ref reservation, 0);
 
         internal IReadOnlyList<DesktopSearchResult> SearchLoadedDesktopItems(
             string? text,

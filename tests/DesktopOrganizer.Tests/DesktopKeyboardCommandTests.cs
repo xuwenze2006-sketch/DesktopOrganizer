@@ -8,12 +8,17 @@ public sealed class DesktopKeyboardCommandTests
 {
     [TestMethod]
     [DataRow(0x41u, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.SelectAllItems)]
+    [DataRow(0x46u, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch)]
     [DataRow(0x5Au, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.UndoFileMove)]
     [DataRow(0x1Bu, false, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.ClearSelection)]
     [DataRow(0x41u, false, false, false, false, -1)]
     [DataRow(0x41u, true, true, false, false, -1)]
     [DataRow(0x41u, true, false, true, false, -1)]
     [DataRow(0x41u, true, false, false, true, -1)]
+    [DataRow(0x46u, false, false, false, false, -1)]
+    [DataRow(0x46u, true, true, false, false, -1)]
+    [DataRow(0x46u, true, false, true, false, -1)]
+    [DataRow(0x46u, true, false, false, true, -1)]
     public void NativeResolver_RequiresExactDesktopShortcut(
         uint virtualKey,
         bool controlDown,
@@ -36,23 +41,44 @@ public sealed class DesktopKeyboardCommandTests
     }
 
     [TestMethod]
-    [DataRow(Key.A, ModifierKeys.Control, (int)NativeMethods.DesktopKeyboardCommand.SelectAllItems)]
-    [DataRow(Key.Z, ModifierKeys.Control, (int)NativeMethods.DesktopKeyboardCommand.UndoFileMove)]
-    [DataRow(Key.Escape, ModifierKeys.None, (int)NativeMethods.DesktopKeyboardCommand.ClearSelection)]
-    [DataRow(Key.A, ModifierKeys.None, -1)]
-    [DataRow(Key.A, ModifierKeys.Control | ModifierKeys.Shift, -1)]
-    [DataRow(Key.A, ModifierKeys.Control | ModifierKeys.Alt, -1)]
+    [DataRow(Key.A, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.SelectAllItems)]
+    [DataRow(Key.F, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch)]
+    [DataRow(Key.Z, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.UndoFileMove)]
+    [DataRow(Key.Escape, ModifierKeys.None, false, (int)NativeMethods.DesktopKeyboardCommand.ClearSelection)]
+    [DataRow(Key.F, ModifierKeys.Control, true, -1)]
+    [DataRow(Key.F, ModifierKeys.None, false, -1)]
+    [DataRow(Key.F, ModifierKeys.Control | ModifierKeys.Shift, false, -1)]
+    [DataRow(Key.F, ModifierKeys.Control | ModifierKeys.Alt, false, -1)]
+    [DataRow(Key.F, ModifierKeys.Control | ModifierKeys.Windows, false, -1)]
+    [DataRow(Key.A, ModifierKeys.None, false, -1)]
+    [DataRow(Key.A, ModifierKeys.Control | ModifierKeys.Shift, false, -1)]
+    [DataRow(Key.A, ModifierKeys.Control | ModifierKeys.Alt, false, -1)]
     public void WpfResolver_MatchesNativeShortcutSet(
         Key key,
         ModifierKeys modifiers,
+        bool isRepeat,
         int expected)
     {
         NativeMethods.DesktopKeyboardCommand? command =
-            MainWindow.ResolveDesktopKeyboardCommand(key, modifiers);
+            MainWindow.ResolveDesktopKeyboardCommand(key, modifiers, isRepeat);
 
         Assert.AreEqual(
             expected < 0 ? null : (NativeMethods.DesktopKeyboardCommand)expected,
             command);
+    }
+
+    [TestMethod]
+    public void DesktopSearchReservation_AllowsOnlyOneWindowUntilReleased()
+    {
+        int reservation = 0;
+
+        Assert.IsTrue(MainWindow.TryReserveDesktopSearchDialog(ref reservation));
+        Assert.IsFalse(MainWindow.TryReserveDesktopSearchDialog(ref reservation));
+
+        MainWindow.ReleaseDesktopSearchDialog(ref reservation);
+
+        Assert.IsTrue(MainWindow.TryReserveDesktopSearchDialog(ref reservation));
+        MainWindow.ReleaseDesktopSearchDialog(ref reservation);
     }
 
     [TestMethod]

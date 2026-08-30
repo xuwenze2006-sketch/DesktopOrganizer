@@ -118,6 +118,20 @@ public sealed class ControlPanelUiContractTests
     }
 
     [TestMethod]
+    public void DesktopSearchCommand_AdvertisesDesktopShortcut()
+    {
+        XDocument document = LoadMainWindowXaml();
+        XElement command = document
+            .Descendants()
+            .Single(element => string.Equals(
+                (string?)element.Attribute("AutomationProperties.AutomationId"),
+                "desktop-search",
+                StringComparison.Ordinal));
+
+        StringAssert.Contains(command.Attribute("ToolTip")?.Value, "Ctrl+F");
+    }
+
+    [TestMethod]
     public void ExpandedPanel_DefaultsToCompactCommonTab()
     {
         XDocument document = LoadMainWindowXaml();

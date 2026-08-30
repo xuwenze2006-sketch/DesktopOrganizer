@@ -204,9 +204,12 @@ namespace DesktopOrganizer
         {
             NativeMethods.DesktopKeyboardCommand? command = ResolveDesktopKeyboardCommand(
                 e.Key,
-                Keyboard.Modifiers);
+                Keyboard.Modifiers,
+                e.IsRepeat);
 
-            if (command != null && ExecuteDesktopKeyboardCommand(command.Value))
+            if (command != null &&
+                CanExecuteDesktopKeyboardCommand(command.Value) &&
+                ExecuteDesktopKeyboardCommand(command.Value))
             {
                 e.Handled = true;
             }
@@ -216,8 +219,21 @@ namespace DesktopOrganizer
             NativeMethods.DesktopKeyboardCommand command)
         {
             if (_isClosing ||
-                Dispatcher.HasShutdownStarted ||
-                !CanExecuteDesktopKeyboardCommand(command))
+                Dispatcher.HasShutdownStarted)
+            {
+                return false;
+            }
+
+            bool desktopSearchReservationHeld =
+                command == NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch;
+            if (desktopSearchReservationHeld)
+            {
+                if (!TryReserveDesktopSearchDialog(ref _desktopSearchDialogReservation))
+                {
+                    return false;
+                }
+            }
+            else if (!CanExecuteDesktopKeyboardCommand(command))
             {
                 return false;
             }
@@ -230,15 +246,25 @@ namespace DesktopOrganizer
                     DispatcherPriority.Input,
                     new Action(() =>
                     {
-                        if (!_isClosing)
+                        if (_isClosing)
                         {
-                            ExecuteDesktopKeyboardCommand(command);
+                            if (desktopSearchReservationHeld)
+                            {
+                                ReleaseDesktopSearchDialog(ref _desktopSearchDialogReservation);
+                            }
+                            return;
                         }
+
+                        ExecuteDesktopKeyboardCommand(command, desktopSearchReservationHeld);
                     }));
                 return true;
             }
             catch (InvalidOperationException)
             {
+                if (desktopSearchReservationHeld)
+                {
+                    ReleaseDesktopSearchDialog(ref _desktopSearchDialogReservation);
+                }
                 // Dispatcher 正在退出。
                 return false;
             }
@@ -255,12 +281,15 @@ namespace DesktopOrganizer
                     _selectedItemNames.Count > 0,
                 NativeMethods.DesktopKeyboardCommand.SelectAllItems =>
                     _desktopItems.Count > 0,
+                NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch =>
+                    Volatile.Read(ref _desktopSearchDialogReservation) == 0,
                 _ => false
             };
         }
 
         private bool ExecuteDesktopKeyboardCommand(
-            NativeMethods.DesktopKeyboardCommand command)
+            NativeMethods.DesktopKeyboardCommand command,
+            bool desktopSearchReservationHeld = false)
         {
             return command switch
             {
@@ -270,19 +299,33 @@ namespace DesktopOrganizer
                     when _selectedItemNames.Count > 0 => ClearSelectionFromKeyboard(),
                 NativeMethods.DesktopKeyboardCommand.SelectAllItems
                     when _desktopItems.Count > 0 => SelectAllItemsFromKeyboard(),
+                NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch =>
+                    desktopSearchReservationHeld
+                        ? ShowReservedDesktopSearchDialog()
+                        : TryShowDesktopSearchDialog(),
                 _ => false
             };
         }
 
         internal static NativeMethods.DesktopKeyboardCommand? ResolveDesktopKeyboardCommand(
             Key key,
-            ModifierKeys modifiers) => (key, modifiers) switch
+            ModifierKeys modifiers,
+            bool isRepeat)
         {
-            (Key.Z, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.UndoFileMove,
-            (Key.A, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.SelectAllItems,
-            (Key.Escape, ModifierKeys.None) => NativeMethods.DesktopKeyboardCommand.ClearSelection,
-            _ => null
-        };
+            if (isRepeat)
+            {
+                return null;
+            }
+
+            return (key, modifiers) switch
+            {
+                (Key.Z, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.UndoFileMove,
+                (Key.A, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.SelectAllItems,
+                (Key.F, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch,
+                (Key.Escape, ModifierKeys.None) => NativeMethods.DesktopKeyboardCommand.ClearSelection,
+                _ => null
+            };
+        }
 
         internal static int ReplaceSelectionWithAllLoadedItems(
             ISet<string> selectedItemNames,

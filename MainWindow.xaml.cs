@@ -124,6 +124,7 @@ namespace DesktopOrganizer
         private bool _commandsExpanded;
         private bool _panelToggleInProgress;
         private bool _autoClassifyInProgress;
+        private int _desktopSearchDialogReservation;
         private int _displayUpdateQueued;
         private int _desktopLayerGuardFailures;
         private int _watcherRestartQueued;

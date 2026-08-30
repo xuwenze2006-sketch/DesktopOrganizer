@@ -388,12 +388,13 @@
 
 - [ ] 在任意普通应用保持前台时，点击 DesktopOrganizer 图标后按 Ctrl+Z，可撤销最近一次真实文件移动；普通应用窗口没有被整理层激活或遮挡。
 - [ ] Ctrl+单击选择部分项目后按 Ctrl+A，自由图标、分组图标和虚拟化视口外项目全部选中且无重复；再次按保持全选，Esc 清除选择。
-- [ ] 点击记事本/浏览器/IDE 后按 Ctrl+A/Ctrl+Z，只触发该应用自身操作，不改变 DesktopOrganizer 选择或文件移动历史。
+- [ ] 在 Explorer 桌面或整理层语境按 Ctrl+F，只打开一个快速搜索窗口且查询框获得输入焦点；搜索窗口内再次按 Ctrl+F 只返回并全选查询，不打开第二个窗口。
+- [ ] 点击记事本/浏览器/IDE 后按 Ctrl+A/Ctrl+F/Ctrl+Z，只触发该应用自身操作，不改变 DesktopOrganizer 选择、搜索窗口或文件移动历史。
 - [ ] 从整理层通过 Alt+Tab 或 Win+Tab 切换到其他应用，再按 Ctrl+Z，不触发 DesktopOrganizer。
-- [ ] 点击桌面空白处使 Explorer 桌面成为前台，Ctrl+A/Ctrl+Z/Esc 仍按当前 DesktopOrganizer 状态工作。
-- [ ] 在普通资源管理器文件夹窗口中按 Ctrl+Z，不会被误判为桌面命令。
+- [ ] 点击桌面空白处使 Explorer 桌面成为前台，Ctrl+A/Ctrl+F/Ctrl+Z/Esc 仍按当前 DesktopOrganizer 状态工作。
+- [ ] 在普通资源管理器文件夹窗口中按 Ctrl+F/Ctrl+Z，不会被误判为桌面命令。
 - [ ] 按住 Ctrl+Z 不会连续快速撤销多条记录；松开后再次按下才撤销下一条。
-- [ ] Ctrl+Shift+A、Ctrl+Alt+A、Win+A 不触发全选；Ctrl+Shift+Z、Ctrl+Alt+Z、Win+Z 不触发撤销。
+- [ ] 按住 Ctrl+F 不会连续打开搜索；Ctrl+Shift+F、Ctrl+Alt+F、Win+F 不触发搜索，A/Z 的混合修饰键同样不触发对应命令。
 - [ ] 输入法候选窗口、系统菜单和 WPF 重命名对话框中按 Esc，不造成异常或重复命令。
 - [ ] 使用屏幕键盘或自动化工具发送注入按键时，不触发真实文件撤销。
 - [ ] 连续点击整理层与外部应用 100 次并交替按 Esc/Ctrl+Z，快捷键语境不串到外部应用。
