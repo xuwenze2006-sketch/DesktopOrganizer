@@ -63,6 +63,21 @@ namespace DesktopOrganizer
 
         private SearchListItem? Selected => ResultsList.SelectedItem as SearchListItem;
 
+        private void DesktopSearchWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!ShouldFocusQueryFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat) ||
+                !QueryBox.Focus())
+            {
+                return;
+            }
+
+            QueryBox.SelectAll();
+            e.Handled = true;
+        }
+
         private void RefreshResults()
         {
             DesktopSmartView view = (ViewSelector.SelectedItem as SmartViewChoice)?.View ??
@@ -107,19 +122,6 @@ namespace DesktopOrganizer
 
         private void ResultsList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (ShouldFocusQueryFromResults(
-                    e.Key,
-                    Keyboard.Modifiers,
-                    e.IsRepeat))
-            {
-                if (QueryBox.Focus())
-                {
-                    QueryBox.SelectAll();
-                    e.Handled = true;
-                }
-                return;
-            }
-
             e.Handled = TryExecuteSelectedAction(
                 ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
         }
@@ -202,7 +204,7 @@ namespace DesktopOrganizer
             };
         }
 
-        internal static bool ShouldFocusQueryFromResults(
+        internal static bool ShouldFocusQueryFromKeyboard(
             Key key,
             ModifierKeys modifiers,
             bool isRepeat) =>

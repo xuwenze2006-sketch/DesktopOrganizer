@@ -55,7 +55,7 @@ public sealed class DesktopSearchWindowKeyboardTests
     [DataRow(Key.F, ModifierKeys.Control | ModifierKeys.Shift, false, false)]
     [DataRow(Key.F, ModifierKeys.Alt, false, false)]
     [DataRow(Key.Enter, ModifierKeys.Control, false, false)]
-    public void ShouldFocusQueryFromResults_RequiresExactInitialControlF(
+    public void ShouldFocusQueryFromKeyboard_RequiresExactInitialControlF(
         Key key,
         ModifierKeys modifiers,
         bool isRepeat,
@@ -63,7 +63,7 @@ public sealed class DesktopSearchWindowKeyboardTests
     {
         Assert.AreEqual(
             expected,
-            DesktopSearchWindow.ShouldFocusQueryFromResults(
+            DesktopSearchWindow.ShouldFocusQueryFromKeyboard(
                 key,
                 modifiers,
                 isRepeat));
@@ -84,7 +84,7 @@ public sealed class DesktopSearchWindowKeyboardTests
     }
 
     [TestMethod]
-    public void SearchWindow_WiresKeyboardHandlersOnlyToSearchControls()
+    public void SearchWindow_WiresWindowQueryShortcutAndControlActions()
     {
         XDocument document = LoadSearchWindowXaml();
         XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
@@ -109,7 +109,9 @@ public sealed class DesktopSearchWindowKeyboardTests
         Assert.AreEqual(
             "ResultsList_PreviewKeyDown",
             resultsList.Attribute("PreviewKeyDown")?.Value);
-        Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
+        Assert.AreEqual(
+            "DesktopSearchWindow_PreviewKeyDown",
+            document.Root?.Attribute("PreviewKeyDown")?.Value);
 
         Assert.AreEqual(
             "Enter（定位后返回桌面）",
@@ -123,6 +125,7 @@ public sealed class DesktopSearchWindowKeyboardTests
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Enter 定位并返回桌面");
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Ctrl+Enter 打开");
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Shift+Enter");
+        StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Ctrl+F");
         StringAssert.Contains(
             resultsList.Attribute("ToolTip")?.Value,
             "Ctrl+F 返回搜索框并全选查询文本");

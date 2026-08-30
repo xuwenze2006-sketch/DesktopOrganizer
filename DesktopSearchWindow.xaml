@@ -7,6 +7,7 @@
         MinWidth="620"
         MinHeight="420"
         WindowStartupLocation="CenterOwner"
+        PreviewKeyDown="DesktopSearchWindow_PreviewKeyDown"
         ShowInTaskbar="False">
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -31,7 +32,7 @@
                      VerticalContentAlignment="Center"
                      TextChanged="QueryBox_TextChanged"
                      PreviewKeyDown="QueryBox_PreviewKeyDown"
-                     ToolTip="上下方向键选择；Enter 定位并返回桌面；Ctrl+Enter 打开；Shift+Enter 在资源管理器中显示"/>
+                     ToolTip="上下方向键选择；Enter 定位并返回桌面；Ctrl+Enter 打开；Shift+Enter 在资源管理器中显示；Ctrl+F 全选查询文本"/>
             <ComboBox x:Name="ViewSelector" Grid.Column="1" Margin="10,0,0,0"
                       DisplayMemberPath="Name" SelectionChanged="ViewSelector_SelectionChanged"/>
         </Grid>
