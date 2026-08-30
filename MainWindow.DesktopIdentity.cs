@@ -394,6 +394,17 @@ namespace DesktopOrganizer
                 _selectedItemNames.Add(selectedName);
             }
 
+            if (_groupRangeSelectionAnchor != null)
+            {
+                string? transformedAnchorName = TransformSingleName(
+                    _groupRangeSelectionAnchor.ItemName,
+                    renameMap,
+                    targetNames);
+                _groupRangeSelectionAnchor = string.IsNullOrWhiteSpace(transformedAnchorName)
+                    ? null
+                    : _groupRangeSelectionAnchor with { ItemName = transformedAnchorName };
+            }
+
             _pushPreviewDraggedName = TransformSingleName(_pushPreviewDraggedName, renameMap, targetNames);
             _pushPreviewTargetName = TransformSingleName(_pushPreviewTargetName, renameMap, targetNames);
             UpdateFileMoveHistoryAfterRenames(renames, renameMap, targetNames);
