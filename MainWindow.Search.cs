@@ -89,6 +89,9 @@ namespace DesktopOrganizer
 
             _selectedItemNames.Clear();
             _selectedItemNames.Add(displayName);
+            _groupRangeSelectionAnchor = group == null
+                ? null
+                : new GroupRangeSelectionAnchor(group.Id, displayName);
             RebuildDesktopIcons();
             if (layoutChanged)
             {
