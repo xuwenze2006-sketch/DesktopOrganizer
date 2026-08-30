@@ -132,6 +132,20 @@ public sealed class ControlPanelUiContractTests
     }
 
     [TestMethod]
+    public void RefreshCommand_AdvertisesDesktopShortcut()
+    {
+        XDocument document = LoadMainWindowXaml();
+        XElement command = document
+            .Descendants()
+            .Single(element => string.Equals(
+                (string?)element.Attribute("AutomationProperties.AutomationId"),
+                "refresh",
+                StringComparison.Ordinal));
+
+        StringAssert.Contains(command.Attribute("ToolTip")?.Value, "F5");
+    }
+
+    [TestMethod]
     public void ExpandedPanel_DefaultsToCompactCommonTab()
     {
         XDocument document = LoadMainWindowXaml();

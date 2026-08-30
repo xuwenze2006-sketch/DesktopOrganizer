@@ -283,6 +283,10 @@ namespace DesktopOrganizer
                     _desktopItems.Count > 0,
                 NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch =>
                     Volatile.Read(ref _desktopSearchDialogReservation) == 0,
+                NativeMethods.DesktopKeyboardCommand.RefreshDesktop =>
+                    CanRouteDesktopRefreshShortcut(
+                        _folderPortalRuntimeStates.Values.Any(state =>
+                            state.CurrentList?.IsKeyboardFocusWithin == true)),
                 _ => false
             };
         }
@@ -303,6 +307,8 @@ namespace DesktopOrganizer
                     desktopSearchReservationHeld
                         ? ShowReservedDesktopSearchDialog()
                         : TryShowDesktopSearchDialog(),
+                NativeMethods.DesktopKeyboardCommand.RefreshDesktop =>
+                    RefreshDesktopFromKeyboard(),
                 _ => false
             };
         }
@@ -323,8 +329,19 @@ namespace DesktopOrganizer
                 (Key.A, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.SelectAllItems,
                 (Key.F, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch,
                 (Key.Escape, ModifierKeys.None) => NativeMethods.DesktopKeyboardCommand.ClearSelection,
+                (Key.F5, ModifierKeys.None) => NativeMethods.DesktopKeyboardCommand.RefreshDesktop,
                 _ => null
             };
+        }
+
+        internal static bool CanRouteDesktopRefreshShortcut(
+            bool folderPortalListHasKeyboardFocus) =>
+            !folderPortalListHasKeyboardFocus;
+
+        private bool RefreshDesktopFromKeyboard()
+        {
+            RefreshDesktop();
+            return true;
         }
 
         internal static int ReplaceSelectionWithAllLoadedItems(

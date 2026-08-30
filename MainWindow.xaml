@@ -1013,7 +1013,7 @@
                                                 AutomationProperties.AutomationId="refresh"
                                                 Style="{StaticResource PanelCommandButtonStyle}"
                                                 Click="RefreshButton_Click"
-                                                ToolTip="重新扫描桌面并刷新分类与布局状态"/>
+                                                ToolTip="F5；重新扫描桌面并刷新分类与布局状态"/>
                                         <Button Content="诊断日志"
                                                 Tag="≡"
                                                 AutomationProperties.AutomationId="diagnostics"

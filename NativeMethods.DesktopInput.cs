@@ -8,7 +8,8 @@ namespace DesktopOrganizer
             UndoFileMove,
             ClearSelection,
             SelectAllItems,
-            OpenDesktopSearch
+            OpenDesktopSearch,
+            RefreshDesktop
         }
 
         /// <summary>
@@ -105,6 +106,10 @@ namespace DesktopOrganizer
             if (!controlDown && virtualKey == VK_ESCAPE)
             {
                 return DesktopKeyboardCommand.ClearSelection;
+            }
+            if (!controlDown && virtualKey == VK_F5)
+            {
+                return DesktopKeyboardCommand.RefreshDesktop;
             }
             return null;
         }
@@ -265,7 +270,7 @@ namespace DesktopOrganizer
                 try
                 {
                     // 只有调用方确认命令可执行并已排队时才消费按键，避免
-                    // 不激活窗口与原前台应用同时处理同一个 Ctrl+A/Ctrl+F/Ctrl+Z/Esc。
+                    // 不激活窗口与原前台应用同时处理同一个 Ctrl+A/Ctrl+F/Ctrl+Z/Esc/F5。
                     return _callback(command.Value);
                 }
                 catch
@@ -473,6 +478,7 @@ namespace DesktopOrganizer
         private const int VK_ESCAPE = 0x1B;
         private const int VK_A = 0x41;
         private const int VK_F = 0x46;
+        private const int VK_F5 = 0x74;
         private const int VK_Z = 0x5A;
         private const int VK_LWIN = 0x5B;
         private const int VK_RWIN = 0x5C;

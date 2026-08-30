@@ -11,6 +11,11 @@ public sealed class DesktopKeyboardCommandTests
     [DataRow(0x46u, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch)]
     [DataRow(0x5Au, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.UndoFileMove)]
     [DataRow(0x1Bu, false, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.ClearSelection)]
+    [DataRow(0x74u, false, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.RefreshDesktop)]
+    [DataRow(0x74u, true, false, false, false, -1)]
+    [DataRow(0x74u, false, true, false, false, -1)]
+    [DataRow(0x74u, false, false, true, false, -1)]
+    [DataRow(0x74u, false, false, false, true, -1)]
     [DataRow(0x41u, false, false, false, false, -1)]
     [DataRow(0x41u, true, true, false, false, -1)]
     [DataRow(0x41u, true, false, true, false, -1)]
@@ -45,6 +50,12 @@ public sealed class DesktopKeyboardCommandTests
     [DataRow(Key.F, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch)]
     [DataRow(Key.Z, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.UndoFileMove)]
     [DataRow(Key.Escape, ModifierKeys.None, false, (int)NativeMethods.DesktopKeyboardCommand.ClearSelection)]
+    [DataRow(Key.F5, ModifierKeys.None, false, (int)NativeMethods.DesktopKeyboardCommand.RefreshDesktop)]
+    [DataRow(Key.F5, ModifierKeys.None, true, -1)]
+    [DataRow(Key.F5, ModifierKeys.Control, false, -1)]
+    [DataRow(Key.F5, ModifierKeys.Shift, false, -1)]
+    [DataRow(Key.F5, ModifierKeys.Alt, false, -1)]
+    [DataRow(Key.F5, ModifierKeys.Windows, false, -1)]
     [DataRow(Key.F, ModifierKeys.Control, true, -1)]
     [DataRow(Key.F, ModifierKeys.None, false, -1)]
     [DataRow(Key.F, ModifierKeys.Control | ModifierKeys.Shift, false, -1)]
@@ -79,6 +90,19 @@ public sealed class DesktopKeyboardCommandTests
 
         Assert.IsTrue(MainWindow.TryReserveDesktopSearchDialog(ref reservation));
         MainWindow.ReleaseDesktopSearchDialog(ref reservation);
+    }
+
+    [TestMethod]
+    [DataRow(false, true)]
+    [DataRow(true, false)]
+    public void DesktopRefreshShortcut_DefersToFocusedFolderPortalList(
+        bool folderPortalListHasKeyboardFocus,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.CanRouteDesktopRefreshShortcut(
+                folderPortalListHasKeyboardFocus));
     }
 
     [TestMethod]
