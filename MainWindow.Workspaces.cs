@@ -20,6 +20,9 @@ namespace DesktopOrganizer
         internal IReadOnlyList<WorkspacePreview> GetWorkspacePreviews() =>
             WorkspaceLayoutManager.GetPreviews(_appLayout);
 
+        internal WorkspaceSwitchImpact? GetWorkspaceSwitchImpact(string workspaceId) =>
+            WorkspaceLayoutManager.GetSwitchImpact(_appLayout, workspaceId);
+
         internal string? GetActiveWorkspaceId() => _appLayout.ActiveWorkspaceId;
 
         internal bool TryCreateWorkspace(string name, out string error)

@@ -52,6 +52,12 @@ namespace DesktopOrganizer
         private void UpdatePreview()
         {
             WorkspaceListItem? item = Selected;
+            string impactText = item?.IsActive == true
+                ? "当前工作区；快照会在布局保存时更新。"
+                : $"{FormatSwitchImpact(item == null
+                    ? null
+                    : _mainWindow.GetWorkspaceSwitchImpact(item.Id))}\n" +
+                  "切换时仍会按当前显示器和现存桌面项目校正。";
             PreviewText.Text = item == null
                 ? "尚未创建命名工作区。当前兼容布局仍会照常保存。"
                 : $"名称：{item.Name}\n" +
@@ -60,7 +66,8 @@ namespace DesktopOrganizer
                   $"自由图标坐标：{item.FreeIconCount}\n" +
                   $"只读文件夹入口：{item.PortalCount}\n" +
                   $"显示器拓扑：{item.MonitorCount} 个显示器\n" +
-                  $"最近更新：{item.UpdatedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
+                  $"最近更新：{item.UpdatedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}\n\n" +
+                  impactText;
         }
 
         private void Create_Click(object sender, RoutedEventArgs e)
@@ -87,10 +94,20 @@ namespace DesktopOrganizer
                 return;
             }
 
+            WorkspaceSwitchImpact? impact = _mainWindow.GetWorkspaceSwitchImpact(item.Id);
+            if (impact == null)
+            {
+                ShowError("工作区已不存在。");
+                RefreshList();
+                return;
+            }
+
             MessageBoxResult confirmation = MessageBox.Show(
                 $"将恢复工作区“{item.Name}”的视觉布局。\n\n" +
                 $"分组 {item.GroupCount} 个，自由图标坐标 {item.FreeIconCount} 个，" +
                 $"只读文件夹入口 {item.PortalCount} 个，保存时显示器 {item.MonitorCount} 个。\n\n" +
+                $"{FormatSwitchImpact(impact)}\n" +
+                "切换时仍会按当前显示器和现存桌面项目校正。\n\n" +
                 "此操作不会移动、重命名或删除任何真实文件。",
                 "切换工作区",
                 MessageBoxButton.OKCancel,
@@ -147,8 +164,17 @@ namespace DesktopOrganizer
                 return;
             }
 
+            WorkspaceSwitchImpact? impact = _mainWindow.GetWorkspaceSwitchImpact(item.Id);
+            if (impact == null)
+            {
+                ShowError("工作区已不存在。");
+                RefreshList();
+                return;
+            }
+
             if (MessageBox.Show(
-                    $"使用当前屏幕上的视觉布局覆盖“{item.Name}”的已有快照？\n\n不会修改真实文件。",
+                    $"使用当前屏幕上的视觉布局覆盖“{item.Name}”的已有快照？\n\n" +
+                    $"{FormatSwitchImpact(impact)}\n\n不会修改真实文件。",
                     "覆盖工作区快照",
                     MessageBoxButton.OKCancel,
                     MessageBoxImage.Warning) != MessageBoxResult.OK)
@@ -162,6 +188,45 @@ namespace DesktopOrganizer
                 return;
             }
             RefreshList(item.Id);
+        }
+
+        internal static string FormatSwitchImpact(WorkspaceSwitchImpact? impact)
+        {
+            if (impact == null)
+            {
+                return "无法读取该工作区的可见布局差异。";
+            }
+            if (!impact.HasVisibleChanges)
+            {
+                return "已保存的可见布局字段与当前布局一致。";
+            }
+
+            var parts = new List<string>();
+            if (impact.ChangedGroupCount > 0)
+            {
+                parts.Add($"分组配置 {impact.ChangedGroupCount} 项");
+            }
+            if (impact.ChangedFreeIconCoordinateCount > 0)
+            {
+                parts.Add($"自由图标坐标 {impact.ChangedFreeIconCoordinateCount} 项");
+            }
+            if (impact.ChangedPortalCount > 0)
+            {
+                parts.Add($"只读文件夹入口 {impact.ChangedPortalCount} 项");
+            }
+            if (impact.ControlPanelChanged)
+            {
+                parts.Add("控制面板位置");
+            }
+            if (impact.RecycleBinWidgetChanged)
+            {
+                parts.Add("回收站组件");
+            }
+            if (impact.DesktopTopologyChanged)
+            {
+                parts.Add("显示器快照");
+            }
+            return $"与当前布局相比：{string.Join("、", parts)}不同。";
         }
 
         private void Rename_Click(object sender, RoutedEventArgs e)

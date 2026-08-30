@@ -300,6 +300,119 @@ public sealed class WorkspaceLayoutManagerTests
             "激活当前工作区不得覆盖尚未保存的当前布局。");
     }
 
+    [TestMethod]
+    public void GetSwitchImpact_IdenticalSnapshotHasNoChangesAndDoesNotMutateLayout()
+    {
+        var layout = CreateLayout("one.txt", 10);
+        WorkspaceProfileInfo workspace = WorkspaceLayoutManager.CreateAndActivate(
+            layout,
+            "工作",
+            DateTime.UnixEpoch);
+        string before = JsonSerializer.Serialize(layout);
+
+        WorkspaceSwitchImpact? impact = WorkspaceLayoutManager.GetSwitchImpact(
+            layout,
+            workspace.Id);
+
+        Assert.IsNotNull(impact);
+        Assert.IsFalse(impact.HasVisibleChanges);
+        Assert.AreEqual(0, impact.ChangedGroupCount);
+        Assert.AreEqual(0, impact.ChangedFreeIconCoordinateCount);
+        Assert.AreEqual(0, impact.ChangedPortalCount);
+        Assert.AreEqual(before, JsonSerializer.Serialize(layout));
+    }
+
+    [TestMethod]
+    public void GetSwitchImpact_CountsChangedAndAddedVisibleEntriesOnce()
+    {
+        var layout = CreateLayout("one.txt", 10);
+        WorkspaceProfileInfo workspace = WorkspaceLayoutManager.CreateAndActivate(
+            layout,
+            "工作",
+            DateTime.UnixEpoch);
+        layout.Groups[0].X += 20;
+        layout.Groups.Add(new GroupInfo { Id = "group-2", Name = "临时" });
+        layout.FreeIcons["one.txt"].X += 20;
+        layout.FreeIcons["two.txt"] = new IconPosition { X = 30, Y = 40 };
+        layout.FolderPortals[0].IsCollapsed = true;
+        layout.FolderPortals.Add(new FolderPortalInfo
+        {
+            Id = "portal-2",
+            Name = "另一个入口"
+        });
+        layout.ControlPanelX = 42;
+        layout.RecycleBinWidget.IsVisible = false;
+        layout.DesktopTopology[0].DpiX = 120;
+
+        WorkspaceSwitchImpact? impact = WorkspaceLayoutManager.GetSwitchImpact(
+            layout,
+            workspace.Id);
+
+        Assert.IsNotNull(impact);
+        Assert.IsTrue(impact.HasVisibleChanges);
+        Assert.AreEqual(2, impact.ChangedGroupCount);
+        Assert.AreEqual(2, impact.ChangedFreeIconCoordinateCount);
+        Assert.AreEqual(2, impact.ChangedPortalCount);
+        Assert.IsTrue(impact.ControlPanelChanged);
+        Assert.IsTrue(impact.RecycleBinWidgetChanged);
+        Assert.IsTrue(impact.DesktopTopologyChanged);
+    }
+
+    [TestMethod]
+    public void GetSwitchImpact_IgnoresKeyCaseAndSubToleranceCoordinateNoise()
+    {
+        var layout = CreateLayout("one.txt", 10);
+        WorkspaceProfileInfo workspace = WorkspaceLayoutManager.CreateAndActivate(
+            layout,
+            "工作",
+            DateTime.UnixEpoch);
+        layout.FreeIcons.Remove("one.txt");
+        layout.FreeIcons["ONE.TXT"] = new IconPosition { X = 10.005, Y = 20.005 };
+        layout.Groups[0].Id = "GROUP-1";
+        layout.Groups[0].X += 0.005;
+        layout.Groups[0].ItemNames[0] = "ONE.TXT";
+        layout.Groups[0].ManuallyAssignedItemNames[0] = "ONE.TXT";
+        layout.FolderPortals[0].Id = "PORTAL-1";
+        layout.FolderPortals[0].RootPath = @"c:\data";
+        layout.FolderPortals[0].X += 0.005;
+        layout.DesktopTopology[0].DeviceName = "display1";
+        layout.DesktopTopology[0].WorkWidth += 0.005;
+
+        WorkspaceSwitchImpact? impact = WorkspaceLayoutManager.GetSwitchImpact(
+            layout,
+            workspace.Id);
+
+        Assert.IsNotNull(impact);
+        Assert.IsFalse(impact.HasVisibleChanges);
+    }
+
+    [TestMethod]
+    public void GetSwitchImpact_MissingWorkspaceReturnsNullWithoutMutation()
+    {
+        var layout = CreateLayout("one.txt", 10);
+        string before = JsonSerializer.Serialize(layout);
+
+        Assert.IsNull(WorkspaceLayoutManager.GetSwitchImpact(layout, "missing"));
+        Assert.AreEqual(before, JsonSerializer.Serialize(layout));
+    }
+
+    [TestMethod]
+    public void FormatSwitchImpact_DescribesOnlyChangedVisibleAreas()
+    {
+        string changed = WorkspaceManagerWindow.FormatSwitchImpact(
+            new WorkspaceSwitchImpact(2, 0, 1, true, false, true));
+        string identical = WorkspaceManagerWindow.FormatSwitchImpact(
+            new WorkspaceSwitchImpact(0, 0, 0, false, false, false));
+
+        StringAssert.Contains(changed, "分组配置 2 项");
+        StringAssert.Contains(changed, "只读文件夹入口 1 项");
+        StringAssert.Contains(changed, "控制面板位置");
+        StringAssert.Contains(changed, "显示器快照");
+        Assert.IsFalse(changed.Contains("自由图标坐标", StringComparison.Ordinal));
+        Assert.IsFalse(changed.Contains("回收站组件", StringComparison.Ordinal));
+        Assert.AreEqual("已保存的可见布局字段与当前布局一致。", identical);
+    }
+
     private static AppLayoutData CreateLayout(string name, double x) => new()
     {
         FreeIcons = new Dictionary<string, IconPosition>

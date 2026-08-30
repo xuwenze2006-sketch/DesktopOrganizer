@@ -9,12 +9,31 @@ namespace DesktopOrganizer
         int MonitorCount,
         DateTime UpdatedUtc);
 
+    internal sealed record WorkspaceSwitchImpact(
+        int ChangedGroupCount,
+        int ChangedFreeIconCoordinateCount,
+        int ChangedPortalCount,
+        bool ControlPanelChanged,
+        bool RecycleBinWidgetChanged,
+        bool DesktopTopologyChanged)
+    {
+        public bool HasVisibleChanges =>
+            ChangedGroupCount > 0 ||
+            ChangedFreeIconCoordinateCount > 0 ||
+            ChangedPortalCount > 0 ||
+            ControlPanelChanged ||
+            RecycleBinWidgetChanged ||
+            DesktopTopologyChanged;
+    }
+
     /// <summary>
     /// 命名工作区的纯模型操作。所有方法只复制或替换 AppLayoutData 中的视觉字段，
     /// 不接触文件系统，也不调用真实文件任务服务。
     /// </summary>
     internal static class WorkspaceLayoutManager
     {
+        private const double CoordinateComparisonTolerance = 0.01;
+
         public static WorkspaceProfileInfo CreateAndActivate(
             AppLayoutData layout,
             string name,
@@ -192,6 +211,45 @@ namespace DesktopOrganizer
                     workspace.UpdatedUtc))
                 .ToList();
 
+        public static WorkspaceSwitchImpact? GetSwitchImpact(
+            AppLayoutData layout,
+            string workspaceId)
+        {
+            ArgumentNullException.ThrowIfNull(layout);
+            WorkspaceProfileInfo? target = Find(layout, workspaceId);
+            if (target == null)
+            {
+                return null;
+            }
+
+            WorkspaceLayoutState snapshot = target.Layout;
+            return new WorkspaceSwitchImpact(
+                CountChangedEntries(
+                    layout.Groups,
+                    snapshot.Groups,
+                    group => group.Id,
+                    GroupsEquivalent),
+                CountChangedFreeIconCoordinates(layout.FreeIcons, snapshot.FreeIcons),
+                CountChangedEntries(
+                    layout.FolderPortals,
+                    snapshot.FolderPortals,
+                    portal => portal.Id,
+                    PortalsEquivalent),
+                !NullableCoordinatesEquivalent(
+                    layout.ControlPanelX,
+                    layout.ControlPanelY,
+                    snapshot.ControlPanelX,
+                    snapshot.ControlPanelY),
+                !RecycleBinWidgetsEquivalent(
+                    layout.RecycleBinWidget,
+                    snapshot.RecycleBinWidget),
+                CountChangedEntries(
+                    layout.DesktopTopology,
+                    snapshot.DesktopTopology,
+                    monitor => monitor.DeviceName,
+                    DesktopMonitorsEquivalent) > 0);
+        }
+
         public static WorkspaceLayoutState Capture(AppLayoutData layout) => new()
         {
             Version = 3,
@@ -343,6 +401,141 @@ namespace DesktopOrganizer
             }
             return normalized;
         }
+
+        private static int CountChangedFreeIconCoordinates(
+            IReadOnlyDictionary<string, IconPosition> current,
+            IReadOnlyDictionary<string, IconPosition> target)
+        {
+            Dictionary<string, IconPosition> currentByName = current.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, IconPosition> targetByName = target.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase);
+            var names = new HashSet<string>(currentByName.Keys, StringComparer.OrdinalIgnoreCase);
+            names.UnionWith(targetByName.Keys);
+            return names.Count(name =>
+                !currentByName.TryGetValue(name, out IconPosition? currentPosition) ||
+                !targetByName.TryGetValue(name, out IconPosition? targetPosition) ||
+                !PositionsEquivalent(currentPosition, targetPosition));
+        }
+
+        private static int CountChangedEntries<T>(
+            IEnumerable<T> current,
+            IEnumerable<T> target,
+            Func<T, string> keySelector,
+            Func<T, T, bool> equivalent)
+            where T : class
+        {
+            Dictionary<string, T> currentById = current.ToDictionary(
+                keySelector,
+                item => item,
+                StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, T> targetById = target.ToDictionary(
+                keySelector,
+                item => item,
+                StringComparer.OrdinalIgnoreCase);
+            var ids = new HashSet<string>(currentById.Keys, StringComparer.OrdinalIgnoreCase);
+            ids.UnionWith(targetById.Keys);
+            return ids.Count(id =>
+                !currentById.TryGetValue(id, out T? currentItem) ||
+                !targetById.TryGetValue(id, out T? targetItem) ||
+                !equivalent(currentItem, targetItem));
+        }
+
+        private static bool GroupsEquivalent(GroupInfo current, GroupInfo target) =>
+            string.Equals(current.Name, target.Name, StringComparison.Ordinal) &&
+            CoordinatesEquivalent(current.X, current.Y, target.X, target.Y) &&
+            CoordinatesEquivalent(current.Width, current.Height, target.Width, target.Height) &&
+            (current.ItemNames ?? new List<string>()).SequenceEqual(
+                target.ItemNames ?? new List<string>(),
+                StringComparer.OrdinalIgnoreCase) &&
+            (current.ManuallyAssignedItemNames ?? new List<string>()).SequenceEqual(
+                target.ManuallyAssignedItemNames ?? new List<string>(),
+                StringComparer.OrdinalIgnoreCase) &&
+            current.IsCollapsed == target.IsCollapsed &&
+            current.IsAutoCategory == target.IsAutoCategory &&
+            string.Equals(
+                current.AutoCategoryKey,
+                target.AutoCategoryKey,
+                StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                current.UserRuleId,
+                target.UserRuleId,
+                StringComparison.OrdinalIgnoreCase) &&
+            current.IsSizeLocked == target.IsSizeLocked &&
+            current.SortMode == target.SortMode;
+
+        private static bool PortalsEquivalent(FolderPortalInfo current, FolderPortalInfo target) =>
+            string.Equals(current.Name, target.Name, StringComparison.Ordinal) &&
+            string.Equals(current.RootPath, target.RootPath, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(current.RootIdentity, target.RootIdentity, StringComparison.Ordinal) &&
+            string.Equals(
+                current.CurrentRelativePath,
+                target.CurrentRelativePath,
+                StringComparison.OrdinalIgnoreCase) &&
+            CoordinatesEquivalent(current.X, current.Y, target.X, target.Y) &&
+            CoordinatesEquivalent(current.Width, current.Height, target.Width, target.Height) &&
+            current.IsCollapsed == target.IsCollapsed;
+
+        private static bool RecycleBinWidgetsEquivalent(
+            RecycleBinWidgetLayoutInfo current,
+            RecycleBinWidgetLayoutInfo target) =>
+            NullableCoordinatesEquivalent(current.X, current.Y, target.X, target.Y) &&
+            current.IsVisible == target.IsVisible;
+
+        private static bool DesktopMonitorsEquivalent(
+            DesktopMonitorLayoutInfo current,
+            DesktopMonitorLayoutInfo target) =>
+            CoordinatesEquivalent(
+                current.BoundsX,
+                current.BoundsY,
+                target.BoundsX,
+                target.BoundsY) &&
+            CoordinatesEquivalent(
+                current.BoundsWidth,
+                current.BoundsHeight,
+                target.BoundsWidth,
+                target.BoundsHeight) &&
+            CoordinatesEquivalent(
+                current.WorkX,
+                current.WorkY,
+                target.WorkX,
+                target.WorkY) &&
+            CoordinatesEquivalent(
+                current.WorkWidth,
+                current.WorkHeight,
+                target.WorkWidth,
+                target.WorkHeight) &&
+            current.IsPrimary == target.IsPrimary &&
+            current.DpiX == target.DpiX &&
+            current.DpiY == target.DpiY;
+
+        private static bool PositionsEquivalent(IconPosition current, IconPosition target) =>
+            CoordinatesEquivalent(current.X, current.Y, target.X, target.Y);
+
+        private static bool CoordinatesEquivalent(
+            double currentX,
+            double currentY,
+            double targetX,
+            double targetY) =>
+            Math.Abs(currentX - targetX) <= CoordinateComparisonTolerance &&
+            Math.Abs(currentY - targetY) <= CoordinateComparisonTolerance;
+
+        private static bool NullableCoordinatesEquivalent(
+            double? currentX,
+            double? currentY,
+            double? targetX,
+            double? targetY) =>
+            NullableCoordinateEquivalent(currentX, targetX) &&
+            NullableCoordinateEquivalent(currentY, targetY);
+
+        private static bool NullableCoordinateEquivalent(double? current, double? target) =>
+            current.HasValue == target.HasValue &&
+            (!current.HasValue ||
+             Math.Abs(current.Value - target!.Value) <= CoordinateComparisonTolerance);
 
         private static WorkspaceProfileInfo? Find(AppLayoutData layout, string? workspaceId) =>
             string.IsNullOrWhiteSpace(workspaceId)

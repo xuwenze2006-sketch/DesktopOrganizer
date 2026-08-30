@@ -29,10 +29,13 @@
                      DisplayMemberPath="DisplayName"
                      SelectionChanged="WorkspaceList_SelectionChanged"/>
             <Border Grid.Column="1" Margin="12,0,0,0" Padding="14" Background="#FFF7F7F7" CornerRadius="8">
-                <StackPanel>
-                    <TextBlock Text="快照预览" FontWeight="SemiBold" FontSize="15"/>
-                    <TextBlock x:Name="PreviewText" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#FF334155"/>
-                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Text="快照预览" FontWeight="SemiBold" FontSize="15"/>
+                        <TextBlock x:Name="PreviewText" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#FF334155"/>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
 
