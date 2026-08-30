@@ -298,9 +298,19 @@ namespace DesktopOrganizer
                 StatusText.Text = "分组不能覆盖只读文件夹入口";
                 return;
             }
+
+            bool layoutChanged = !group.IsSizeLocked ||
+                                 group.Width != proposedWidth ||
+                                 group.Height != proposedHeight;
             group.IsSizeLocked = true;
             group.Width = proposedWidth;
             group.Height = proposedHeight;
+
+            if (layoutChanged)
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
+            }
 
             if (VisualTreeHelper.GetParent(thumb) is Grid grid)
             {

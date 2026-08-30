@@ -2,6 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 
 namespace DesktopOrganizer.Tests;
@@ -97,6 +98,101 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void ResizeThumb_DimensionChangeInvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareGroup(window);
+            GetField<AppLayoutData>(window, "_appLayout").IsEditMode = true;
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            var thumb = new Thumb { Tag = group };
+
+            InvokeResizeThumbDragDelta(window, thumb, horizontalChange: 24, verticalChange: 18);
+
+            Assert.AreEqual(304, group.Width, 0.01);
+            Assert.AreEqual(218, group.Height, 0.01);
+            Assert.IsTrue(group.IsSizeLocked);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+            Assert.IsNotNull(snapshot);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    [DataRow(true, false)]
+    [DataRow(false, true)]
+    public void ResizeThumb_ZeroDimensionChangeOnlyInvalidatesWhenLockStateChanges(
+        bool initiallyLocked,
+        bool shouldInvalidateUndo)
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareGroup(window);
+            group.IsSizeLocked = initiallyLocked;
+            GetField<AppLayoutData>(window, "_appLayout").IsEditMode = true;
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            var thumb = new Thumb { Tag = group };
+
+            InvokeResizeThumbDragDelta(window, thumb, horizontalChange: 0, verticalChange: 0);
+
+            Assert.AreEqual(280, group.Width, 0.01);
+            Assert.AreEqual(200, group.Height, 0.01);
+            Assert.IsTrue(group.IsSizeLocked);
+            if (shouldInvalidateUndo)
+            {
+                Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+                Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+            }
+            else
+            {
+                Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+                Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+            }
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void ResizeThumb_SubpixelChangeOnLockedGroupInvalidatesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareGroup(window);
+            group.IsSizeLocked = true;
+            GetField<AppLayoutData>(window, "_appLayout").IsEditMode = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            var thumb = new Thumb { Tag = group };
+
+            InvokeResizeThumbDragDelta(window, thumb, horizontalChange: 0.005, verticalChange: 0);
+
+            Assert.AreEqual(280.005, group.Width, 0.0001);
+            Assert.AreEqual(200, group.Height, 0.0001);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
@@ -147,6 +243,21 @@ public sealed class SmartLayoutUndoTests
             BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new AssertFailedException("未找到分组拖动完成入口。");
         completeMethod.Invoke(window, [commit]);
+    }
+
+    private static void InvokeResizeThumbDragDelta(
+        MainWindow window,
+        Thumb thumb,
+        double horizontalChange,
+        double verticalChange)
+    {
+        MethodInfo resizeMethod = typeof(MainWindow).GetMethod(
+            "ResizeThumb_DragDelta",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到分组缩放入口。");
+        resizeMethod.Invoke(
+            window,
+            [thumb, new DragDeltaEventArgs(horizontalChange, verticalChange)]);
     }
 
     private static T GetField<T>(MainWindow window, string fieldName)
