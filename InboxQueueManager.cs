@@ -86,14 +86,16 @@ namespace DesktopOrganizer
             IReadOnlyDictionary<string, DesktopItemIdentityInfo> previousIdentities,
             IReadOnlyDictionary<string, DesktopItemIdentityInfo> currentIdentities,
             IReadOnlyDictionary<string, InboxClassificationSuggestion> suggestions,
-            DateTime utcNow)
+            DateTime utcNow,
+            IReadOnlyDictionary<string, string>? confirmedRenames = null)
         {
             ArgumentNullException.ThrowIfNull(inbox);
             ArgumentNullException.ThrowIfNull(previousIdentities);
             ArgumentNullException.ThrowIfNull(currentIdentities);
             ArgumentNullException.ThrowIfNull(suggestions);
 
-            if (!completeScan)
+            bool reconcileConfirmedRenamesOnly = !completeScan && confirmedRenames?.Count > 0;
+            if (!completeScan && !reconcileConfirmedRenamesOnly)
             {
                 return new InboxReconcileResult(
                     baselineEstablished,
@@ -105,16 +107,28 @@ namespace DesktopOrganizer
             }
 
             Dictionary<string, InboxItemInfo> working = CloneInbox(inbox);
+            HashSet<string>? confirmedRenameSources = confirmedRenames?.Keys
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            HashSet<string>? confirmedRenameTargets = confirmedRenames?.Values
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             int added = 0;
             int updated = 0;
             int removed = 0;
 
             foreach ((string oldName, InboxItemInfo oldEntry) in working.ToList())
             {
-                string? currentName = FindUniqueCurrentName(
-                    oldName,
-                    oldEntry.Identity,
-                    currentIdentities);
+                bool confirmedRenameTarget = confirmedRenameTargets?.Contains(oldName) == true;
+                if (reconcileConfirmedRenamesOnly && !confirmedRenameTarget)
+                {
+                    continue;
+                }
+
+                string? currentName = confirmedRenameTarget
+                    ? FindActualKey(currentIdentities, oldName)
+                    : FindUniqueCurrentName(
+                        oldName,
+                        oldEntry.Identity,
+                        currentIdentities);
                 if (currentName == null)
                 {
                     working.Remove(oldName);
@@ -165,7 +179,19 @@ namespace DesktopOrganizer
             {
                 foreach ((string currentName, DesktopItemIdentityInfo currentIdentity) in currentIdentities)
                 {
-                    if (IsKnownIdentity(currentName, currentIdentity, previousIdentities) ||
+                    bool confirmedRenameSource = confirmedRenameSources?.Contains(currentName) == true;
+                    if (reconcileConfirmedRenamesOnly && !confirmedRenameSource)
+                    {
+                        continue;
+                    }
+
+                    if (confirmedRenameTargets?.Contains(currentName) == true)
+                    {
+                        continue;
+                    }
+
+                    if ((!confirmedRenameSource &&
+                         IsKnownIdentity(currentName, currentIdentity, previousIdentities)) ||
                         !TryGetActualEntry(
                             suggestions,
                             currentName,
@@ -205,8 +231,8 @@ namespace DesktopOrganizer
             }
 
             return new InboxReconcileResult(
-                BaselineEstablished: true,
-                BaselineChanged: !baselineEstablished,
+                BaselineEstablished: completeScan || baselineEstablished,
+                BaselineChanged: completeScan && !baselineEstablished,
                 Changed: changed,
                 Added: added,
                 Updated: updated,

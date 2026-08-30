@@ -1219,7 +1219,8 @@ namespace DesktopOrganizer
                         previousIdentities,
                         snapshot.Identities,
                         BuildInboxSuggestions(snapshot),
-                        utcNow);
+                        utcNow,
+                        confirmedRenames);
                     _appLayout.InboxBaselineEstablished = inboxResult.BaselineEstablished;
                     bool organizationMetadataChanged = ReconcileDesktopOrganizationMetadata(
                         snapshot,

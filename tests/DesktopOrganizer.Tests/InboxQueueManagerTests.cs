@@ -134,6 +134,172 @@ public sealed class InboxQueueManagerTests
     }
 
     [TestMethod]
+    public void Reconcile_ConfirmedRenameWithoutStableIdentity_PreservesDeferredEntry()
+    {
+        DateTime detected = DateTime.UnixEpoch.AddMinutes(2);
+        DateTime now = DateTime.UnixEpoch.AddHours(3);
+        Dictionary<string, InboxItemInfo> inbox = CreateInbox(
+            "renamed.txt",
+            Physical(@"C:\Desktop\old.txt", null, null),
+            ClassificationReliability.Reliable,
+            InboxReviewState.Deferred,
+            detected);
+        Dictionary<string, DesktopItemIdentityInfo> previous = new()
+        {
+            ["old.txt"] = Physical(@"C:\Desktop\old.txt", null, null)
+        };
+        Dictionary<string, DesktopItemIdentityInfo> current = new()
+        {
+            ["renamed.txt"] = Physical(@"C:\Desktop\renamed.txt", null, null)
+        };
+
+        InboxReconcileResult result = InboxQueueManager.Reconcile(
+            inbox,
+            baselineEstablished: true,
+            completeScan: true,
+            previous,
+            current,
+            Suggestions((
+                "renamed.txt",
+                new InboxClassificationSuggestion(
+                    Images,
+                    ClassificationReliability.Conservative,
+                    "当前按图片候选复核"))),
+            now,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OLD.TXT"] = "RENAMED.TXT"
+            });
+
+        Assert.IsTrue(result.Changed);
+        Assert.AreEqual(0, result.Added);
+        Assert.AreEqual(1, result.Updated);
+        Assert.AreEqual(0, result.Removed);
+        Assert.HasCount(1, inbox);
+        InboxItemInfo entry = inbox["renamed.txt"];
+        Assert.AreEqual(InboxReviewState.Deferred, entry.ReviewState);
+        Assert.AreEqual(detected, entry.DetectedUtc);
+        Assert.AreEqual(now, entry.UpdatedUtc);
+        Assert.AreEqual(@"C:\Desktop\renamed.txt", entry.Identity.LastKnownPath);
+        Assert.AreEqual(Images.Key, entry.SuggestedCategoryKey);
+        Assert.AreEqual(ClassificationReliability.Conservative, entry.Reliability);
+        Assert.AreEqual("当前按图片候选复核", entry.MatchReason);
+    }
+
+    [TestMethod]
+    public void Reconcile_ConfirmedRenameWithReusedSourceName_AddsOnlyReplacement()
+    {
+        DateTime detected = DateTime.UnixEpoch.AddMinutes(3);
+        DateTime now = DateTime.UnixEpoch.AddHours(4);
+        Dictionary<string, InboxItemInfo> inbox = CreateInbox(
+            "renamed.txt",
+            Physical(@"C:\Desktop\old.txt", null, null),
+            ClassificationReliability.Reliable,
+            InboxReviewState.Deferred,
+            detected);
+        Dictionary<string, DesktopItemIdentityInfo> previous = new()
+        {
+            ["old.txt"] = Physical(@"C:\Desktop\old.txt", null, null)
+        };
+        Dictionary<string, DesktopItemIdentityInfo> current = new()
+        {
+            ["old.txt"] = Physical(@"C:\Desktop\old.txt", null, null),
+            ["renamed.txt"] = Physical(@"C:\Desktop\renamed.txt", null, null)
+        };
+
+        InboxReconcileResult result = InboxQueueManager.Reconcile(
+            inbox,
+            baselineEstablished: true,
+            completeScan: true,
+            previous,
+            current,
+            Suggestions(
+                ("old.txt", Reliable("新同名项目")),
+                ("renamed.txt", Reliable("已确认重命名"))),
+            now,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["old.txt"] = "renamed.txt"
+            });
+
+        Assert.IsTrue(result.Changed);
+        Assert.AreEqual(1, result.Added);
+        Assert.AreEqual(1, result.Updated);
+        Assert.AreEqual(0, result.Removed);
+        Assert.HasCount(2, inbox);
+
+        InboxItemInfo renamedEntry = inbox["renamed.txt"];
+        Assert.AreEqual(InboxReviewState.Deferred, renamedEntry.ReviewState);
+        Assert.AreEqual(detected, renamedEntry.DetectedUtc);
+        Assert.AreEqual(now, renamedEntry.UpdatedUtc);
+        Assert.AreEqual(@"C:\Desktop\renamed.txt", renamedEntry.Identity.LastKnownPath);
+
+        InboxItemInfo replacementEntry = inbox["old.txt"];
+        Assert.AreEqual(InboxReviewState.Pending, replacementEntry.ReviewState);
+        Assert.AreEqual(now, replacementEntry.DetectedUtc);
+        Assert.AreEqual(now, replacementEntry.UpdatedUtc);
+        Assert.AreEqual(@"C:\Desktop\old.txt", replacementEntry.Identity.LastKnownPath);
+    }
+
+    [TestMethod]
+    public void Reconcile_IncompleteScanWithConfirmedRename_OnlyReconcilesMappedNames()
+    {
+        DateTime detected = DateTime.UnixEpoch.AddMinutes(4);
+        DateTime now = DateTime.UnixEpoch.AddHours(5);
+        Dictionary<string, InboxItemInfo> inbox = CreateInbox(
+            "renamed.txt",
+            Physical(@"C:\Desktop\old.txt", null, null),
+            ClassificationReliability.Reliable,
+            InboxReviewState.Deferred,
+            detected);
+        AddInbox(
+            inbox,
+            "unrelated.txt",
+            Physical(@"C:\Desktop\unrelated.txt", "volume:unrelated", 90),
+            ClassificationReliability.Reliable);
+        string unrelatedBefore = JsonSerializer.Serialize(inbox["unrelated.txt"]);
+        Dictionary<string, DesktopItemIdentityInfo> previous = new()
+        {
+            ["old.txt"] = Physical(@"C:\Desktop\old.txt", null, null),
+            ["unrelated.txt"] = Physical(@"C:\Desktop\unrelated.txt", "volume:unrelated", 90)
+        };
+        Dictionary<string, DesktopItemIdentityInfo> current = new()
+        {
+            ["old.txt"] = Physical(@"C:\Desktop\old.txt", null, null),
+            ["renamed.txt"] = Physical(@"C:\Desktop\renamed.txt", null, null)
+        };
+
+        InboxReconcileResult result = InboxQueueManager.Reconcile(
+            inbox,
+            baselineEstablished: true,
+            completeScan: false,
+            previous,
+            current,
+            Suggestions(
+                ("old.txt", Reliable("不完整扫描中的新同名项目")),
+                ("renamed.txt", Reliable("不完整扫描中的确认重命名"))),
+            now,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["old.txt"] = "renamed.txt"
+            });
+
+        Assert.IsTrue(result.BaselineEstablished);
+        Assert.IsFalse(result.BaselineChanged);
+        Assert.IsTrue(result.Changed);
+        Assert.AreEqual(1, result.Added);
+        Assert.AreEqual(1, result.Updated);
+        Assert.AreEqual(0, result.Removed);
+        Assert.HasCount(3, inbox);
+        Assert.AreEqual(unrelatedBefore, JsonSerializer.Serialize(inbox["unrelated.txt"]));
+        Assert.AreEqual(InboxReviewState.Deferred, inbox["renamed.txt"].ReviewState);
+        Assert.AreEqual(detected, inbox["renamed.txt"].DetectedUtc);
+        Assert.AreEqual(now, inbox["renamed.txt"].UpdatedUtc);
+        Assert.AreEqual(InboxReviewState.Pending, inbox["old.txt"].ReviewState);
+        Assert.AreEqual(now, inbox["old.txt"].DetectedUtc);
+    }
+
+    [TestMethod]
     public void Reconcile_SameNameReplacement_ReplacesStaleEntryAsNewItem()
     {
         Dictionary<string, InboxItemInfo> inbox = CreateInbox(
