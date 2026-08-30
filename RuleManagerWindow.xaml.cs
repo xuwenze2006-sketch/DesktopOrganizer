@@ -689,6 +689,5 @@ namespace DesktopOrganizer
                 : new SolidColorBrush(Color.FromRgb(71, 85, 105));
         }
 
-        private void Close_Click(object sender, RoutedEventArgs e) => Close();
     }
 }

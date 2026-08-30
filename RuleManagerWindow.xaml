@@ -281,8 +281,7 @@
             <Button Grid.Column="1"
                     Content="关闭"
                     MinWidth="76"
-                    IsCancel="True"
-                    Click="Close_Click"/>
+                    IsCancel="True"/>
         </Grid>
     </Grid>
 </Window>

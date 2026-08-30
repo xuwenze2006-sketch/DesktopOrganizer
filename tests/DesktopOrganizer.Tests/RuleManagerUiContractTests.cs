@@ -310,6 +310,12 @@ public sealed class RuleManagerUiContractTests
         XElement saveButton = FindNamedElement(document, xaml, "SaveDraftButton");
         XElement deleteButton = FindNamedElement(document, xaml, "DeleteButton");
         XElement newRuleButton = FindNamedElement(document, xaml, "NewRuleButton");
+        XElement closeButton = document.Descendants().Single(element =>
+            element.Name.LocalName == "Button" &&
+            string.Equals(
+                (string?)element.Attribute("Content"),
+                "关闭",
+                StringComparison.Ordinal));
 
         Assert.IsNull(editor.Attribute("PreviewKeyDown"));
         Assert.AreEqual(
@@ -318,6 +324,8 @@ public sealed class RuleManagerUiContractTests
         Assert.AreEqual(
             "RuleManagerWindow_Closing",
             document.Root?.Attribute("Closing")?.Value);
+        Assert.AreEqual("True", closeButton.Attribute("IsCancel")?.Value);
+        Assert.IsNull(closeButton.Attribute("Click"));
         Assert.AreEqual(
             "RuleList_PreviewKeyDown",
             ruleList.Attribute("PreviewKeyDown")?.Value);
