@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using System.Xml.Linq;
 
 namespace DesktopOrganizer.Tests;
@@ -39,6 +40,33 @@ public sealed class WorkspaceManagerUiContractTests
         Assert.AreEqual(
             "WorkspaceList_MouseDoubleClick",
             workspaceList.Attribute("MouseDoubleClick")?.Value);
+        Assert.AreEqual(
+            "WorkspaceList_PreviewKeyDown",
+            workspaceList.Attribute("PreviewKeyDown")?.Value);
+        Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
+    }
+
+    [TestMethod]
+    [DataRow(Key.Enter, ModifierKeys.None, true, false, true)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, false)]
+    [DataRow(Key.Enter, ModifierKeys.None, true, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.Control, true, false, false)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, true, false, false)]
+    [DataRow(Key.Space, ModifierKeys.None, true, false, false)]
+    public void ShouldActivateFromKeyboard_RequiresPlainEnterOnInactiveSelection(
+        Key key,
+        ModifierKeys modifiers,
+        bool hasSelection,
+        bool isActive,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            WorkspaceManagerWindow.ShouldActivateFromKeyboard(
+                key,
+                modifiers,
+                hasSelection,
+                isActive));
     }
 
     private static XDocument LoadWorkspaceManagerXaml(

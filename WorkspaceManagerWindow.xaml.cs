@@ -62,6 +62,32 @@ namespace DesktopOrganizer
             Activate_Click(sender, e);
         }
 
+        private void WorkspaceList_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            WorkspaceListItem? item = Selected;
+            if (!ShouldActivateFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    item != null,
+                    item?.IsActive == true))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            Activate_Click(sender, e);
+        }
+
+        internal static bool ShouldActivateFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool hasSelection,
+            bool isActive) =>
+            key == Key.Enter &&
+            modifiers == ModifierKeys.None &&
+            hasSelection &&
+            !isActive;
+
         private void UpdatePreview()
         {
             WorkspaceListItem? item = Selected;
