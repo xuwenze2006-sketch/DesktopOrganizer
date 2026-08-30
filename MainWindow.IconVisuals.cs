@@ -147,7 +147,7 @@ namespace DesktopOrganizer
                 IconCellWidth - 10);
         }
 
-        private ContextMenu CreateIconContextMenu(string fullPath, string displayName, GroupInfo? parentGroup)
+        internal ContextMenu CreateIconContextMenu(string fullPath, string displayName, GroupInfo? parentGroup)
         {
             bool isShellNamespace = ShellItemLocation.TryDecode(fullPath, out string shellParsingName, out _);
             var menu = new ContextMenu();
@@ -170,6 +170,17 @@ namespace DesktopOrganizer
             }
 
             menu.Items.Add(new Separator());
+            var tagSummary = new MenuItem
+            {
+                Header = FormatDesktopItemTagSummary(displayName),
+                IsEnabled = false
+            };
+            var editTags = new MenuItem { Header = "编辑本地标签…" };
+            editTags.Click += (_, _) => EditDesktopItemTags(displayName);
+            menu.Items.Add(tagSummary);
+            menu.Items.Add(editTags);
+            menu.Items.Add(new Separator());
+
             var select = new MenuItem();
             select.Click += (_, _) => ToggleItemSelection(displayName);
             menu.Items.Add(select);
@@ -229,6 +240,7 @@ namespace DesktopOrganizer
                     RefreshItemSelectionVisuals();
                 }
 
+                tagSummary.Header = FormatDesktopItemTagSummary(displayName);
                 select.Header = _selectedItemNames.Contains(displayName) ? "取消选择" : "选择此项目";
                 int selectedCount = _selectedItemNames.Count;
                 int selectedPhysicalCount = _selectedItemNames.Count(name =>
@@ -252,6 +264,56 @@ namespace DesktopOrganizer
             };
 
             return menu;
+        }
+
+        private string FormatDesktopItemTagSummary(string displayName)
+        {
+            string formatted = ItemTagPolicy.FormatEditorText(
+                _appLayout.ItemTags.TryGetValue(displayName, out List<string>? tags)
+                    ? tags
+                    : null);
+            return string.IsNullOrWhiteSpace(formatted)
+                ? "本地标签：无"
+                : $"本地标签：{formatted}";
+        }
+
+        private void EditDesktopItemTags(string displayName)
+        {
+            if (!_desktopItems.ContainsKey(displayName))
+            {
+                StatusText.Text = $"“{displayName}”已不在当前桌面，请刷新后重试";
+                return;
+            }
+
+            string current = ItemTagPolicy.FormatEditorText(
+                _appLayout.ItemTags.TryGetValue(displayName, out List<string>? tags)
+                    ? tags
+                    : null);
+            SimpleInputDialog dialog = CreateInputDialog(
+                "用逗号或分号分隔标签；标签内部可含空格，留空将清除全部标签：",
+                current);
+            dialog.Title = "编辑本地标签";
+            dialog.Width = 480;
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            List<string> normalized = ItemTagPolicy.ParseEditorText(dialog.ResultText);
+            bool changed = ItemTagPolicy.SetTags(
+                _appLayout.ItemTags,
+                displayName,
+                normalized);
+            if (changed)
+            {
+                SaveLayout();
+            }
+
+            StatusText.Text = !changed
+                ? $"“{displayName}”的本地标签未变化"
+                : normalized.Count == 0
+                    ? $"已清除“{displayName}”的本地标签"
+                    : $"已保存“{displayName}”的本地标签：{string.Join("、", normalized)}";
         }
 
         private static string GetIconDisplayName(FrameworkElement element) =>
