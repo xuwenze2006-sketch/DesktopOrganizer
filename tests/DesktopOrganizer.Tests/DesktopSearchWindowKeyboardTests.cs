@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using System.Xml.Linq;
 
 namespace DesktopOrganizer.Tests;
@@ -31,6 +32,23 @@ public sealed class DesktopSearchWindowKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(Key.Enter, ModifierKeys.None, (int)DesktopSearchKeyboardAction.Locate)]
+    [DataRow(Key.Enter, ModifierKeys.Control, (int)DesktopSearchKeyboardAction.Open)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, (int)DesktopSearchKeyboardAction.Reveal)]
+    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, (int)DesktopSearchKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Alt, (int)DesktopSearchKeyboardAction.None)]
+    [DataRow(Key.Escape, ModifierKeys.None, (int)DesktopSearchKeyboardAction.None)]
+    public void ResolveKeyboardAction_RequiresExactEnterShortcut(
+        Key key,
+        ModifierKeys modifiers,
+        int expected)
+    {
+        Assert.AreEqual(
+            (DesktopSearchKeyboardAction)expected,
+            DesktopSearchWindow.ResolveKeyboardAction(key, modifiers));
+    }
+
+    [TestMethod]
     public void SearchWindow_WiresKeyboardHandlersOnlyToSearchControls()
     {
         XDocument document = LoadSearchWindowXaml();
@@ -57,7 +75,27 @@ public sealed class DesktopSearchWindowKeyboardTests
             "ResultsList_PreviewKeyDown",
             resultsList.Attribute("PreviewKeyDown")?.Value);
         Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
+
+        Assert.AreEqual(
+            "Ctrl+Enter",
+            FindButton(document, "打开").Attribute("ToolTip")?.Value);
+        Assert.AreEqual(
+            "Shift+Enter",
+            FindButton(document, "在资源管理器中显示").Attribute("ToolTip")?.Value);
+        StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Enter 定位");
+        StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Ctrl+Enter 打开");
+        StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Shift+Enter");
     }
+
+    private static XElement FindButton(XDocument document, string content) =>
+        document
+            .Descendants()
+            .Single(element =>
+                element.Name.LocalName == "Button" &&
+                string.Equals(
+                    (string?)element.Attribute("Content"),
+                    content,
+                    StringComparison.Ordinal));
 
     private static XDocument LoadSearchWindowXaml(
         [CallerFilePath] string sourceFilePath = "")

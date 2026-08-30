@@ -31,7 +31,7 @@
                      VerticalContentAlignment="Center"
                      TextChanged="QueryBox_TextChanged"
                      PreviewKeyDown="QueryBox_PreviewKeyDown"
-                     ToolTip="输入后可用上下方向键选择，按 Enter 定位并高亮"/>
+                     ToolTip="上下方向键选择；Enter 定位；Ctrl+Enter 打开；Shift+Enter 在资源管理器中显示"/>
             <ComboBox x:Name="ViewSelector" Grid.Column="1" Margin="10,0,0,0"
                       DisplayMemberPath="Name" SelectionChanged="ViewSelector_SelectionChanged"/>
         </Grid>
@@ -60,9 +60,12 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal">
-                <Button Content="定位并高亮" MinWidth="96" Margin="0,0,8,0" Click="Locate_Click"/>
-                <Button Content="打开" MinWidth="72" Margin="0,0,8,0" Click="Open_Click"/>
-                <Button Content="在资源管理器中显示" MinWidth="140" Click="Reveal_Click"/>
+                <Button Content="定位并高亮" MinWidth="96" Margin="0,0,8,0" Click="Locate_Click"
+                        ToolTip="Enter"/>
+                <Button Content="打开" MinWidth="72" Margin="0,0,8,0" Click="Open_Click"
+                        ToolTip="Ctrl+Enter"/>
+                <Button Content="在资源管理器中显示" MinWidth="140" Click="Reveal_Click"
+                        ToolTip="Shift+Enter"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock x:Name="ResultCountText" Margin="0,0,14,0" VerticalAlignment="Center"

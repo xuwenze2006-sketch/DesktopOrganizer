@@ -1,5 +1,13 @@
 namespace DesktopOrganizer
 {
+    internal enum DesktopSearchKeyboardAction
+    {
+        None,
+        Locate,
+        Open,
+        Reveal
+    }
+
     public partial class DesktopSearchWindow : Window
     {
         private readonly MainWindow _mainWindow;
@@ -93,18 +101,14 @@ namespace DesktopOrganizer
                 return;
             }
 
-            if (e.Key == Key.Enter)
-            {
-                e.Handled = TryLocateSelected();
-            }
+            e.Handled = TryExecuteSelectedAction(
+                ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
         }
 
         private void ResultsList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
-            {
-                e.Handled = TryLocateSelected();
-            }
+            e.Handled = TryExecuteSelectedAction(
+                ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
         }
 
         private void ViewSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -117,23 +121,17 @@ namespace DesktopOrganizer
 
         private void Locate_Click(object sender, RoutedEventArgs e)
         {
-            _ = TryLocateSelected();
+            _ = TryExecuteSelectedAction(DesktopSearchKeyboardAction.Locate);
         }
 
         private void Open_Click(object sender, RoutedEventArgs e)
         {
-            if (Selected != null)
-            {
-                _mainWindow.OpenDesktopSearchResult(Selected.Result.Location);
-            }
+            _ = TryExecuteSelectedAction(DesktopSearchKeyboardAction.Open);
         }
 
         private void Reveal_Click(object sender, RoutedEventArgs e)
         {
-            if (Selected != null)
-            {
-                _mainWindow.RevealDesktopSearchResult(Selected.Result.Location);
-            }
+            _ = TryExecuteSelectedAction(DesktopSearchKeyboardAction.Reveal);
         }
 
         private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) =>
@@ -141,15 +139,47 @@ namespace DesktopOrganizer
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-        private bool TryLocateSelected()
+        private bool TryExecuteSelectedAction(DesktopSearchKeyboardAction action)
         {
-            if (Selected == null)
+            SearchListItem? selected = Selected;
+            if (selected == null || action == DesktopSearchKeyboardAction.None)
             {
                 return false;
             }
 
-            _mainWindow.LocateDesktopSearchResult(Selected.Result.DisplayName);
+            switch (action)
+            {
+                case DesktopSearchKeyboardAction.Locate:
+                    _mainWindow.LocateDesktopSearchResult(selected.Result.DisplayName);
+                    break;
+                case DesktopSearchKeyboardAction.Open:
+                    _mainWindow.OpenDesktopSearchResult(selected.Result.Location);
+                    break;
+                case DesktopSearchKeyboardAction.Reveal:
+                    _mainWindow.RevealDesktopSearchResult(selected.Result.Location);
+                    break;
+                default:
+                    return false;
+            }
             return true;
+        }
+
+        internal static DesktopSearchKeyboardAction ResolveKeyboardAction(
+            Key key,
+            ModifierKeys modifiers)
+        {
+            if (key != Key.Enter)
+            {
+                return DesktopSearchKeyboardAction.None;
+            }
+
+            return modifiers switch
+            {
+                ModifierKeys.None => DesktopSearchKeyboardAction.Locate,
+                ModifierKeys.Control => DesktopSearchKeyboardAction.Open,
+                ModifierKeys.Shift => DesktopSearchKeyboardAction.Reveal,
+                _ => DesktopSearchKeyboardAction.None
+            };
         }
 
         internal static int GetNextSelectionIndex(
