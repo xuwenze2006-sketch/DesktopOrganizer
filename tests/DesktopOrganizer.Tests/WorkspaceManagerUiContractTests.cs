@@ -45,6 +45,7 @@ public sealed class WorkspaceManagerUiContractTests
             workspaceList.Attribute("PreviewKeyDown")?.Value);
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "F2");
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Ctrl+D");
+        StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Delete");
         StringAssert.Contains(
             document.Descendants().Single(element =>
                 element.Name.LocalName == "Button" &&
@@ -54,6 +55,15 @@ public sealed class WorkspaceManagerUiContractTests
                     StringComparison.Ordinal))
                 .Attribute("ToolTip")?.Value,
             "Ctrl+D");
+        StringAssert.Contains(
+            document.Descendants().Single(element =>
+                element.Name.LocalName == "Button" &&
+                string.Equals(
+                    (string?)element.Attribute("Content"),
+                    "删除…",
+                    StringComparison.Ordinal))
+                .Attribute("ToolTip")?.Value,
+            "Delete");
         Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
     }
 
@@ -76,6 +86,31 @@ public sealed class WorkspaceManagerUiContractTests
         Assert.AreEqual(
             expected,
             WorkspaceManagerWindow.ShouldDuplicateFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                hasSelection));
+    }
+
+    [TestMethod]
+    [DataRow(Key.Delete, ModifierKeys.None, false, true, true)]
+    [DataRow(Key.Delete, ModifierKeys.None, false, false, false)]
+    [DataRow(Key.Delete, ModifierKeys.None, true, true, false)]
+    [DataRow(Key.Delete, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.Delete, ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.Delete, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.Delete, ModifierKeys.Control | ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, false)]
+    public void ShouldDeleteFromKeyboard_RequiresPlainInitialDeleteOnSelection(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool hasSelection,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            WorkspaceManagerWindow.ShouldDeleteFromKeyboard(
                 key,
                 modifiers,
                 isRepeat,

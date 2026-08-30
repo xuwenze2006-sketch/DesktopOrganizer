@@ -87,6 +87,17 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (ShouldDeleteFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    item != null))
+            {
+                e.Handled = true;
+                Delete_Click(sender, e);
+                return;
+            }
+
             if (!ShouldActivateFromKeyboard(
                     e.Key,
                     Keyboard.Modifiers,
@@ -127,6 +138,16 @@ namespace DesktopOrganizer
             bool hasSelection) =>
             key == Key.D &&
             modifiers == ModifierKeys.Control &&
+            !isRepeat &&
+            hasSelection;
+
+        internal static bool ShouldDeleteFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasSelection) =>
+            key == Key.Delete &&
+            modifiers == ModifierKeys.None &&
             !isRepeat &&
             hasSelection;
 
