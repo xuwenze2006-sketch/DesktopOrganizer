@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace DesktopOrganizer
 {
     public partial class OperationCenterWindow : Window
@@ -52,6 +54,13 @@ namespace DesktopOrganizer
             bool selectedRowHadKeyboardFocus =
                 IsKeyboardFocusWithinSelectedJournalRow();
             string? selectedEntryId = (JournalGrid.SelectedItem as OperationRow)?.Id;
+            List<SortDescription> activeSortDescriptions =
+                JournalGrid.Items.SortDescriptions.ToList();
+            List<(DataGridColumn Column, ListSortDirection Direction)>
+                activeColumnSortDirections = JournalGrid.Columns
+                    .Where(column => column.SortDirection.HasValue)
+                    .Select(column => (column, column.SortDirection!.Value))
+                    .ToList();
             FileOperationJournalData journal = _journalProvider() ??
                 new FileOperationJournalData();
 
@@ -72,13 +81,25 @@ namespace DesktopOrganizer
                 .Select(entry => CreateRow(entry, successfullyUndoneEntryIds))
                 .ToList();
             JournalGrid.ItemsSource = rows;
+            using (JournalGrid.Items.DeferRefresh())
+            {
+                foreach (SortDescription sortDescription in activeSortDescriptions)
+                {
+                    JournalGrid.Items.SortDescriptions.Add(sortDescription);
+                }
+            }
+            foreach ((DataGridColumn column, ListSortDirection direction)
+                     in activeColumnSortDirections)
+            {
+                column.SortDirection = direction;
+            }
             int restoredSelectionIndex = FindRestoredSelectionIndex(
                 rows.Select(row => row.Id),
                 selectedEntryId);
-            JournalGrid.SelectedIndex = restoredSelectionIndex;
             OperationRow? restoredRow = restoredSelectionIndex >= 0
                 ? rows[restoredSelectionIndex]
                 : null;
+            JournalGrid.SelectedItem = restoredRow;
 
             int succeededCount = entries.Count(entry =>
                 entry.State == FileOperationJournalState.Succeeded);
