@@ -278,6 +278,8 @@ namespace DesktopOrganizer
             }
             _appLayout.FreeIcons[name] = position;
 
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = $"已将“{name}”移出“{group.Name}”，真实文件未改变";
         }

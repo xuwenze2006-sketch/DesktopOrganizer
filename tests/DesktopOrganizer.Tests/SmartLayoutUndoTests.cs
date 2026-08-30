@@ -700,6 +700,104 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void RemoveFromGroup_InvalidatesUndoAfterAutoFitChangesGroupSize()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.SnapToGrid = false;
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            foreach (string name in new[] { "A.txt", "B.txt", "C.txt" })
+            {
+                desktopItems[name] = $@"C:\Desktop\{name}";
+            }
+
+            group.ItemNames = ["A.txt", "B.txt", "C.txt"];
+            group.Width = 190;
+            group.Height = 134;
+            group.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            group.IsSizeLocked = false;
+            InvokeAutoFitGroup(window, group);
+            Assert.AreEqual(280, group.Width, 0.001);
+
+            InvokePrivateMethod(window, "RemoveFromGroup", group, "C.txt");
+
+            CollectionAssert.AreEqual(new[] { "A.txt", "B.txt" }, group.ItemNames);
+            Assert.IsTrue(layout.FreeIcons.ContainsKey("C.txt"));
+            Assert.AreEqual(220, group.Width, 0.001);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void RemoveFromLockedGroup_InvalidatesUndoWhenReleasedIconOccupiesSnapshotPosition()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "Released.txt";
+            GroupInfo group = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.SnapToGrid = false;
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+            group.ItemNames = [itemName];
+            group.X = 222;
+            group.Y = 112;
+            group.Width = 190;
+            group.Height = 134;
+            group.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            group.X = 20;
+
+            InvokePrivateMethod(window, "RemoveFromGroup", group, itemName);
+
+            Assert.IsEmpty(group.ItemNames);
+            Assert.AreEqual(20, group.X, 0.001);
+            Assert.AreEqual(190, group.Width, 0.001);
+            Assert.IsTrue(layout.FreeIcons.TryGetValue(itemName, out IconPosition? releasedPosition));
+            Assert.IsNotNull(releasedPosition);
+            Assert.AreEqual(222, releasedPosition.X, 0.001);
+            Assert.AreEqual(112, releasedPosition.Y, 0.001);
+            Assert.IsTrue(new Rect(
+                222,
+                112,
+                group.Width,
+                group.Height).Contains(new Point(
+                    releasedPosition.X,
+                    releasedPosition.Y)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
