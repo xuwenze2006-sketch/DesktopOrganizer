@@ -293,6 +293,55 @@ namespace DesktopOrganizer
             }
         }
 
+        private void MoveSelectedItemsToGroup(GroupInfo targetGroup)
+        {
+            List<string> selectedNames = _selectedItemNames
+                .Where(_desktopItems.ContainsKey)
+                .ToList();
+            if (selectedNames.Count == 0)
+            {
+                StatusText.Text = "请先选择要归组的桌面项目";
+                return;
+            }
+
+            bool hasPendingPhysicalItem = selectedNames.Any(name =>
+                _desktopItems.TryGetValue(name, out string? location) &&
+                !ShellItemLocation.TryDecode(location, out _, out _) &&
+                IsFileOperationPending(location));
+            if (hasPendingPhysicalItem)
+            {
+                StatusText.Text = "所选项目中有真实文件操作正在进行，暂不能修改分类";
+                return;
+            }
+
+            GroupItemBatchMoveResult result = GroupItemDropPolicy.ApplyBatch(
+                _appLayout.Groups,
+                _appLayout.FreeIcons,
+                _appLayout.AutoClassificationOriginalPositions,
+                selectedNames,
+                targetGroup.Id);
+            if (!result.TargetFound)
+            {
+                StatusText.Text = "目标分组已不存在，本次没有修改";
+                return;
+            }
+            if (result.MovedCount == 0)
+            {
+                StatusText.Text = $"所选项目已在“{targetGroup.Name}”中";
+                return;
+            }
+
+            long movedUtcTicks = DateTime.UtcNow.Ticks;
+            foreach (string name in result.MovedNames)
+            {
+                _appLayout.ItemLastMovedUtcTicks[name] = movedUtcTicks;
+            }
+            _selectedItemNames.Clear();
+            RebuildDesktopIconsAndSaveLayout();
+            StatusText.Text =
+                $"已将 {result.MovedCount} 个所选项目移入虚拟分类“{targetGroup.Name}”；真实文件未移动";
+        }
+
         private void OpenDesktopItem(string location)
         {
             if (ShellItemLocation.TryDecode(location, out string parsingName, out _))

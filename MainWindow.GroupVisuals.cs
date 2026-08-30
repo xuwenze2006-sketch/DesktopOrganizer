@@ -386,14 +386,48 @@ namespace DesktopOrganizer
                 sortItem.Click += (_, _) => SetGroupSortMode(group, mode);
                 sortMenu.Items.Add(sortItem);
             }
+            var selectionSeparator = new Separator { Visibility = Visibility.Collapsed };
+            var moveSelectedItem = new MenuItem
+            {
+                Header = "将所选项目移入此分组",
+                ToolTip = "只改变虚拟分类，不移动真实文件",
+                Visibility = Visibility.Collapsed
+            };
+            moveSelectedItem.Click += (_, _) => MoveSelectedItemsToGroup(group);
             var deleteItem = new MenuItem { Header = "删除分组", IsEnabled = _appLayout.IsEditMode };
             deleteItem.Click += (_, args) => DeleteGroup_Click(menuButton, args);
             groupMenu.Items.Add(renameItem);
             groupMenu.Items.Add(collapseItem);
             groupMenu.Items.Add(autoFitItem);
             groupMenu.Items.Add(sortMenu);
+            groupMenu.Items.Add(selectionSeparator);
+            groupMenu.Items.Add(moveSelectedItem);
             groupMenu.Items.Add(new Separator());
             groupMenu.Items.Add(deleteItem);
+            groupMenu.Opened += (_, _) =>
+            {
+                List<string> selectedNames = _selectedItemNames
+                    .Where(_desktopItems.ContainsKey)
+                    .ToList();
+                int movableCount = selectedNames.Count(name =>
+                    !group.ItemNames.Contains(name, StringComparer.OrdinalIgnoreCase));
+                bool hasPendingPhysicalItem = selectedNames.Any(name =>
+                    _desktopItems.TryGetValue(name, out string? location) &&
+                    !ShellItemLocation.TryDecode(location, out _, out _) &&
+                    IsFileOperationPending(location));
+                Visibility visibility = selectedNames.Count > 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+                selectionSeparator.Visibility = visibility;
+                moveSelectedItem.Visibility = visibility;
+                moveSelectedItem.IsEnabled = movableCount > 0 && !hasPendingPhysicalItem;
+                moveSelectedItem.Header = movableCount == 0
+                    ? "所选项目已在此分组"
+                    : $"将所选 {movableCount} 项移入此分组";
+                moveSelectedItem.ToolTip = hasPendingPhysicalItem
+                    ? "所选项目中有真实文件操作正在进行，暂不能修改分类"
+                    : "只改变虚拟分类，不移动真实文件";
+            };
             menuButton.Click += (_, _) =>
             {
                 groupMenu.PlacementTarget = menuButton;

@@ -13,6 +13,13 @@ namespace DesktopOrganizer
             TargetIndex: -1);
     }
 
+    internal sealed record GroupItemBatchMoveResult(
+        bool TargetFound,
+        IReadOnlyList<string> MovedNames)
+    {
+        public int MovedCount => MovedNames.Count;
+    }
+
     /// <summary>
     /// 分类框图标拖放的纯模型策略。落点边界以当前可见顺序为准；应用时只更新
     /// 虚拟分组成员关系、手工归属标记与自定义排序，不执行任何文件系统操作。
@@ -294,6 +301,69 @@ namespace DesktopOrganizer
                 Changed: changed,
                 MovedBetweenGroups: movedBetweenGroups,
                 TargetIndex: targetIndex);
+        }
+
+        /// <summary>
+        /// 把一组已加载项目追加到目标分类框。批量入口没有指针插入位置，因此按稳定名称
+        /// 顺序追加，并保留目标当前排序模式；只修改虚拟成员关系和本地布局元数据。
+        /// </summary>
+        public static GroupItemBatchMoveResult ApplyBatch(
+            IList<GroupInfo> groups,
+            IDictionary<string, IconPosition> freeIcons,
+            IDictionary<string, IconPosition> autoClassificationOriginalPositions,
+            IEnumerable<string> itemNames,
+            string targetGroupId)
+        {
+            ArgumentNullException.ThrowIfNull(groups);
+            ArgumentNullException.ThrowIfNull(freeIcons);
+            ArgumentNullException.ThrowIfNull(autoClassificationOriginalPositions);
+            ArgumentNullException.ThrowIfNull(itemNames);
+
+            GroupInfo? target = string.IsNullOrWhiteSpace(targetGroupId)
+                ? null
+                : groups.FirstOrDefault(group =>
+                    group.Id.Equals(targetGroupId, StringComparison.OrdinalIgnoreCase));
+            if (target == null)
+            {
+                return new GroupItemBatchMoveResult(false, Array.Empty<string>());
+            }
+
+            List<string> movedNames = DistinctNames(itemNames)
+                .Where(name => !Contains(target.ItemNames, name))
+                .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+            if (movedNames.Count == 0)
+            {
+                return new GroupItemBatchMoveResult(true, movedNames);
+            }
+
+            target.ItemNames ??= new List<string>();
+            target.ManuallyAssignedItemNames ??= new List<string>();
+            foreach (string name in movedNames)
+            {
+                bool movedFromAutoCategory = groups.Any(group =>
+                    !ReferenceEquals(group, target) &&
+                    group.IsAutoCategory &&
+                    Contains(group.ItemNames, name));
+
+                foreach (GroupInfo group in groups)
+                {
+                    group.ItemNames ??= new List<string>();
+                    group.ItemNames.RemoveAll(item => NamesEqual(item, name));
+                    group.ManuallyAssignedItemNames ??= new List<string>();
+                    group.ManuallyAssignedItemNames.RemoveAll(item => NamesEqual(item, name));
+                }
+
+                target.ItemNames.Add(name);
+                EnsureSingleName(target.ManuallyAssignedItemNames, name);
+                freeIcons.Remove(name);
+                if (movedFromAutoCategory)
+                {
+                    autoClassificationOriginalPositions.Remove(name);
+                }
+            }
+
+            return new GroupItemBatchMoveResult(true, movedNames);
         }
 
         private static IEnumerable<string> DistinctNames(IEnumerable<string> names)

@@ -319,6 +319,112 @@ public sealed class GroupItemDropPolicyTests
         Assert.AreEqual(GroupSortMode.Name, source.SortMode);
     }
 
+    [TestMethod]
+    public void ApplyBatch_MovesFreeAndGroupedItemsAndMaintainsManualOwnership()
+    {
+        GroupInfo autoSource = Group("auto", GroupSortMode.Name, "B");
+        autoSource.IsAutoCategory = true;
+        autoSource.ManuallyAssignedItemNames = ["B"];
+        GroupInfo manualSource = Group("manual", GroupSortMode.Custom, "C");
+        manualSource.ManuallyAssignedItemNames = ["C"];
+        GroupInfo target = Group("target", GroupSortMode.Custom, "Keep");
+        target.ManuallyAssignedItemNames = ["Keep"];
+        var groups = new List<GroupInfo> { autoSource, manualSource, target };
+        var freeIcons = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["A"] = new IconPosition(),
+            ["untouched"] = new IconPosition()
+        };
+        var originalPositions = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["B"] = new IconPosition(),
+            ["C"] = new IconPosition()
+        };
+
+        GroupItemBatchMoveResult result = GroupItemDropPolicy.ApplyBatch(
+            groups,
+            freeIcons,
+            originalPositions,
+            ["C", "A", "B", "Keep", "a"],
+            target.Id);
+
+        Assert.IsTrue(result.TargetFound);
+        Assert.AreEqual(3, result.MovedCount);
+        CollectionAssert.AreEqual(new[] { "A", "B", "C" }, result.MovedNames.ToArray());
+        CollectionAssert.AreEqual(new[] { "Keep", "A", "B", "C" }, target.ItemNames);
+        CollectionAssert.AreEqual(new[] { "Keep", "A", "B", "C" }, target.ManuallyAssignedItemNames);
+        Assert.AreEqual(0, autoSource.ItemNames.Count);
+        Assert.AreEqual(0, autoSource.ManuallyAssignedItemNames.Count);
+        Assert.AreEqual(0, manualSource.ItemNames.Count);
+        Assert.AreEqual(0, manualSource.ManuallyAssignedItemNames.Count);
+        Assert.IsFalse(freeIcons.ContainsKey("A"));
+        Assert.IsTrue(freeIcons.ContainsKey("untouched"));
+        Assert.IsFalse(originalPositions.ContainsKey("B"));
+        Assert.IsTrue(originalPositions.ContainsKey("C"));
+        Assert.AreEqual(GroupSortMode.Custom, target.SortMode);
+    }
+
+    [TestMethod]
+    public void ApplyBatch_PreservesNonCustomTargetSortMode()
+    {
+        GroupInfo target = Group("target", GroupSortMode.Name, "Z");
+        var freeIcons = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["A"] = new IconPosition(),
+            ["B"] = new IconPosition()
+        };
+
+        GroupItemBatchMoveResult result = GroupItemDropPolicy.ApplyBatch(
+            new List<GroupInfo> { target },
+            freeIcons,
+            new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase),
+            ["B", "A", "Z"],
+            target.Id);
+
+        Assert.AreEqual(2, result.MovedCount);
+        CollectionAssert.AreEqual(new[] { "Z", "A", "B" }, target.ItemNames);
+        CollectionAssert.AreEqual(new[] { "A", "B" }, target.ManuallyAssignedItemNames);
+        Assert.AreEqual(GroupSortMode.Name, target.SortMode);
+    }
+
+    [TestMethod]
+    public void ApplyBatch_MissingTargetOrExistingMembersHaveNoSideEffects()
+    {
+        GroupInfo target = Group("target", GroupSortMode.Custom, "Keep");
+        target.ManuallyAssignedItemNames = ["Keep"];
+        var groups = new List<GroupInfo> { target };
+        var freeIcons = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Move"] = new IconPosition()
+        };
+        var originalPositions = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Move"] = new IconPosition()
+        };
+
+        GroupItemBatchMoveResult missing = GroupItemDropPolicy.ApplyBatch(
+            groups,
+            freeIcons,
+            originalPositions,
+            ["Move"],
+            "missing");
+        GroupItemBatchMoveResult unchanged = GroupItemDropPolicy.ApplyBatch(
+            groups,
+            freeIcons,
+            originalPositions,
+            ["KEEP", "keep"],
+            target.Id);
+
+        Assert.IsFalse(missing.TargetFound);
+        Assert.AreEqual(0, missing.MovedCount);
+        Assert.IsTrue(unchanged.TargetFound);
+        Assert.AreEqual(0, unchanged.MovedCount);
+        CollectionAssert.AreEqual(new[] { "Keep" }, target.ItemNames);
+        CollectionAssert.AreEqual(new[] { "Keep" }, target.ManuallyAssignedItemNames);
+        Assert.IsTrue(freeIcons.ContainsKey("Move"));
+        Assert.IsTrue(originalPositions.ContainsKey("Move"));
+    }
+
     private static GroupInfo Group(string id, GroupSortMode sortMode, params string[] names) =>
         new()
         {

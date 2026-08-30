@@ -140,14 +140,19 @@ namespace DesktopOrganizer
 
         private void RebuildDesktopIconsAndSaveLayout()
         {
-            RebuildDesktopIcons();
-            SaveLayout();
+            RebuildDesktopIcons(saveLayoutAfterRebuild: true);
         }
 
-        private void RebuildDesktopIcons(IReadOnlySet<string>? newItemCandidates = null)
+        private void RebuildDesktopIcons(
+            IReadOnlySet<string>? newItemCandidates = null,
+            bool saveLayoutAfterRebuild = false)
         {
             if (_isClosing)
             {
+                if (saveLayoutAfterRebuild)
+                {
+                    SaveLayout();
+                }
                 return;
             }
 
@@ -159,6 +164,10 @@ namespace DesktopOrganizer
             if (_isRebuildingVisualTree)
             {
                 _rebuildRequested = true;
+                if (saveLayoutAfterRebuild)
+                {
+                    SaveLayout();
+                }
                 return;
             }
 
@@ -174,7 +183,9 @@ namespace DesktopOrganizer
                         _pendingAutoClassificationCandidates,
                         StringComparer.OrdinalIgnoreCase);
                     _pendingAutoClassificationCandidates.Clear();
-                    RebuildDesktopIconsCore(candidatesForPass);
+                    RebuildDesktopIconsCore(
+                        candidatesForPass,
+                        saveLayoutWhenChanged: !saveLayoutAfterRebuild);
                     passCount++;
                 }
                 while (_rebuildRequested && !_isClosing && passCount < 2);
@@ -207,9 +218,16 @@ namespace DesktopOrganizer
                     }
                 }));
             }
+
+            if (saveLayoutAfterRebuild)
+            {
+                SaveLayout();
+            }
         }
 
-        private void RebuildDesktopIconsCore(IReadOnlySet<string> newItemCandidates)
+        private void RebuildDesktopIconsCore(
+            IReadOnlySet<string> newItemCandidates,
+            bool saveLayoutWhenChanged)
         {
             if (_isClosing)
             {
@@ -501,7 +519,7 @@ namespace DesktopOrganizer
             UpdateAutoClassificationControls();
             UpdateCollapseGroupsButton();
 
-            if (layoutChanged)
+            if (layoutChanged && saveLayoutWhenChanged)
             {
                 SaveLayout();
             }
