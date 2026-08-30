@@ -50,6 +50,31 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
+    [DataRow(Key.N, ModifierKeys.Control, false, false, true)]
+    [DataRow(Key.N, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.N, ModifierKeys.Control, true, false, false)]
+    [DataRow(Key.N, ModifierKeys.None, false, false, false)]
+    [DataRow(Key.N, ModifierKeys.Control | ModifierKeys.Shift, false, false, false)]
+    [DataRow(Key.N, ModifierKeys.Control | ModifierKeys.Alt, false, false, false)]
+    [DataRow(Key.N, ModifierKeys.Alt, false, false, false)]
+    [DataRow(Key.S, ModifierKeys.Control, false, false, false)]
+    public void ShouldCreateRuleFromKeyboard_RequiresCleanEditorAndExactInitialControlN(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool hasUnsavedEditor,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            RuleManagerWindow.ShouldCreateRuleFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                hasUnsavedEditor));
+    }
+
+    [TestMethod]
     [DataRow(Key.Enter, ModifierKeys.None, false, true, false, false, (int)RuleListKeyboardAction.Preview)]
     [DataRow(Key.Enter, ModifierKeys.None, false, false, true, false, (int)RuleListKeyboardAction.ExecuteOnce)]
     [DataRow(Key.Enter, ModifierKeys.None, false, false, false, true, (int)RuleListKeyboardAction.Enable)]
@@ -88,17 +113,26 @@ public sealed class RuleManagerUiContractTests
         XElement editor = FindNamedElement(document, xaml, "RuleEditorScroll");
         XElement ruleList = FindNamedElement(document, xaml, "RuleList");
         XElement saveButton = FindNamedElement(document, xaml, "SaveDraftButton");
+        XElement newRuleButton = document.Descendants().Single(element =>
+            element.Name.LocalName == "Button" &&
+            string.Equals(
+                (string?)element.Attribute("Content"),
+                "新建规则",
+                StringComparison.Ordinal));
 
         Assert.AreEqual(
             "RuleEditor_PreviewKeyDown",
             editor.Attribute("PreviewKeyDown")?.Value);
-        Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
+        Assert.AreEqual(
+            "RuleManagerWindow_PreviewKeyDown",
+            document.Root?.Attribute("PreviewKeyDown")?.Value);
         Assert.AreEqual(
             "RuleList_PreviewKeyDown",
             ruleList.Attribute("PreviewKeyDown")?.Value);
         StringAssert.Contains(ruleList.Attribute("ToolTip")?.Value, "Enter");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(saveButton.Attribute("ToolTip")?.Value, "草稿");
+        StringAssert.Contains(newRuleButton.Attribute("ToolTip")?.Value, "Ctrl+N");
         foreach (string buttonName in new[]
                  {
                      "PreviewButton",

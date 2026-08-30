@@ -39,6 +39,33 @@ namespace DesktopOrganizer
 
         private UserRuleSummary? Selected => RuleList.SelectedItem as UserRuleSummary;
 
+        private void RuleManagerWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            bool hasUnsavedEditor = _editorDirty ||
+                string.IsNullOrWhiteSpace(_editingRuleId);
+            if (!ShouldCreateRuleFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    hasUnsavedEditor))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            NewRule_Click(sender, e);
+        }
+
+        internal static bool ShouldCreateRuleFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasUnsavedEditor) =>
+            key == Key.N &&
+            modifiers == ModifierKeys.Control &&
+            !isRepeat &&
+            !hasUnsavedEditor;
+
         private void RefreshList(string? selectedId = null)
         {
             List<UserRuleSummary> summaries = _mainWindow.GetUserRuleSummaries().ToList();
