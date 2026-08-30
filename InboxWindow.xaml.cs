@@ -21,15 +21,21 @@ namespace DesktopOrganizer
 
         private InboxListItemView? Selected => InboxList.SelectedItem as InboxListItemView;
 
-        private void Refresh(string? selectedName = null)
+        private void Refresh(
+            string? selectedName = null,
+            int? fallbackIndex = null)
         {
             string? selectedManualGroupId =
                 (ManualGroupSelector.SelectedItem as ManualGroupChoice)?.Id;
             List<InboxListItemView> items = _mainWindow.GetInboxItems().ToList();
             InboxList.ItemsSource = items;
-            InboxList.SelectedItem = items.FirstOrDefault(item =>
-                item.DisplayName.Equals(selectedName, StringComparison.OrdinalIgnoreCase)) ??
-                items.FirstOrDefault();
+            int selectedIndex = items.FindIndex(item =>
+                item.DisplayName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+            InboxList.SelectedIndex = selectedIndex >= 0
+                ? selectedIndex
+                : ResolvePostActionSelectionIndex(
+                    fallbackIndex ?? 0,
+                    items.Count);
             List<ManualGroupChoice> groups = _mainWindow.GetManualInboxGroups().ToList();
             ManualGroupSelector.ItemsSource = groups;
             ManualGroupSelector.SelectedIndex = FindManualGroupSelectionIndex(
@@ -161,6 +167,7 @@ namespace DesktopOrganizer
             }
 
             string selectedName = selected.DisplayName;
+            int selectedIndex = InboxList.SelectedIndex;
             bool succeeded = _mainWindow.TryMoveInboxItemToManualGroup(
                 selectedName,
                 group.Id,
@@ -168,7 +175,7 @@ namespace DesktopOrganizer
             StatusText.Text = message;
             if (succeeded)
             {
-                Refresh();
+                Refresh(fallbackIndex: selectedIndex);
             }
         }
 
@@ -248,6 +255,13 @@ namespace DesktopOrganizer
             return groups.Count > 0 ? 0 : -1;
         }
 
+        internal static int ResolvePostActionSelectionIndex(
+            int previousIndex,
+            int itemCount) =>
+            itemCount > 0
+                ? Math.Clamp(previousIndex, 0, itemCount - 1)
+                : -1;
+
         internal static bool ShouldAcceptAllReliableFromKeyboard(
             Key key,
             ModifierKeys modifiers,
@@ -267,11 +281,12 @@ namespace DesktopOrganizer
                 return;
             }
 
+            int selectedIndex = InboxList.SelectedIndex;
             bool succeeded = action(selected.DisplayName, out string message);
             StatusText.Text = message;
             if (succeeded)
             {
-                Refresh();
+                Refresh(fallbackIndex: selectedIndex);
             }
         }
 

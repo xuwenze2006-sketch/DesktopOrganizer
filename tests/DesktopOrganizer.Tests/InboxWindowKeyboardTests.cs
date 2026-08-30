@@ -149,6 +149,25 @@ public sealed class InboxWindowKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(0, 4, 0)]
+    [DataRow(2, 4, 2)]
+    [DataRow(4, 4, 3)]
+    [DataRow(99, 2, 1)]
+    [DataRow(-1, 2, 0)]
+    [DataRow(0, 0, -1)]
+    public void ResolvePostActionSelectionIndex_ContinuesAtRemovedItemsPosition(
+        int previousIndex,
+        int itemCount,
+        int expected)
+    {
+        Assert.AreEqual(
+            expected,
+            InboxWindow.ResolvePostActionSelectionIndex(
+                previousIndex,
+                itemCount));
+    }
+
+    [TestMethod]
     public void InboxWindow_WiresKeyboardHandlersOnlyToTheirTargetControls()
     {
         XDocument document = LoadInboxWindowXaml();
