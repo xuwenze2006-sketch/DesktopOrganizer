@@ -37,6 +37,117 @@ public sealed class FolderPortalKeyboardTests
     }
 
     [TestMethod]
+    public void FindRestoredSelectionIndex_PrefersDirectoryLeftByUpNavigation()
+    {
+        Assert.AreEqual(
+            1,
+            MainWindow.FindFolderPortalRestoredSelectionIndex(
+                [@"C:\Root\Other", @"C:\Root\Child"],
+                @"C:\Root\Child\OldSelection.txt",
+                @"c:\root\CHILD"));
+        Assert.AreEqual(
+            -1,
+            MainWindow.FindFolderPortalRestoredSelectionIndex(
+                [@"C:\Root\Child\OldSelection.txt"],
+                @"C:\Root\Child\OldSelection.txt",
+                @"C:\Root\Missing"));
+    }
+
+    [TestMethod]
+    public void GetSelectionPathAfterNavigateUp_ReturnsDirectoryBeingLeft()
+    {
+        Assert.AreEqual(
+            @"C:\Root\Child\Nested",
+            MainWindow.GetFolderPortalSelectionPathAfterNavigateUp(
+                @"C:\Root",
+                @"Child\Nested"));
+        Assert.IsNull(
+            MainWindow.GetFolderPortalSelectionPathAfterNavigateUp(
+                @"C:\Root",
+                string.Empty));
+        Assert.IsNull(
+            MainWindow.GetFolderPortalSelectionPathAfterNavigateUp(
+                @"C:\Root",
+                "   "));
+    }
+
+    [TestMethod]
+    [DataRow(@"C:\Root\Child", true, false, -1, true)]
+    [DataRow(@"C:\Root\Child", true, true, -1, true)]
+    [DataRow(@"C:\Root\Child", false, false, 1, true)]
+    [DataRow(@"C:\Root\Child", false, false, -1, false)]
+    [DataRow(@"C:\Root\Child", false, true, 1, false)]
+    [DataRow(null, false, false, 1, false)]
+    [DataRow("", true, false, 1, false)]
+    public void ShouldRetainPreferredSelection_UntilReadyListCanApplyIt(
+        string? preferredSelectionPath,
+        bool isLoading,
+        bool hasReplacementList,
+        int restoredSelectionIndex,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldRetainFolderPortalPreferredSelection(
+                preferredSelectionPath,
+                isLoading,
+                hasReplacementList,
+                restoredSelectionIndex));
+    }
+
+    [TestMethod]
+    [DataRow(@"C:\Root\Child\Nested", @"Child", @"Child", null, true)]
+    [DataRow(@"C:\Root\Child\Nested", @"Child", @"CHILD", null, true)]
+    [DataRow(@"C:\Root\Child\Nested", @"Child", @"Child\Nested", null, false)]
+    [DataRow(@"C:\Root\Child\Nested", @"Child", @"Child", @"C:\Root\Other", false)]
+    [DataRow(null, @"Child", @"Child", null, false)]
+    [DataRow(@"C:\Root\Child\Nested", null, @"Child", null, false)]
+    public void ShouldPreservePendingSelection_RequiresSameTargetRead(
+        string? pendingSelectionPath,
+        string? pendingSelectionRelativePath,
+        string requestedRelativePath,
+        string? preferredSelectionPath,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldPreserveFolderPortalPendingSelection(
+                pendingSelectionPath,
+                pendingSelectionRelativePath,
+                requestedRelativePath,
+                preferredSelectionPath));
+    }
+
+    [TestMethod]
+    public void CanRetainPendingSelectionAfterFailedRead_RequiresValidatedStaleEntry()
+    {
+        Assert.IsTrue(
+            MainWindow.CanRetainFolderPortalPendingSelectionAfterFailedRead(
+                @"C:\Root\Child",
+                "",
+                "",
+                [@"C:\Root\Other", @"c:\root\CHILD"]));
+        Assert.IsFalse(
+            MainWindow.CanRetainFolderPortalPendingSelectionAfterFailedRead(
+                @"C:\Root\Child",
+                @"Child",
+                @"Child\Nested",
+                [@"C:\Root\Child"]));
+        Assert.IsFalse(
+            MainWindow.CanRetainFolderPortalPendingSelectionAfterFailedRead(
+                @"C:\Root\Child",
+                "",
+                "",
+                [@"C:\Root\Other"]));
+        Assert.IsFalse(
+            MainWindow.CanRetainFolderPortalPendingSelectionAfterFailedRead(
+                null,
+                "",
+                "",
+                [@"C:\Root\Child"]));
+    }
+
+    [TestMethod]
     [DataRow(true, false, true, true, true)]
     [DataRow(false, false, true, true, false)]
     [DataRow(true, true, true, true, false)]

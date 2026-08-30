@@ -38,6 +38,8 @@ namespace DesktopOrganizer
             public PortalReadResult? LastSuccessfulResult { get; set; }
             public int VisualRevision { get; set; }
             public ListBox? CurrentList { get; set; }
+            public string? PendingSelectionPath { get; set; }
+            public string? PendingSelectionRelativePath { get; set; }
         }
 
         /// <summary>
@@ -722,7 +724,8 @@ namespace DesktopOrganizer
 
         private void QueueFolderPortalRead(
             FolderPortalInfo portal,
-            string? requestedRelativePath)
+            string? requestedRelativePath,
+            string? preferredSelectionPath = null)
         {
             if (!_appLayout.FolderPortals.Any(current => ReferenceEquals(current, portal)))
             {
@@ -745,13 +748,27 @@ namespace DesktopOrganizer
                 _folderPortalRuntimeStates[portal.Id] = state;
             }
 
+            string requestedPath = requestedRelativePath?.Trim() ?? string.Empty;
+            if (!ShouldPreserveFolderPortalPendingSelection(
+                    state.PendingSelectionPath,
+                    state.PendingSelectionRelativePath,
+                    requestedPath,
+                    preferredSelectionPath))
+            {
+                state.PendingSelectionPath = preferredSelectionPath;
+                state.PendingSelectionRelativePath =
+                    string.IsNullOrWhiteSpace(preferredSelectionPath)
+                        ? null
+                        : requestedPath;
+            }
+
             int generation = ++state.Generation;
             state.IsLoading = true;
             state.ErrorMessage = null;
             state.VisualRevision++;
 
             var snapshot = FolderPortalLayoutPolicy.Clone(portal);
-            snapshot.CurrentRelativePath = requestedRelativePath?.Trim() ?? string.Empty;
+            snapshot.CurrentRelativePath = requestedPath;
             var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
             _folderPortalReadCts[portal.Id] = cts;
             RefreshFolderPortalVisual(portal);
@@ -843,6 +860,16 @@ namespace DesktopOrganizer
             }
             else
             {
+                if (!CanRetainFolderPortalPendingSelectionAfterFailedRead(
+                        state.PendingSelectionPath,
+                        state.PendingSelectionRelativePath,
+                        state.LastSuccessfulResult?.CurrentRelativePath,
+                        state.LastSuccessfulResult?.Entries.Select(entry => entry.FullPath) ??
+                            Enumerable.Empty<string>()))
+                {
+                    state.PendingSelectionPath = null;
+                    state.PendingSelectionRelativePath = null;
+                }
                 _folderPortalWatcherCoordinator.CancelPending(portal.Id);
                 state.IsStale = state.LastSuccessfulResult != null;
                 state.ErrorMessage = string.IsNullOrWhiteSpace(result.ErrorMessage)
@@ -870,7 +897,23 @@ namespace DesktopOrganizer
             }
 
             string? parent = Path.GetDirectoryName(current);
-            QueueFolderPortalRead(portal, parent ?? string.Empty);
+            QueueFolderPortalRead(
+                portal,
+                parent ?? string.Empty,
+                GetFolderPortalSelectionPathAfterNavigateUp(
+                    portal.RootPath,
+                    current));
+        }
+
+        internal static string? GetFolderPortalSelectionPathAfterNavigateUp(
+            string rootPath,
+            string? currentRelativePath)
+        {
+            string current = currentRelativePath?.Trim() ?? string.Empty;
+            return current.Length == 0
+                ? null
+                : Path.TrimEndingDirectorySeparator(
+                    Path.GetFullPath(Path.Combine(rootPath, current)));
         }
 
         private void OpenFolderPortalEntry(
@@ -1119,10 +1162,14 @@ namespace DesktopOrganizer
                     out FolderPortalRuntimeState? currentState) &&
                 ReferenceEquals(currentState, state);
             ListBox? replacementList = state.CurrentList;
+            string? preferredSelectionPath = state.IsLoading
+                ? null
+                : state.PendingSelectionPath;
             int restoredSelectionIndex = FindFolderPortalRestoredSelectionIndex(
                 state.LastSuccessfulResult?.Entries.Select(entry => entry.FullPath) ??
                     Enumerable.Empty<string>(),
-                selectedEntryPath);
+                selectedEntryPath,
+                preferredSelectionPath);
             if (isCurrentState &&
                 replacementList != null &&
                 restoredSelectionIndex >= 0)
@@ -1130,6 +1177,17 @@ namespace DesktopOrganizer
                 replacementList.SelectedIndex = restoredSelectionIndex;
                 replacementList.ScrollIntoView(
                     replacementList.Items[restoredSelectionIndex]);
+            }
+
+            if (isCurrentState &&
+                !ShouldRetainFolderPortalPreferredSelection(
+                    state.PendingSelectionPath,
+                    state.IsLoading,
+                    replacementList != null,
+                    restoredSelectionIndex))
+            {
+                state.PendingSelectionPath = null;
+                state.PendingSelectionRelativePath = null;
             }
 
             if (ShouldRestoreFolderPortalListFocus(
@@ -1147,10 +1205,14 @@ namespace DesktopOrganizer
 
         internal static int FindFolderPortalRestoredSelectionIndex(
             IEnumerable<string> entryPaths,
-            string? selectedEntryPath)
+            string? selectedEntryPath,
+            string? preferredSelectionPath = null)
         {
             ArgumentNullException.ThrowIfNull(entryPaths);
-            if (string.IsNullOrWhiteSpace(selectedEntryPath))
+            string? targetPath = string.IsNullOrWhiteSpace(preferredSelectionPath)
+                ? selectedEntryPath
+                : preferredSelectionPath;
+            if (string.IsNullOrWhiteSpace(targetPath))
             {
                 return -1;
             }
@@ -1160,7 +1222,7 @@ namespace DesktopOrganizer
             {
                 if (string.Equals(
                         entryPath,
-                        selectedEntryPath,
+                        targetPath,
                         StringComparison.OrdinalIgnoreCase))
                 {
                     return index;
@@ -1168,6 +1230,49 @@ namespace DesktopOrganizer
                 index++;
             }
             return -1;
+        }
+
+        internal static bool ShouldRetainFolderPortalPreferredSelection(
+            string? preferredSelectionPath,
+            bool isLoading,
+            bool hasReplacementList,
+            int restoredSelectionIndex) =>
+            !string.IsNullOrWhiteSpace(preferredSelectionPath) &&
+            (isLoading ||
+             (!hasReplacementList && restoredSelectionIndex >= 0));
+
+        internal static bool ShouldPreserveFolderPortalPendingSelection(
+            string? pendingSelectionPath,
+            string? pendingSelectionRelativePath,
+            string requestedRelativePath,
+            string? preferredSelectionPath) =>
+            string.IsNullOrWhiteSpace(preferredSelectionPath) &&
+            !string.IsNullOrWhiteSpace(pendingSelectionPath) &&
+            string.Equals(
+                pendingSelectionRelativePath,
+                requestedRelativePath,
+                StringComparison.OrdinalIgnoreCase);
+
+        internal static bool CanRetainFolderPortalPendingSelectionAfterFailedRead(
+            string? pendingSelectionPath,
+            string? pendingSelectionRelativePath,
+            string? lastSuccessfulRelativePath,
+            IEnumerable<string> lastSuccessfulEntryPaths)
+        {
+            if (string.IsNullOrWhiteSpace(pendingSelectionPath) ||
+                !string.Equals(
+                    pendingSelectionRelativePath,
+                    lastSuccessfulRelativePath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return lastSuccessfulEntryPaths.Any(entryPath =>
+                string.Equals(
+                    entryPath,
+                    pendingSelectionPath,
+                    StringComparison.OrdinalIgnoreCase));
         }
 
         internal static bool ShouldRestoreFolderPortalListFocus(
