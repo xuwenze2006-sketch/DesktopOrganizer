@@ -37,8 +37,20 @@ public sealed class OperationCenterWindowTests
         Assert.IsTrue(document.Descendants().Any(element =>
             element.Name.LocalName == "TextBlock" &&
             ((string?)element.Attribute("Text"))?.Contains(
-                "Ctrl+C 复制详情",
+                "Ctrl+C",
                 StringComparison.Ordinal) == true));
+
+        XElement copyButton = FindNamedElement(
+            document,
+            xaml,
+            "CopySelectedDetailsButton");
+        Assert.AreEqual(
+            "{x:Static ApplicationCommands.Copy}",
+            copyButton.Attribute("Command")?.Value);
+        Assert.AreEqual(
+            "{Binding ElementName=JournalGrid}",
+            copyButton.Attribute("CommandTarget")?.Value);
+        StringAssert.Contains(copyButton.Attribute("ToolTip")?.Value, "Ctrl+C");
     }
 
     [TestMethod]
@@ -81,6 +93,16 @@ public sealed class OperationCenterWindowTests
             expectedBinding,
             column.Attribute("ClipboardContentBinding")?.Value);
     }
+
+    private static XElement FindNamedElement(
+        XDocument document,
+        XNamespace xaml,
+        string name) =>
+        document.Descendants().Single(element =>
+            string.Equals(
+                (string?)element.Attribute(xaml + "Name"),
+                name,
+                StringComparison.Ordinal));
 
     private static void AssertTextColumnBinding(
         XDocument document,

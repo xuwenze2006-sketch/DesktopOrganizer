@@ -69,7 +69,7 @@
             <TextBlock Grid.Column="1"
                        Foreground="#FF64748B"
                        VerticalAlignment="Center"
-                       Text="按最近时间排序 · 只读 · 选中后按 Ctrl+C 复制详情"/>
+                       Text="按最近时间排序 · 只读 · 选中后按 Ctrl+C 或点击按钮复制详情"/>
         </Grid>
 
         <Grid Grid.Row="3">
@@ -172,15 +172,24 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock Foreground="#FF64748B"
                        VerticalAlignment="Center"
                        TextWrapping="Wrap"
                        Text="“部分可撤销”表示需要通过 Windows 回收站恢复；“需人工核对”表示磁盘最终状态不能仅凭账本确认。"/>
-            <Button Grid.Column="1"
+            <Button x:Name="CopySelectedDetailsButton"
+                    Grid.Column="1"
+                    Content="复制所选详情"
+                    MinWidth="108"
+                    Margin="12,0,0,0"
+                    Command="{x:Static ApplicationCommands.Copy}"
+                    CommandTarget="{Binding ElementName=JournalGrid}"
+                    ToolTip="Ctrl+C；复制所选账本记录的八列详情和表头"/>
+            <Button Grid.Column="2"
                     Content="关闭"
                     MinWidth="76"
-                    Margin="12,0,0,0"
+                    Margin="8,0,0,0"
                     IsCancel="True"
                     Click="Close_Click"/>
         </Grid>
