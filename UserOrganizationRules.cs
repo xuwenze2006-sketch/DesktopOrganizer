@@ -225,6 +225,27 @@ namespace DesktopOrganizer
             _ => "草稿（禁用）"
         };
 
+        public static int DisableEnabledRules(
+            IEnumerable<UserOrganizationRuleInfo> rules,
+            DateTime utcNow)
+        {
+            ArgumentNullException.ThrowIfNull(rules);
+
+            int changedCount = 0;
+            foreach (UserOrganizationRuleInfo rule in rules)
+            {
+                if (rule.Lifecycle != UserRuleLifecycle.Enabled)
+                {
+                    continue;
+                }
+
+                rule.Lifecycle = UserRuleLifecycle.TrialApplied;
+                rule.UpdatedUtc = utcNow;
+                changedCount++;
+            }
+            return changedCount;
+        }
+
         public static UserOrganizationRuleInfo Clone(UserOrganizationRuleInfo rule) => new()
         {
             Id = rule.Id,

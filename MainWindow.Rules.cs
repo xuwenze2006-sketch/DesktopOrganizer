@@ -30,6 +30,9 @@ namespace DesktopOrganizer
                     rule.UpdatedUtc))
                 .ToList();
 
+        internal int GetEnabledUserRuleCount() =>
+            _appLayout.UserRules.Count(rule => rule.Lifecycle == UserRuleLifecycle.Enabled);
+
         internal bool TryGetUserRuleEditor(string id, out UserRuleEditorData? editor)
         {
             UserOrganizationRuleInfo? rule = FindUserRule(id);
@@ -250,6 +253,24 @@ namespace DesktopOrganizer
             rule.UpdatedUtc = DateTime.UtcNow;
             SaveLayout();
             StatusText.Text = $"规则“{rule.Name}”已停用；已有虚拟整理结果保持不变";
+            return true;
+        }
+
+        internal bool TryDisableAllUserRules(out string message)
+        {
+            int disabledCount = UserOrganizationRulePolicy.DisableEnabledRules(
+                _appLayout.UserRules,
+                DateTime.UtcNow);
+            if (disabledCount == 0)
+            {
+                message = "当前没有已启用自动应用的规则。";
+                StatusText.Text = message;
+                return false;
+            }
+
+            SaveLayout();
+            message = $"已停用 {disabledCount} 条自动应用规则；已有虚拟整理结果保持不变。";
+            StatusText.Text = message;
             return true;
         }
 

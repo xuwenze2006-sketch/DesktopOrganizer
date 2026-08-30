@@ -80,6 +80,12 @@
                     <Button Content="新建规则" MinWidth="82" Margin="0,0,8,8" Click="NewRule_Click"/>
                     <Button Content="导入 JSON…" MinWidth="88" Margin="0,0,8,8" Click="Import_Click"/>
                     <Button Content="导出 JSON…" MinWidth="88" Margin="0,0,0,8" Click="Export_Click"/>
+                    <Button x:Name="DisableAllRulesButton"
+                            Content="全部停用 (0)"
+                            MinWidth="112"
+                            Margin="0,0,8,0"
+                            ToolTip="停止全部规则的后续自动应用；保留已有虚拟整理结果，不修改真实文件"
+                            Click="DisableAllRules_Click"/>
                 </WrapPanel>
             </Grid>
 

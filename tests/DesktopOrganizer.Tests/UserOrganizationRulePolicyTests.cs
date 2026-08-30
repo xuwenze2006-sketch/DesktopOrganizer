@@ -105,4 +105,70 @@ public sealed class UserOrganizationRulePolicyTests
         Assert.AreEqual(UserRuleLifecycle.Enabled, layout.UserRules[1].Lifecycle);
         CollectionAssert.AreEqual(new[] { ".txt" }, layout.UserRules[1].Extensions);
     }
+
+    [TestMethod]
+    public void DisableEnabledRules_ChangesOnlyEnabledRulesWithSharedTimestamp()
+    {
+        DateTime oldUpdated = DateTime.UnixEpoch.AddHours(1);
+        DateTime lastTrial = DateTime.UnixEpoch.AddHours(2);
+        DateTime disabledUtc = DateTime.UnixEpoch.AddHours(3);
+        var draft = new UserOrganizationRuleInfo
+        {
+            Lifecycle = UserRuleLifecycle.Draft,
+            UpdatedUtc = oldUpdated
+        };
+        var enabledOne = new UserOrganizationRuleInfo
+        {
+            Lifecycle = UserRuleLifecycle.Enabled,
+            UpdatedUtc = oldUpdated,
+            LastTrialRunUtc = lastTrial
+        };
+        var previewed = new UserOrganizationRuleInfo
+        {
+            Lifecycle = UserRuleLifecycle.Previewed,
+            UpdatedUtc = oldUpdated
+        };
+        var enabledTwo = new UserOrganizationRuleInfo
+        {
+            Lifecycle = UserRuleLifecycle.Enabled,
+            UpdatedUtc = oldUpdated,
+            LastTrialRunUtc = lastTrial
+        };
+
+        int changedCount = UserOrganizationRulePolicy.DisableEnabledRules(
+            [draft, enabledOne, previewed, enabledTwo],
+            disabledUtc);
+
+        Assert.AreEqual(2, changedCount);
+        Assert.AreEqual(UserRuleLifecycle.Draft, draft.Lifecycle);
+        Assert.AreEqual(UserRuleLifecycle.Previewed, previewed.Lifecycle);
+        Assert.AreEqual(oldUpdated, draft.UpdatedUtc);
+        Assert.AreEqual(oldUpdated, previewed.UpdatedUtc);
+        Assert.AreEqual(UserRuleLifecycle.TrialApplied, enabledOne.Lifecycle);
+        Assert.AreEqual(UserRuleLifecycle.TrialApplied, enabledTwo.Lifecycle);
+        Assert.AreEqual(disabledUtc, enabledOne.UpdatedUtc);
+        Assert.AreEqual(disabledUtc, enabledTwo.UpdatedUtc);
+        Assert.AreEqual(lastTrial, enabledOne.LastTrialRunUtc);
+        Assert.AreEqual(lastTrial, enabledTwo.LastTrialRunUtc);
+    }
+
+    [TestMethod]
+    public void DisableEnabledRules_NoEnabledRulesHasNoEffect()
+    {
+        var rule = new UserOrganizationRuleInfo
+        {
+            Lifecycle = UserRuleLifecycle.TrialApplied,
+            UpdatedUtc = DateTime.UnixEpoch,
+            LastTrialRunUtc = DateTime.UnixEpoch
+        };
+
+        int changedCount = UserOrganizationRulePolicy.DisableEnabledRules(
+            [rule],
+            DateTime.UnixEpoch.AddDays(1));
+
+        Assert.AreEqual(0, changedCount);
+        Assert.AreEqual(UserRuleLifecycle.TrialApplied, rule.Lifecycle);
+        Assert.AreEqual(DateTime.UnixEpoch, rule.UpdatedUtc);
+        Assert.AreEqual(DateTime.UnixEpoch, rule.LastTrialRunUtc);
+    }
 }

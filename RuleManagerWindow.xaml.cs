@@ -352,6 +352,23 @@ namespace DesktopOrganizer
             SetStatus("规则自动应用已停用；已有虚拟整理结果保持不变。", isError: false);
         }
 
+        private void DisableAllRules_Click(object sender, RoutedEventArgs e)
+        {
+            if (_editorDirty)
+            {
+                SetStatus("请先保存或重新选择规则，再停用全部自动应用规则。", isError: true);
+                return;
+            }
+
+            string? selectedId = Selected?.Id;
+            bool succeeded = _mainWindow.TryDisableAllUserRules(out string message);
+            if (succeeded)
+            {
+                RefreshList(selectedId);
+            }
+            SetStatus(message, isError: false);
+        }
+
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
             UserRuleSummary? rule = RequireSelection();
@@ -419,6 +436,9 @@ namespace DesktopOrganizer
             EnableButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.TrialApplied;
             DisableButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.Enabled;
             DeleteButton.IsEnabled = persistedSelection;
+            int enabledCount = _mainWindow.GetEnabledUserRuleCount();
+            DisableAllRulesButton.Content = $"全部停用 ({enabledCount})";
+            DisableAllRulesButton.IsEnabled = enabledCount > 0 && !_editorDirty;
         }
 
         private void SetStatus(string? message, bool isError)
