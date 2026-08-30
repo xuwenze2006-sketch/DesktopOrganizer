@@ -107,6 +107,19 @@ namespace DesktopOrganizer
 
         private void ResultsList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (ShouldFocusQueryFromResults(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat))
+            {
+                if (QueryBox.Focus())
+                {
+                    QueryBox.SelectAll();
+                    e.Handled = true;
+                }
+                return;
+            }
+
             e.Handled = TryExecuteSelectedAction(
                 ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
         }
@@ -188,6 +201,14 @@ namespace DesktopOrganizer
                 _ => DesktopSearchKeyboardAction.None
             };
         }
+
+        internal static bool ShouldFocusQueryFromResults(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat) =>
+            key == Key.F &&
+            modifiers == ModifierKeys.Control &&
+            !isRepeat;
 
         internal static int GetNextSelectionIndex(
             int currentIndex,

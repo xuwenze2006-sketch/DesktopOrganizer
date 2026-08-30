@@ -49,6 +49,27 @@ public sealed class DesktopSearchWindowKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(Key.F, ModifierKeys.Control, false, true)]
+    [DataRow(Key.F, ModifierKeys.Control, true, false)]
+    [DataRow(Key.F, ModifierKeys.None, false, false)]
+    [DataRow(Key.F, ModifierKeys.Control | ModifierKeys.Shift, false, false)]
+    [DataRow(Key.F, ModifierKeys.Alt, false, false)]
+    [DataRow(Key.Enter, ModifierKeys.Control, false, false)]
+    public void ShouldFocusQueryFromResults_RequiresExactInitialControlF(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            DesktopSearchWindow.ShouldFocusQueryFromResults(
+                key,
+                modifiers,
+                isRepeat));
+    }
+
+    [TestMethod]
     [DataRow((int)DesktopSearchKeyboardAction.Locate, true)]
     [DataRow((int)DesktopSearchKeyboardAction.Open, false)]
     [DataRow((int)DesktopSearchKeyboardAction.Reveal, false)]
@@ -102,6 +123,9 @@ public sealed class DesktopSearchWindowKeyboardTests
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Enter 定位并返回桌面");
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Ctrl+Enter 打开");
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Shift+Enter");
+        StringAssert.Contains(
+            resultsList.Attribute("ToolTip")?.Value,
+            "Ctrl+F 返回搜索框并全选查询文本");
     }
 
     private static XElement FindButton(XDocument document, string content) =>
