@@ -386,7 +386,13 @@ namespace DesktopOrganizer
                 sortItem.Click += (_, _) => SetGroupSortMode(group, mode);
                 sortMenu.Items.Add(sortItem);
             }
-            var selectionSeparator = new Separator { Visibility = Visibility.Collapsed };
+            var selectionSeparator = new Separator();
+            var toggleGroupSelectionItem = new MenuItem
+            {
+                Header = "选择此分组的项目",
+                ToolTip = "只更新当前会话选择，不修改布局或真实文件"
+            };
+            toggleGroupSelectionItem.Click += (_, _) => ToggleGroupItemSelection(group);
             var moveSelectedItem = new MenuItem
             {
                 Header = "将所选项目移入此分组",
@@ -401,6 +407,7 @@ namespace DesktopOrganizer
             groupMenu.Items.Add(autoFitItem);
             groupMenu.Items.Add(sortMenu);
             groupMenu.Items.Add(selectionSeparator);
+            groupMenu.Items.Add(toggleGroupSelectionItem);
             groupMenu.Items.Add(moveSelectedItem);
             groupMenu.Items.Add(new Separator());
             groupMenu.Items.Add(deleteItem);
@@ -415,11 +422,19 @@ namespace DesktopOrganizer
                     _desktopItems.TryGetValue(name, out string? location) &&
                     !ShellItemLocation.TryDecode(location, out _, out _) &&
                     IsFileOperationPending(location));
-                Visibility visibility = selectedNames.Count > 0
+                GroupItemSelectionPlan selectionPlan = GroupItemSelectionPolicy.CreatePlan(
+                    group.ItemNames,
+                    _desktopItems.Keys,
+                    _selectedItemNames);
+                toggleGroupSelectionItem.IsEnabled = selectionPlan.ItemCount > 0;
+                toggleGroupSelectionItem.Header = selectionPlan.ItemCount == 0
+                    ? "此分组没有可选项目"
+                    : selectionPlan.Select
+                        ? $"选择此分组的 {selectionPlan.ItemCount} 项"
+                        : $"取消选择此分组的 {selectionPlan.ItemCount} 项";
+                moveSelectedItem.Visibility = selectedNames.Count > 0
                     ? Visibility.Visible
                     : Visibility.Collapsed;
-                selectionSeparator.Visibility = visibility;
-                moveSelectedItem.Visibility = visibility;
                 moveSelectedItem.IsEnabled = movableCount > 0 && !hasPendingPhysicalItem;
                 moveSelectedItem.Header = movableCount == 0
                     ? "所选项目已在此分组"

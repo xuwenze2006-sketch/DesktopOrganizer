@@ -420,6 +420,28 @@ namespace DesktopOrganizer
                 : $"已选择 {_selectedItemNames.Count} 项；右键可批量操作，Esc 清除选择";
         }
 
+        private void ToggleGroupItemSelection(GroupInfo group)
+        {
+            GroupItemSelectionPlan plan = GroupItemSelectionPolicy.CreatePlan(
+                group.ItemNames,
+                _desktopItems.Keys,
+                _selectedItemNames);
+            if (plan.ItemCount == 0)
+            {
+                StatusText.Text = $"“{group.Name}”中没有可选择的桌面项目";
+                return;
+            }
+
+            _ = GroupItemSelectionPolicy.Apply(_selectedItemNames, plan);
+            RefreshItemSelectionVisuals();
+            string currentSelection = _selectedItemNames.Count == 0
+                ? "当前没有选择"
+                : $"当前共选择 {_selectedItemNames.Count} 项";
+            StatusText.Text = plan.Select
+                ? $"已选择“{group.Name}”中的 {plan.ItemCount} 项；{currentSelection}"
+                : $"已取消选择“{group.Name}”中的 {plan.ItemCount} 项；{currentSelection}";
+        }
+
         private void ClearItemSelection()
         {
             if (_selectedItemNames.Count == 0)
