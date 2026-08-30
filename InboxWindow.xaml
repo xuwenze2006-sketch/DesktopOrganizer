@@ -18,10 +18,11 @@
         <Border Padding="12" CornerRadius="8" Background="#FFF0FFF8"
                 BorderBrush="#FF84D8B7" BorderThickness="1">
             <TextBlock TextWrapping="Wrap"
-                       Text="这里的操作只改变本地虚拟分组和标签。可靠建议可以接受；待确认建议保持原位，除非你明确加入手工分组。任何操作都不会移动、重命名或删除真实文件。"/>
+                       Text="这里的操作只改变本地虚拟分组和标签。可靠建议可以接受；待确认建议保持原位，除非你明确加入手工分组。列表中可用 Enter 接受、Ctrl+Enter 留在桌面、Shift+Enter 以后处理。任何操作都不会移动、重命名或删除真实文件。"/>
         </Border>
 
         <ListBox x:Name="InboxList" Grid.Row="1" Margin="0,12,0,12"
+                 PreviewKeyDown="InboxList_PreviewKeyDown"
                  SelectionChanged="InboxList_SelectionChanged">
             <ListBox.ItemTemplate>
                 <DataTemplate>
@@ -67,9 +68,12 @@
                         MinWidth="88" Margin="10,0,0,0" Click="SaveTags_Click"/>
             </Grid>
             <StackPanel Grid.Row="1" Margin="0,10,0,0" Orientation="Horizontal">
-                <Button x:Name="AcceptButton" Content="接受建议" MinWidth="88" Margin="0,0,8,0" Click="Accept_Click"/>
-                <Button Content="留在桌面" MinWidth="88" Margin="0,0,8,0" Click="Leave_Click"/>
-                <Button Content="以后再说" MinWidth="88" Margin="0,0,8,0" Click="Defer_Click"/>
+                <Button x:Name="AcceptButton" Content="接受建议" MinWidth="88" Margin="0,0,8,0"
+                        ToolTip="Enter" Click="Accept_Click"/>
+                <Button Content="留在桌面" MinWidth="88" Margin="0,0,8,0"
+                        ToolTip="Ctrl+Enter" Click="Leave_Click"/>
+                <Button Content="以后再说" MinWidth="88" Margin="0,0,8,0"
+                        ToolTip="Shift+Enter" Click="Defer_Click"/>
                 <ComboBox x:Name="ManualGroupSelector" Width="170" Margin="14,0,8,0" DisplayMemberPath="Name"/>
                 <Button Content="加入手工分组" MinWidth="110" Click="MoveToManualGroup_Click"/>
             </StackPanel>

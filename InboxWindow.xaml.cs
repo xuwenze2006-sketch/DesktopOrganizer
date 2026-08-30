@@ -1,5 +1,13 @@
 namespace DesktopOrganizer
 {
+    internal enum InboxKeyboardAction
+    {
+        None,
+        AcceptSuggestion,
+        LeaveOnDesktop,
+        Defer
+    }
+
     public partial class InboxWindow : Window
     {
         private readonly MainWindow _mainWindow;
@@ -32,6 +40,12 @@ namespace DesktopOrganizer
         private void InboxList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
             UpdateButtons();
 
+        private void InboxList_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            e.Handled = TryExecuteKeyboardAction(
+                ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
+        }
+
         private void UpdateButtons()
         {
             InboxListItemView? selected = Selected;
@@ -46,8 +60,7 @@ namespace DesktopOrganizer
         }
 
         private void Accept_Click(object sender, RoutedEventArgs e) =>
-            RunSelectedAction((string name, out string message) =>
-                _mainWindow.TryAcceptInboxSuggestion(name, out message));
+            ExecuteSelectedAction(InboxKeyboardAction.AcceptSuggestion);
 
         private void AcceptAllReliable_Click(object sender, RoutedEventArgs e)
         {
@@ -57,12 +70,10 @@ namespace DesktopOrganizer
         }
 
         private void Leave_Click(object sender, RoutedEventArgs e) =>
-            RunSelectedAction((string name, out string message) =>
-                _mainWindow.TryLeaveInboxItemOnDesktop(name, out message));
+            ExecuteSelectedAction(InboxKeyboardAction.LeaveOnDesktop);
 
         private void Defer_Click(object sender, RoutedEventArgs e) =>
-            RunSelectedAction((string name, out string message) =>
-                _mainWindow.TryDeferInboxItem(name, out message));
+            ExecuteSelectedAction(InboxKeyboardAction.Defer);
 
         private void SaveTags_Click(object sender, RoutedEventArgs e)
         {
@@ -109,6 +120,35 @@ namespace DesktopOrganizer
 
         private delegate bool InboxAction(string displayName, out string message);
 
+        private bool TryExecuteKeyboardAction(InboxKeyboardAction action)
+        {
+            if (Selected == null || action == InboxKeyboardAction.None)
+            {
+                return false;
+            }
+
+            ExecuteSelectedAction(action);
+            return true;
+        }
+
+        internal static InboxKeyboardAction ResolveKeyboardAction(
+            Key key,
+            ModifierKeys modifiers)
+        {
+            if (key != Key.Enter)
+            {
+                return InboxKeyboardAction.None;
+            }
+
+            return modifiers switch
+            {
+                ModifierKeys.None => InboxKeyboardAction.AcceptSuggestion,
+                ModifierKeys.Control => InboxKeyboardAction.LeaveOnDesktop,
+                ModifierKeys.Shift => InboxKeyboardAction.Defer,
+                _ => InboxKeyboardAction.None
+            };
+        }
+
         private void RunSelectedAction(InboxAction action)
         {
             InboxListItemView? selected = Selected;
@@ -123,6 +163,21 @@ namespace DesktopOrganizer
             if (succeeded)
             {
                 Refresh();
+            }
+        }
+
+        private void ExecuteSelectedAction(InboxKeyboardAction action)
+        {
+            InboxAction? selectedAction = action switch
+            {
+                InboxKeyboardAction.AcceptSuggestion => _mainWindow.TryAcceptInboxSuggestion,
+                InboxKeyboardAction.LeaveOnDesktop => _mainWindow.TryLeaveInboxItemOnDesktop,
+                InboxKeyboardAction.Defer => _mainWindow.TryDeferInboxItem,
+                _ => null
+            };
+            if (selectedAction != null)
+            {
+                RunSelectedAction(selectedAction);
             }
         }
 
