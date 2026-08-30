@@ -75,23 +75,26 @@ public sealed class RuleManagerUiContractTests
     }
 
     [TestMethod]
-    [DataRow(Key.Enter, ModifierKeys.None, false, true, false, false, (int)RuleListKeyboardAction.Preview)]
-    [DataRow(Key.Enter, ModifierKeys.None, false, false, true, false, (int)RuleListKeyboardAction.ExecuteOnce)]
-    [DataRow(Key.Enter, ModifierKeys.None, false, false, false, true, (int)RuleListKeyboardAction.Enable)]
-    [DataRow(Key.Enter, ModifierKeys.None, false, false, false, false, (int)RuleListKeyboardAction.None)]
-    [DataRow(Key.Enter, ModifierKeys.None, false, true, true, false, (int)RuleListKeyboardAction.None)]
-    [DataRow(Key.Enter, ModifierKeys.None, true, true, false, false, (int)RuleListKeyboardAction.None)]
-    [DataRow(Key.Enter, ModifierKeys.Control, false, true, false, false, (int)RuleListKeyboardAction.None)]
-    [DataRow(Key.Enter, ModifierKeys.Shift, false, true, false, false, (int)RuleListKeyboardAction.None)]
-    [DataRow(Key.Enter, ModifierKeys.Alt, false, true, false, false, (int)RuleListKeyboardAction.None)]
-    [DataRow(Key.Space, ModifierKeys.None, false, true, false, false, (int)RuleListKeyboardAction.None)]
-    public void ResolveRuleListKeyboardAction_RequiresPlainInitialEnterAndOneAvailableStep(
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, false, false, false, (int)RuleListKeyboardAction.Preview)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, true, false, false, (int)RuleListKeyboardAction.ExecuteOnce)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, false, true, false, (int)RuleListKeyboardAction.Enable)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, false, false, true, (int)RuleListKeyboardAction.Disable)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, false, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, true, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, false, false, true, true, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.None, true, true, false, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Control, false, true, false, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, false, true, false, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Alt, false, true, false, false, false, (int)RuleListKeyboardAction.None)]
+    [DataRow(Key.Space, ModifierKeys.None, false, true, false, false, false, (int)RuleListKeyboardAction.None)]
+    public void ResolveRuleListKeyboardAction_RequiresPlainInitialEnterAndOneAvailableAction(
         Key key,
         ModifierKeys modifiers,
         bool isRepeat,
         bool canPreview,
         bool canExecuteOnce,
         bool canEnable,
+        bool canDisable,
         int expected)
     {
         Assert.AreEqual(
@@ -102,7 +105,8 @@ public sealed class RuleManagerUiContractTests
                 isRepeat,
                 canPreview,
                 canExecuteOnce,
-                canEnable));
+                canEnable,
+                canDisable));
     }
 
     [TestMethod]
@@ -166,7 +170,8 @@ public sealed class RuleManagerUiContractTests
                  {
                      "PreviewButton",
                      "ExecuteOnceButton",
-                     "EnableButton"
+                     "EnableButton",
+                     "DisableButton"
                  })
         {
             StringAssert.Contains(

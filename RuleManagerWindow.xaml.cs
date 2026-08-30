@@ -5,7 +5,8 @@ namespace DesktopOrganizer
         None,
         Preview,
         ExecuteOnce,
-        Enable
+        Enable,
+        Disable
     }
 
     public partial class RuleManagerWindow : Window
@@ -113,7 +114,8 @@ namespace DesktopOrganizer
                 e.IsRepeat,
                 PreviewButton.IsEnabled,
                 ExecuteOnceButton.IsEnabled,
-                EnableButton.IsEnabled);
+                EnableButton.IsEnabled,
+                DisableButton.IsEnabled);
             if (action == RuleListKeyboardAction.None)
             {
                 return;
@@ -130,6 +132,9 @@ namespace DesktopOrganizer
                     break;
                 case RuleListKeyboardAction.Enable:
                     Enable_Click(EnableButton, e);
+                    break;
+                case RuleListKeyboardAction.Disable:
+                    Disable_Click(DisableButton, e);
                     break;
             }
         }
@@ -150,18 +155,20 @@ namespace DesktopOrganizer
             bool isRepeat,
             bool canPreview,
             bool canExecuteOnce,
-            bool canEnable)
+            bool canEnable,
+            bool canDisable)
         {
             if (key != Key.Enter || modifiers != ModifierKeys.None || isRepeat)
             {
                 return RuleListKeyboardAction.None;
             }
 
-            return (canPreview, canExecuteOnce, canEnable) switch
+            return (canPreview, canExecuteOnce, canEnable, canDisable) switch
             {
-                (true, false, false) => RuleListKeyboardAction.Preview,
-                (false, true, false) => RuleListKeyboardAction.ExecuteOnce,
-                (false, false, true) => RuleListKeyboardAction.Enable,
+                (true, false, false, false) => RuleListKeyboardAction.Preview,
+                (false, true, false, false) => RuleListKeyboardAction.ExecuteOnce,
+                (false, false, true, false) => RuleListKeyboardAction.Enable,
+                (false, false, false, true) => RuleListKeyboardAction.Disable,
                 _ => RuleListKeyboardAction.None
             };
         }
