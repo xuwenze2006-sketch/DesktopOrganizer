@@ -540,7 +540,7 @@ namespace DesktopOrganizer
 
         private void DisableAllRules_Click(object sender, RoutedEventArgs e)
         {
-            if (_editorDirty)
+            if (HasUnsavedRuleEditor(_editorDirty, _editingRuleId))
             {
                 SetStatus("请先保存或重新选择规则，再停用全部自动应用规则。", isError: true);
                 return;
@@ -629,7 +629,7 @@ namespace DesktopOrganizer
             NewRuleButton.IsEnabled = !hasUnsavedEditor;
             int enabledCount = _mainWindow.GetEnabledUserRuleCount();
             DisableAllRulesButton.Content = $"全部停用 ({enabledCount})";
-            DisableAllRulesButton.IsEnabled = enabledCount > 0 && !_editorDirty;
+            DisableAllRulesButton.IsEnabled = enabledCount > 0 && !hasUnsavedEditor;
         }
 
         private void SetStatus(string? message, bool isError)

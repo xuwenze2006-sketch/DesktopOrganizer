@@ -2,6 +2,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Xml.Linq;
 
@@ -96,7 +98,7 @@ public sealed class RuleManagerUiContractTests
     }
 
     [STATestMethod]
-    public void SaveDraftAndNewRuleButtons_FollowUnsavedEditorState()
+    public void RuleEditorCommandButtons_FollowUnsavedEditorState()
     {
         var mainWindow = new MainWindow(startQuietly: false);
         FieldInfo appLayoutField = typeof(MainWindow).GetField(
@@ -117,15 +119,21 @@ public sealed class RuleManagerUiContractTests
 
         Assert.IsFalse(persistedWindow.SaveDraftButton.IsEnabled);
         Assert.IsTrue(persistedWindow.NewRuleButton.IsEnabled);
+        Assert.IsTrue(persistedWindow.DisableAllRulesButton.IsEnabled);
 
         persistedWindow.RuleNameBox.Text = "已修改规则";
 
         Assert.IsTrue(persistedWindow.SaveDraftButton.IsEnabled);
         Assert.IsFalse(persistedWindow.NewRuleButton.IsEnabled);
+        Assert.IsFalse(persistedWindow.DisableAllRulesButton.IsEnabled);
 
-        var newRuleWindow = new RuleManagerWindow(new MainWindow(startQuietly: false));
+        var newRuleWindow = new RuleManagerWindow(mainWindow);
+        newRuleWindow.NewRuleButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+        Assert.IsNull(newRuleWindow.RuleList.SelectedItem);
         Assert.IsTrue(newRuleWindow.SaveDraftButton.IsEnabled);
         Assert.IsFalse(newRuleWindow.NewRuleButton.IsEnabled);
+        Assert.IsFalse(newRuleWindow.DisableAllRulesButton.IsEnabled);
     }
 
     [TestMethod]
