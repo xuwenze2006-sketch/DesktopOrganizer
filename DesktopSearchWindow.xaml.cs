@@ -70,6 +70,43 @@ namespace DesktopOrganizer
 
         private void QueryBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshResults();
 
+        private void QueryBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            int direction = e.Key switch
+            {
+                Key.Up => -1,
+                Key.Down => 1,
+                _ => 0
+            };
+            if (direction != 0)
+            {
+                int nextIndex = GetNextSelectionIndex(
+                    ResultsList.SelectedIndex,
+                    ResultsList.Items.Count,
+                    direction);
+                if (nextIndex >= 0)
+                {
+                    ResultsList.SelectedIndex = nextIndex;
+                    ResultsList.ScrollIntoView(ResultsList.Items[nextIndex]);
+                    e.Handled = true;
+                }
+                return;
+            }
+
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = TryLocateSelected();
+            }
+        }
+
+        private void ResultsList_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = TryLocateSelected();
+            }
+        }
+
         private void ViewSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (IsLoaded)
@@ -80,10 +117,7 @@ namespace DesktopOrganizer
 
         private void Locate_Click(object sender, RoutedEventArgs e)
         {
-            if (Selected != null)
-            {
-                _mainWindow.LocateDesktopSearchResult(Selected.Result.DisplayName);
-            }
+            _ = TryLocateSelected();
         }
 
         private void Open_Click(object sender, RoutedEventArgs e)
@@ -106,5 +140,32 @@ namespace DesktopOrganizer
             Locate_Click(sender, e);
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+        private bool TryLocateSelected()
+        {
+            if (Selected == null)
+            {
+                return false;
+            }
+
+            _mainWindow.LocateDesktopSearchResult(Selected.Result.DisplayName);
+            return true;
+        }
+
+        internal static int GetNextSelectionIndex(
+            int currentIndex,
+            int itemCount,
+            int direction)
+        {
+            if (itemCount <= 0)
+            {
+                return -1;
+            }
+            if (currentIndex < 0 || currentIndex >= itemCount)
+            {
+                return direction < 0 ? itemCount - 1 : 0;
+            }
+            return Math.Clamp(currentIndex + direction, 0, itemCount - 1);
+        }
     }
 }

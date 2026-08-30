@@ -29,12 +29,16 @@
             </Grid.ColumnDefinitions>
             <TextBox x:Name="QueryBox" Height="34" Padding="9,5"
                      VerticalContentAlignment="Center"
-                     TextChanged="QueryBox_TextChanged"/>
+                     TextChanged="QueryBox_TextChanged"
+                     PreviewKeyDown="QueryBox_PreviewKeyDown"
+                     ToolTip="输入后可用上下方向键选择，按 Enter 定位并高亮"/>
             <ComboBox x:Name="ViewSelector" Grid.Column="1" Margin="10,0,0,0"
                       DisplayMemberPath="Name" SelectionChanged="ViewSelector_SelectionChanged"/>
         </Grid>
 
-        <ListBox x:Name="ResultsList" Grid.Row="2" MouseDoubleClick="ResultsList_MouseDoubleClick">
+        <ListBox x:Name="ResultsList" Grid.Row="2"
+                 MouseDoubleClick="ResultsList_MouseDoubleClick"
+                 PreviewKeyDown="ResultsList_PreviewKeyDown">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid Margin="4,5">
