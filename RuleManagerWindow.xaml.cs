@@ -140,6 +140,33 @@ namespace DesktopOrganizer
             EditorChanged(sender, e);
         }
 
+        private void RuleEditor_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            bool hasUnsavedEditor = _editorDirty ||
+                string.IsNullOrWhiteSpace(_editingRuleId);
+            if (!ShouldSaveDraftFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    hasUnsavedEditor))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            SaveDraft_Click(sender, e);
+        }
+
+        internal static bool ShouldSaveDraftFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasUnsavedEditor) =>
+            key == Key.S &&
+            modifiers == ModifierKeys.Control &&
+            !isRepeat &&
+            hasUnsavedEditor;
+
         private void UpdateActionTargetEditor()
         {
             OrganizationRuleActionKind action = SelectedActionKind;

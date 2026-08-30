@@ -95,7 +95,9 @@
                     Background="#FFF8FAFC"
                     BorderBrush="#FFE2E8F0"
                     BorderThickness="1">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer x:Name="RuleEditorScroll"
+                              VerticalScrollBarVisibility="Auto"
+                              PreviewKeyDown="RuleEditor_PreviewKeyDown">
                     <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -239,6 +241,7 @@
                         Content="保存为草稿"
                         MinWidth="96"
                         Margin="0,0,8,0"
+                        ToolTip="Ctrl+S；保存后回到草稿并禁用"
                         Click="SaveDraft_Click"/>
                 <Button x:Name="PreviewButton"
                         Content="逐项预览…"
