@@ -84,7 +84,12 @@
                     <Button x:Name="NewRuleButton"
                             Content="新建规则" MinWidth="82" Margin="0,0,8,8" Click="NewRule_Click"
                             ToolTip="Ctrl+N；仅在当前编辑内容已保存时开始新规则"/>
-                    <Button Content="导入 JSON…" MinWidth="88" Margin="0,0,8,8" Click="Import_Click"/>
+                    <Button x:Name="ImportRulesButton"
+                            Content="导入 JSON…"
+                            MinWidth="88"
+                            Margin="0,0,8,8"
+                            ToolTip="当前编辑框没有实际修改时可导入并替换规则"
+                            Click="Import_Click"/>
                     <Button Content="导出 JSON…" MinWidth="88" Margin="0,0,0,8" Click="Export_Click"/>
                     <Button x:Name="DisableAllRulesButton"
                             Content="全部停用 (0)"

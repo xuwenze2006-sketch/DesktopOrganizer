@@ -12,16 +12,22 @@ namespace DesktopOrganizer
     public partial class RuleManagerWindow : Window
     {
         private readonly MainWindow _mainWindow;
+        private readonly Func<MessageBoxResult> _confirmDiscardSelectionChanges;
         private bool _suppressEditorChanges;
+        private bool _suppressRuleSelectionChange;
         private bool _editorDirty;
         private string? _editingRuleId;
 
         private sealed record ItemKindChoice(UserRuleItemKindFilter Value, string Name);
         private sealed record ActionChoice(OrganizationRuleActionKind Value, string Name);
 
-        internal RuleManagerWindow(MainWindow mainWindow)
+        internal RuleManagerWindow(
+            MainWindow mainWindow,
+            Func<MessageBoxResult>? confirmDiscardSelectionChanges = null)
         {
             _mainWindow = mainWindow ?? throw new ArgumentNullException(nameof(mainWindow));
+            _confirmDiscardSelectionChanges =
+                confirmDiscardSelectionChanges ?? ShowDiscardSelectionConfirmation;
             InitializeComponent();
             ItemKindSelector.ItemsSource = new[]
             {
@@ -112,11 +118,20 @@ namespace DesktopOrganizer
         private void RefreshList(string? selectedId = null)
         {
             List<UserRuleSummary> summaries = _mainWindow.GetUserRuleSummaries().ToList();
-            RuleList.ItemsSource = summaries;
-            UserRuleSummary? selection = summaries.FirstOrDefault(summary =>
-                summary.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase)) ??
-                summaries.FirstOrDefault();
-            RuleList.SelectedItem = selection;
+            UserRuleSummary? selection;
+            _suppressRuleSelectionChange = true;
+            try
+            {
+                RuleList.ItemsSource = summaries;
+                selection = summaries.FirstOrDefault(summary =>
+                    summary.Id.Equals(selectedId, StringComparison.OrdinalIgnoreCase)) ??
+                    summaries.FirstOrDefault();
+                RuleList.SelectedItem = selection;
+            }
+            finally
+            {
+                _suppressRuleSelectionChange = false;
+            }
             if (selection == null)
             {
                 LoadEditor(NewEditorData());
@@ -129,13 +144,87 @@ namespace DesktopOrganizer
 
         private void RuleList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_suppressRuleSelectionChange)
+            {
+                return;
+            }
+
             UserRuleSummary? selection = Selected;
+            bool discardingChanges = RequiresDiscardConfirmationForRuleSelection(
+                    _editorDirty,
+                    _editingRuleId,
+                    selection?.Id);
+            if (discardingChanges)
+            {
+                MessageBoxResult confirmation = _confirmDiscardSelectionChanges();
+                if (confirmation != MessageBoxResult.OK)
+                {
+                    RestoreEditingRuleSelection();
+                    SetStatus(
+                        "已保留未保存修改；请先按 Ctrl+S 保存，或关闭窗口放弃。",
+                        isError: true);
+                    RuleNameBox.Focus();
+                    return;
+                }
+            }
+            if (discardingChanges)
+            {
+                SetStatus(
+                    selection == null
+                        ? "已放弃上一条规则的未保存修改，当前可以编辑新规则。"
+                        : "已放弃上一条规则的未保存修改，并切换到所选规则。",
+                    isError: false);
+            }
             if (selection == null)
             {
+                if (discardingChanges)
+                {
+                    LoadEditor(NewEditorData());
+                }
                 return;
             }
             LoadSelectedEditor(selection);
         }
+
+        private MessageBoxResult ShowDiscardSelectionConfirmation() =>
+            MessageBox.Show(
+                this,
+                "当前规则编辑内容尚未保存。放弃这些修改并切换规则？",
+                "放弃未保存修改",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+
+        private void RestoreEditingRuleSelection()
+        {
+            UserRuleSummary? editingSelection = RuleList.Items
+                .OfType<UserRuleSummary>()
+                .FirstOrDefault(summary => summary.Id.Equals(
+                    _editingRuleId,
+                    StringComparison.OrdinalIgnoreCase));
+            _suppressRuleSelectionChange = true;
+            try
+            {
+                RuleList.SelectedItem = editingSelection;
+            }
+            finally
+            {
+                _suppressRuleSelectionChange = false;
+            }
+            if (editingSelection != null)
+            {
+                RuleList.ScrollIntoView(editingSelection);
+            }
+        }
+
+        internal static bool RequiresDiscardConfirmationForRuleSelection(
+            bool editorDirty,
+            string? editingRuleId,
+            string? requestedRuleId) =>
+            editorDirty &&
+            !string.Equals(
+                editingRuleId,
+                requestedRuleId,
+                StringComparison.OrdinalIgnoreCase);
 
         private void RuleList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
@@ -408,6 +497,7 @@ namespace DesktopOrganizer
                 return;
             }
 
+            _editorDirty = false;
             RefreshList(ruleId);
             SetStatus("规则已保存为草稿并保持禁用；请先逐项预览。", isError: false);
         }
@@ -637,6 +727,15 @@ namespace DesktopOrganizer
 
         private void Import_Click(object sender, RoutedEventArgs e)
         {
+            if (_editorDirty)
+            {
+                SetStatus(
+                    "请先按 Ctrl+S 保存当前规则编辑，或关闭窗口放弃修改，再导入规则。",
+                    isError: true);
+                RuleNameBox.Focus();
+                return;
+            }
+
             bool succeeded = _mainWindow.TryImportOrganizationData(this, out string message);
             if (succeeded)
             {
@@ -676,6 +775,7 @@ namespace DesktopOrganizer
             DisableButton.IsEnabled = canRunLifecycleAction && lifecycle == UserRuleLifecycle.Enabled;
             DeleteButton.IsEnabled = persistedSelection;
             NewRuleButton.IsEnabled = !hasUnsavedEditor;
+            ImportRulesButton.IsEnabled = !_editorDirty;
             int enabledCount = _mainWindow.GetEnabledUserRuleCount();
             DisableAllRulesButton.Content = $"全部停用 ({enabledCount})";
             DisableAllRulesButton.IsEnabled = enabledCount > 0 && !hasUnsavedEditor;

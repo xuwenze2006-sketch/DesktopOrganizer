@@ -115,6 +115,97 @@ public sealed class RuleManagerUiContractTests
                 confirmation));
     }
 
+    [TestMethod]
+    [DataRow(false, "a", "b", false)]
+    [DataRow(true, "a", "A", false)]
+    [DataRow(true, "a", "b", true)]
+    [DataRow(true, "a", null, true)]
+    [DataRow(true, null, "b", true)]
+    [DataRow(true, null, null, false)]
+    public void RequiresDiscardConfirmationForRuleSelection_OnlyForDirtyDifferentEditor(
+        bool editorDirty,
+        string? editingRuleId,
+        string? requestedRuleId,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            RuleManagerWindow.RequiresDiscardConfirmationForRuleSelection(
+                editorDirty,
+                editingRuleId,
+                requestedRuleId));
+    }
+
+    [STATestMethod]
+    public void RuleSelectionChange_CancelRestoresDirtyEditorAndConfirmLoadsRequestedRule()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        layout.UserRules.Clear();
+        layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "a", Name = "A 规则" });
+        layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "b", Name = "B 规则" });
+        int cancelConfirmationCount = 0;
+        var cancelWindow = new RuleManagerWindow(
+            mainWindow,
+            () =>
+            {
+                cancelConfirmationCount++;
+                return MessageBoxResult.Cancel;
+            });
+        cancelWindow.RuleNameBox.Text = "A 的未保存修改";
+
+        cancelWindow.RuleList.SelectedIndex = 1;
+
+        Assert.AreEqual(1, cancelConfirmationCount);
+        Assert.AreEqual("a", GetSelectedRuleId(cancelWindow));
+        Assert.AreEqual("A 的未保存修改", cancelWindow.RuleNameBox.Text);
+        Assert.IsTrue(cancelWindow.SaveDraftButton.IsEnabled);
+        StringAssert.Contains(cancelWindow.StatusText.Text, "Ctrl+S");
+
+        var confirmWindow = new RuleManagerWindow(
+            mainWindow,
+            () => MessageBoxResult.OK);
+        confirmWindow.RuleNameBox.Text = "将被放弃的修改";
+
+        confirmWindow.RuleList.SelectedIndex = 1;
+
+        Assert.AreEqual("b", GetSelectedRuleId(confirmWindow));
+        Assert.AreEqual("B 规则", confirmWindow.RuleNameBox.Text);
+        Assert.IsFalse(confirmWindow.SaveDraftButton.IsEnabled);
+        StringAssert.Contains(confirmWindow.StatusText.Text, "已放弃");
+
+        var clearWindow = new RuleManagerWindow(
+            mainWindow,
+            () => MessageBoxResult.OK);
+        clearWindow.RuleNameBox.Text = "不会残留的修改";
+
+        clearWindow.RuleList.SelectedItem = null;
+
+        Assert.IsNull(clearWindow.RuleList.SelectedItem);
+        Assert.AreEqual("新规则", clearWindow.RuleNameBox.Text);
+        Assert.IsTrue(clearWindow.SaveDraftButton.IsEnabled);
+    }
+
+    [STATestMethod]
+    public void RuleSelectionChange_CancelKeepsDirtyNewRuleWithoutListSelection()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        layout.UserRules.Clear();
+        layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "a", Name = "A 规则" });
+        var window = new RuleManagerWindow(
+            mainWindow,
+            () => MessageBoxResult.Cancel);
+        window.NewRuleButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        window.RuleNameBox.Text = "未保存的新规则";
+
+        window.RuleList.SelectedIndex = 0;
+
+        Assert.IsNull(window.RuleList.SelectedItem);
+        Assert.AreEqual("未保存的新规则", window.RuleNameBox.Text);
+        Assert.IsTrue(window.SaveDraftButton.IsEnabled);
+    }
+
     [STATestMethod]
     public void RuleEditorCommandButtons_FollowUnsavedEditorState()
     {
@@ -137,12 +228,14 @@ public sealed class RuleManagerUiContractTests
 
         Assert.IsFalse(persistedWindow.SaveDraftButton.IsEnabled);
         Assert.IsTrue(persistedWindow.NewRuleButton.IsEnabled);
+        Assert.IsTrue(persistedWindow.ImportRulesButton.IsEnabled);
         Assert.IsTrue(persistedWindow.DisableAllRulesButton.IsEnabled);
 
         persistedWindow.RuleNameBox.Text = "已修改规则";
 
         Assert.IsTrue(persistedWindow.SaveDraftButton.IsEnabled);
         Assert.IsFalse(persistedWindow.NewRuleButton.IsEnabled);
+        Assert.IsFalse(persistedWindow.ImportRulesButton.IsEnabled);
         Assert.IsFalse(persistedWindow.DisableAllRulesButton.IsEnabled);
 
         var newRuleWindow = new RuleManagerWindow(mainWindow);
@@ -151,7 +244,31 @@ public sealed class RuleManagerUiContractTests
         Assert.IsNull(newRuleWindow.RuleList.SelectedItem);
         Assert.IsTrue(newRuleWindow.SaveDraftButton.IsEnabled);
         Assert.IsFalse(newRuleWindow.NewRuleButton.IsEnabled);
+        Assert.IsTrue(newRuleWindow.ImportRulesButton.IsEnabled);
         Assert.IsFalse(newRuleWindow.DisableAllRulesButton.IsEnabled);
+
+        newRuleWindow.RuleNameBox.Text = "已修改的新规则";
+
+        Assert.IsFalse(newRuleWindow.ImportRulesButton.IsEnabled);
+    }
+
+    [STATestMethod]
+    public void ImportRules_WithDirtyEditorStopsBeforeOpeningImportFlow()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        layout.UserRules.Clear();
+        layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "a", Name = "A 规则" });
+        var window = new RuleManagerWindow(mainWindow);
+        window.RuleNameBox.Text = "未保存的规则修改";
+
+        InvokeImportRules(window);
+
+        Assert.AreEqual("未保存的规则修改", window.RuleNameBox.Text);
+        Assert.AreEqual("a", GetSelectedRuleId(window));
+        Assert.IsTrue(window.SaveDraftButton.IsEnabled);
+        Assert.IsFalse(window.ImportRulesButton.IsEnabled);
+        StringAssert.Contains(window.StatusText.Text, "Ctrl+S");
     }
 
     [TestMethod]
@@ -274,12 +391,7 @@ public sealed class RuleManagerUiContractTests
     public void RefreshList_WithPostDeleteId_LoadsAdjacentRuleAndEditor()
     {
         var mainWindow = new MainWindow(startQuietly: false);
-        FieldInfo appLayoutField = typeof(MainWindow).GetField(
-            "_appLayout",
-            BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new AssertFailedException("未找到当前布局。");
-        var layout = (AppLayoutData)(appLayoutField.GetValue(mainWindow)
-            ?? throw new AssertFailedException("当前布局尚未初始化。"));
+        AppLayoutData layout = GetAppLayout(mainWindow);
         layout.UserRules.Clear();
         layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "a", Name = "A 规则" });
         layout.UserRules.Add(new UserOrganizationRuleInfo { Id = "b", Name = "B 规则" });
@@ -287,12 +399,7 @@ public sealed class RuleManagerUiContractTests
         var window = new RuleManagerWindow(mainWindow);
         window.RuleList.SelectedIndex = 1;
         layout.UserRules.RemoveAll(rule => rule.Id == "b");
-        MethodInfo refreshListMethod = typeof(RuleManagerWindow).GetMethod(
-            "RefreshList",
-            BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new AssertFailedException("未找到规则列表刷新入口。");
-
-        refreshListMethod.Invoke(window, ["c"]);
+        InvokeRefreshList(window, "c");
 
         var selected = window.RuleList.SelectedItem as UserRuleSummary;
         Assert.IsNotNull(selected);
@@ -366,6 +473,42 @@ public sealed class RuleManagerUiContractTests
                 (string?)element.Attribute(xaml + "Name"),
                 name,
                 StringComparison.Ordinal));
+
+    private static AppLayoutData GetAppLayout(MainWindow mainWindow)
+    {
+        FieldInfo appLayoutField = typeof(MainWindow).GetField(
+            "_appLayout",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到当前布局。");
+        return (AppLayoutData)(appLayoutField.GetValue(mainWindow)
+            ?? throw new AssertFailedException("当前布局尚未初始化。"));
+    }
+
+    private static void InvokeRefreshList(
+        RuleManagerWindow window,
+        string? selectedId)
+    {
+        MethodInfo refreshListMethod = typeof(RuleManagerWindow).GetMethod(
+            "RefreshList",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到规则列表刷新入口。");
+        refreshListMethod.Invoke(window, [selectedId]);
+    }
+
+    private static void InvokeImportRules(RuleManagerWindow window)
+    {
+        MethodInfo importRulesMethod = typeof(RuleManagerWindow).GetMethod(
+            "Import_Click",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到规则导入入口。");
+        importRulesMethod.Invoke(
+            window,
+            [window.ImportRulesButton, new RoutedEventArgs()]);
+    }
+
+    private static string GetSelectedRuleId(RuleManagerWindow window) =>
+        (window.RuleList.SelectedItem as UserRuleSummary)?.Id
+        ?? throw new AssertFailedException("规则列表未选中项目。");
 
     private static XDocument LoadRuleManagerXaml(
         [CallerFilePath] string sourceFilePath = "")
