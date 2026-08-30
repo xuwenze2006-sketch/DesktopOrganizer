@@ -623,7 +623,6 @@ namespace DesktopOrganizer
 
             if (removalRequests.Count == 0)
             {
-                _selectedItemNames.Clear();
                 StatusText.Text = "所选项目不在分类框中";
                 return;
             }
