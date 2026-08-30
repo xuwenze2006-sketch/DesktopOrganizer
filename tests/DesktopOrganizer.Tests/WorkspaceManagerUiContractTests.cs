@@ -44,7 +44,42 @@ public sealed class WorkspaceManagerUiContractTests
             "WorkspaceList_PreviewKeyDown",
             workspaceList.Attribute("PreviewKeyDown")?.Value);
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "F2");
+        StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Ctrl+D");
+        StringAssert.Contains(
+            document.Descendants().Single(element =>
+                element.Name.LocalName == "Button" &&
+                string.Equals(
+                    (string?)element.Attribute("Content"),
+                    "复制快照…",
+                    StringComparison.Ordinal))
+                .Attribute("ToolTip")?.Value,
+            "Ctrl+D");
         Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
+    }
+
+    [TestMethod]
+    [DataRow(Key.D, ModifierKeys.Control, false, true, true)]
+    [DataRow(Key.D, ModifierKeys.Control, false, false, false)]
+    [DataRow(Key.D, ModifierKeys.Control, true, true, false)]
+    [DataRow(Key.D, ModifierKeys.None, false, true, false)]
+    [DataRow(Key.D, ModifierKeys.Control | ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.D, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.None, false, true, false)]
+    public void ShouldDuplicateFromKeyboard_RequiresExactInitialControlDOnSelection(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool hasSelection,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            WorkspaceManagerWindow.ShouldDuplicateFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                hasSelection));
     }
 
     [TestMethod]

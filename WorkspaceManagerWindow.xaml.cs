@@ -76,6 +76,17 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (ShouldDuplicateFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    item != null))
+            {
+                e.Handled = true;
+                Duplicate_Click(sender, e);
+                return;
+            }
+
             if (!ShouldActivateFromKeyboard(
                     e.Key,
                     Keyboard.Modifiers,
@@ -106,6 +117,16 @@ namespace DesktopOrganizer
             bool hasSelection) =>
             key == Key.F2 &&
             modifiers == ModifierKeys.None &&
+            !isRepeat &&
+            hasSelection;
+
+        internal static bool ShouldDuplicateFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasSelection) =>
+            key == Key.D &&
+            modifiers == ModifierKeys.Control &&
             !isRepeat &&
             hasSelection;
 
