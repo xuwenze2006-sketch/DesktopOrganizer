@@ -6,6 +6,32 @@ namespace DesktopOrganizer.Tests;
 [TestClass]
 public sealed class IconBatchActionTests
 {
+    [TestMethod]
+    public void RemoveCompletedRecycleItemsFromSelection_RemovesOnlySucceededItems()
+    {
+        var selectedItemNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "success.txt",
+            "failed.txt",
+            "canceled.txt",
+            "selected-later.txt"
+        };
+
+        MainWindow.RemoveCompletedRecycleItemsFromSelection(selectedItemNames, []);
+
+        Assert.HasCount(4, selectedItemNames);
+
+        MainWindow.RemoveCompletedRecycleItemsFromSelection(
+            selectedItemNames,
+            ["SUCCESS.TXT"]);
+
+        Assert.HasCount(3, selectedItemNames);
+        Assert.DoesNotContain("success.txt", selectedItemNames);
+        Assert.Contains("failed.txt", selectedItemNames);
+        Assert.Contains("canceled.txt", selectedItemNames);
+        Assert.Contains("selected-later.txt", selectedItemNames);
+    }
+
     [STATestMethod]
     public void RemoveSelectedItemsFromGroups_WhenNothingIsGrouped_PreservesSelection()
     {

@@ -154,8 +154,17 @@ namespace DesktopOrganizer
             WorkspaceLayoutManager.RemoveItemFromSnapshots(_appLayout, displayName);
             _desktopItems.Remove(displayName);
             _desktopCategories.Remove(displayName);
-            _selectedItemNames.Remove(displayName);
             InvalidateIconCacheLocations([fullPath]);
+        }
+
+        internal static void RemoveCompletedRecycleItemsFromSelection(
+            ISet<string> selectedItemNames,
+            IEnumerable<string> succeededItemNames)
+        {
+            foreach (string itemName in succeededItemNames)
+            {
+                selectedItemNames.Remove(itemName);
+            }
         }
 
         private PhysicalFolderMoveResult QueuePhysicalFolderMove(
@@ -301,6 +310,7 @@ namespace DesktopOrganizer
                 RemoveDesktopItemAfterPhysicalOperation(
                     pending.DisplayName,
                     pending.SourcePath);
+                _selectedItemNames.Remove(pending.DisplayName);
                 RebuildDesktopIconsAndSaveLayout();
                 StatusText.Text = FormatFileOperationStatus(
                     undoRecord != null
@@ -602,7 +612,9 @@ namespace DesktopOrganizer
                 _diagnostics.Log($"RECYCLE success path={item.FullPath}");
             }
 
-            _selectedItemNames.Clear();
+            RemoveCompletedRecycleItemsFromSelection(
+                _selectedItemNames,
+                succeeded.Select(item => item.DisplayName));
             RebuildDesktopIconsAndSaveLayout();
             RequestDesktopRefresh(clearIconCache: false, statusMessage: null);
             RequestRecycleBinStatusRefresh();
