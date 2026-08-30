@@ -117,13 +117,23 @@ namespace DesktopOrganizer
             // 每次新的输入开始前清理上一次意外中断的捕获/拖动状态。
             // 绑定在根容器而不是控制面板，分组按钮和动态生成的图标也能受保护。
             RecoverStaleInteractionState();
-            if (e.ChangedButton == MouseButton.Left &&
-                !Keyboard.Modifiers.HasFlag(ModifierKeys.Control) &&
-                !IsPointerOverIcon(e.OriginalSource as DependencyObject))
+            if (ShouldClearItemSelectionFromRootPointer(
+                    e.ChangedButton,
+                    Keyboard.Modifiers,
+                    e.OriginalSource as DependencyObject))
             {
                 ClearItemSelection();
             }
         }
+
+        internal static bool ShouldClearItemSelectionFromRootPointer(
+            MouseButton changedButton,
+            ModifierKeys modifiers,
+            DependencyObject? originalSource) =>
+            changedButton == MouseButton.Left &&
+            !modifiers.HasFlag(ModifierKeys.Control) &&
+            !IsPointerOverIcon(originalSource) &&
+            !IsPointerOverButton(originalSource);
 
         private static bool IsPointerOverIcon(DependencyObject? source)
         {

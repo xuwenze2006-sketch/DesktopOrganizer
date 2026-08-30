@@ -1,4 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace DesktopOrganizer.Tests;
@@ -43,6 +45,40 @@ public sealed class GroupItemSelectionPolicyTests
         Assert.AreEqual(
             expected,
             MainWindow.ShouldBeginSingleItemSelection(modifiers, clickCount));
+    }
+
+    [STATestMethod]
+    public void RootPointerSelectionClear_OnlyAcceptsNonButtonBackgroundClicks()
+    {
+        var buttonContent = new TextBlock { Text = "⋯" };
+        var button = new Button { Content = buttonContent };
+        button.ApplyTemplate();
+        button.Measure(new Size(80, 32));
+        button.Arrange(new Rect(0, 0, 80, 32));
+        button.UpdateLayout();
+        var background = new Border();
+        var icon = new Border { Tag = new IconTag { DisplayName = "item.txt" } };
+
+        Assert.IsFalse(MainWindow.ShouldClearItemSelectionFromRootPointer(
+            MouseButton.Left,
+            ModifierKeys.None,
+            buttonContent));
+        Assert.IsTrue(MainWindow.ShouldClearItemSelectionFromRootPointer(
+            MouseButton.Left,
+            ModifierKeys.None,
+            background));
+        Assert.IsFalse(MainWindow.ShouldClearItemSelectionFromRootPointer(
+            MouseButton.Left,
+            ModifierKeys.None,
+            icon));
+        Assert.IsFalse(MainWindow.ShouldClearItemSelectionFromRootPointer(
+            MouseButton.Left,
+            ModifierKeys.Control,
+            background));
+        Assert.IsFalse(MainWindow.ShouldClearItemSelectionFromRootPointer(
+            MouseButton.Right,
+            ModifierKeys.None,
+            background));
     }
 
     [TestMethod]
