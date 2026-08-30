@@ -24,6 +24,8 @@ namespace DesktopOrganizer
                 return;
             }
 
+            _groupRangeSelectionAnchor = null;
+            _pendingGroupedShiftRangeSelection = false;
             string clickedName = GetIconDisplayName(element);
             if (_selectedItemNames.Count > 0 && !_selectedItemNames.Contains(clickedName))
             {
@@ -106,7 +108,7 @@ namespace DesktopOrganizer
             _draggedElement = element;
             _draggedIsGroup = false;
             _draggedGroup = null;
-            _pendingIconDragElement = null;
+            ClearPendingIconDrag();
             _dragAllowsLayoutMove = _appLayout.IsEditMode;
             _dragOriginalPosition = new IconPosition
             {
@@ -145,6 +147,7 @@ namespace DesktopOrganizer
         private void ClearPendingIconDrag()
         {
             _pendingIconDragElement = null;
+            _pendingGroupedShiftRangeSelection = false;
         }
 
         private void UpdatePhysicalFolderDropPreview(Point canvasPoint, FrameworkElement? draggedElement)

@@ -84,14 +84,16 @@ namespace DesktopOrganizer
                 ToolTip = isShellNamespace
                     ? parentGroup == null
                         ? $"Windows Shell 系统项目；双击打开，可拖入虚拟分类\nCtrl+单击可多选\n{shellParsingName}"
-                        : $"Windows Shell 系统项目；双击打开，拖到分类框外可变为自由图标\nCtrl+单击可多选\n{shellParsingName}"
+                        : $"Windows Shell 系统项目；双击打开，拖到分类框外可变为自由图标\nCtrl+单击可多选；Shift+单击可连续选择\n{shellParsingName}"
                     : Directory.Exists(fullPath)
-                        ? $"真实文件夹：拖入此处会移动真实文件\n双击打开\n{fullPath}"
+                        ? parentGroup == null
+                            ? $"真实文件夹：拖入此处会移动真实文件\n双击打开；Ctrl+单击可多选\n{fullPath}"
+                            : $"真实文件夹：拖入此处会移动真实文件\n双击打开；Ctrl+单击可多选；Shift+单击可连续选择\n{fullPath}"
                         : parentGroup == null
                             ? (_appLayout.IsEditMode
                                 ? $"双击打开；拖动可调整位置或移入真实文件夹/虚拟分类\nCtrl+单击可多选\n{fullPath}"
                                 : $"双击打开；可拖入真实文件夹或虚拟分类\nCtrl+单击可多选\n{fullPath}")
-                            : $"双击打开；拖到分类框外可变为自由图标\nCtrl+单击可多选；右键可批量操作\n{fullPath}",
+                            : $"双击打开；拖到分类框外可变为自由图标\nCtrl+单击可多选；Shift+单击可连续选择；右键可批量操作\n{fullPath}",
                 SnapsToDevicePixels = true
             };
 
@@ -442,8 +444,54 @@ namespace DesktopOrganizer
                 : $"已取消选择“{group.Name}”中的 {plan.ItemCount} 项；{currentSelection}";
         }
 
+        private void ApplyGroupedRangeSelection(FrameworkElement endpointElement)
+        {
+            if (endpointElement.Tag is not IconTag { Group: not null } tag)
+            {
+                return;
+            }
+
+            GroupInfo? currentGroup = _appLayout.Groups.FirstOrDefault(group =>
+                group.Id.Equals(tag.Group.Id, StringComparison.OrdinalIgnoreCase));
+            if (currentGroup == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<string> orderedNames =
+                _groupItemPanels.TryGetValue(currentGroup.Id, out VirtualizingGroupPanel? panel)
+                    ? panel.GetItemNamesSnapshot()
+                        .Where(_desktopItems.ContainsKey)
+                        .ToList()
+                    : GetSortedGroupItemNames(currentGroup, _desktopItems).ToList();
+            GroupRangeSelectionPlan plan = GroupRangeSelectionPolicy.CreatePlan(
+                currentGroup.Id,
+                orderedNames,
+                _selectedItemNames,
+                _groupRangeSelectionAnchor,
+                tag.DisplayName);
+            if (plan.ItemCount == 0)
+            {
+                return;
+            }
+
+            int changedCount = GroupRangeSelectionPolicy.Apply(_selectedItemNames, plan);
+            if (!plan.UsedAnchor)
+            {
+                _groupRangeSelectionAnchor = new GroupRangeSelectionAnchor(
+                    currentGroup.Id,
+                    plan.ItemNames[0]);
+            }
+
+            RefreshItemSelectionVisuals();
+            StatusText.Text = plan.UsedAnchor
+                ? $"已按“{currentGroup.Name}”当前顺序连续选择 {plan.ItemCount} 项；新增 {changedCount} 项，当前共选择 {_selectedItemNames.Count} 项"
+                : $"已选择“{plan.ItemNames[0]}”作为“{currentGroup.Name}”的连续选择起点；当前共选择 {_selectedItemNames.Count} 项";
+        }
+
         private void ClearItemSelection()
         {
+            _groupRangeSelectionAnchor = null;
             if (_selectedItemNames.Count == 0)
             {
                 return;
@@ -489,6 +537,10 @@ namespace DesktopOrganizer
 
             string name = GetIconDisplayName(element);
             ToggleItemSelection(name);
+            _groupRangeSelectionAnchor = element.Tag is IconTag { Group: not null } tag &&
+                _selectedItemNames.Contains(name)
+                    ? new GroupRangeSelectionAnchor(tag.Group.Id, name)
+                    : null;
             ClearPendingIconDrag();
             e.Handled = true;
             return true;

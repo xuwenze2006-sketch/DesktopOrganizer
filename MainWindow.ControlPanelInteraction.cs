@@ -370,7 +370,7 @@ namespace DesktopOrganizer
             _groupedIconDragSourceGroup = null;
             _dragOriginalPosition = null;
             _dragAllowsLayoutMove = false;
-            _pendingIconDragElement = null;
+            ClearPendingIconDrag();
             _isControlPanelDragging = false;
             _controlPanelDragMoved = false;
             _isRecycleBinWidgetDragging = false;

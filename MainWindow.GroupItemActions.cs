@@ -24,17 +24,32 @@ namespace DesktopOrganizer
                 return;
             }
 
+            bool shiftRangeSelection = ShouldBeginGroupedRangeSelection(
+                Keyboard.Modifiers,
+                e.ClickCount);
             string clickedName = GetIconDisplayName(element);
-            if (_selectedItemNames.Count > 0 && !_selectedItemNames.Contains(clickedName))
+            if (!shiftRangeSelection &&
+                _selectedItemNames.Count > 0 &&
+                !_selectedItemNames.Contains(clickedName))
             {
                 ClearItemSelection();
             }
+            if (!shiftRangeSelection)
+            {
+                _groupRangeSelectionAnchor = null;
+            }
 
+            _pendingGroupedShiftRangeSelection = shiftRangeSelection;
             _pendingIconDragElement = element;
             _pendingIconMouseDownCanvasPoint = e.GetPosition(IconCanvas);
             _dragStartOffset = e.GetPosition(element);
             e.Handled = true;
         }
+
+        internal static bool ShouldBeginGroupedRangeSelection(
+            ModifierKeys modifiers,
+            int clickCount) =>
+            modifiers == ModifierKeys.Shift && clickCount == 1;
 
         private void GroupedIcon_MouseMove(object sender, MouseEventArgs e)
         {
@@ -57,6 +72,18 @@ namespace DesktopOrganizer
                     Math.Abs(current.Y - _pendingIconMouseDownCanvasPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
                 {
                     return;
+                }
+
+                if (_pendingGroupedShiftRangeSelection)
+                {
+                    string clickedName = GetIconDisplayName(element);
+                    if (_selectedItemNames.Count > 0 &&
+                        !_selectedItemNames.Contains(clickedName))
+                    {
+                        // Shift 单击尚未确定是连续选择还是拖动。越过系统阈值后
+                        // 恢复既有拖动语义：拖动未选项目先清除旧选择。
+                        ClearItemSelection();
+                    }
                 }
 
                 if (!StartGroupedIconDrag(element))
@@ -138,7 +165,7 @@ namespace DesktopOrganizer
             _draggedElement = element;
             _draggedIsGroup = false;
             _draggedGroup = null;
-            _pendingIconDragElement = null;
+            ClearPendingIconDrag();
             _dragAllowsLayoutMove = true;
             _dragOriginalPosition = null;
             if (!Mouse.Capture(element, CaptureMode.Element))
@@ -163,7 +190,13 @@ namespace DesktopOrganizer
             {
                 if (ReferenceEquals(sender, _pendingIconDragElement))
                 {
+                    bool applyRangeSelection = _pendingGroupedShiftRangeSelection;
+                    FrameworkElement? endpointElement = sender as FrameworkElement;
                     ClearPendingIconDrag();
+                    if (applyRangeSelection && endpointElement != null)
+                    {
+                        ApplyGroupedRangeSelection(endpointElement);
+                    }
                     e.Handled = true;
                 }
                 return;
