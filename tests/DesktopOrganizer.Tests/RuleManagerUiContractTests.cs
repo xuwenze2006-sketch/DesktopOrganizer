@@ -97,6 +97,24 @@ public sealed class RuleManagerUiContractTests
                 editingRuleId));
     }
 
+    [TestMethod]
+    [DataRow(false, MessageBoxResult.None, false)]
+    [DataRow(false, MessageBoxResult.Cancel, false)]
+    [DataRow(true, MessageBoxResult.OK, false)]
+    [DataRow(true, MessageBoxResult.Cancel, true)]
+    [DataRow(true, MessageBoxResult.None, true)]
+    public void ShouldCancelCloseWithUnsavedEditor_RequiresExplicitDiscardConfirmation(
+        bool editorDirty,
+        MessageBoxResult confirmation,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            RuleManagerWindow.ShouldCancelCloseWithUnsavedEditor(
+                editorDirty,
+                confirmation));
+    }
+
     [STATestMethod]
     public void RuleEditorCommandButtons_FollowUnsavedEditorState()
     {
@@ -297,6 +315,9 @@ public sealed class RuleManagerUiContractTests
         Assert.AreEqual(
             "RuleManagerWindow_PreviewKeyDown",
             document.Root?.Attribute("PreviewKeyDown")?.Value);
+        Assert.AreEqual(
+            "RuleManagerWindow_Closing",
+            document.Root?.Attribute("Closing")?.Value);
         Assert.AreEqual(
             "RuleList_PreviewKeyDown",
             ruleList.Attribute("PreviewKeyDown")?.Value);

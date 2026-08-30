@@ -8,6 +8,7 @@
         MinHeight="600"
         WindowStartupLocation="CenterOwner"
         PreviewKeyDown="RuleManagerWindow_PreviewKeyDown"
+        Closing="RuleManagerWindow_Closing"
         ShowInTaskbar="False">
     <Grid Margin="16">
         <Grid.RowDefinitions>

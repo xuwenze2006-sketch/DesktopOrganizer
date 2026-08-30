@@ -84,6 +84,31 @@ namespace DesktopOrganizer
             string? editingRuleId) =>
             editorDirty || string.IsNullOrWhiteSpace(editingRuleId);
 
+        private void RuleManagerWindow_Closing(
+            object? sender,
+            System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_editorDirty)
+            {
+                return;
+            }
+
+            MessageBoxResult confirmation = MessageBox.Show(
+                this,
+                "规则编辑内容尚未保存。关闭窗口并放弃这些修改？",
+                "放弃未保存修改",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+            e.Cancel = ShouldCancelCloseWithUnsavedEditor(
+                editorDirty: true,
+                confirmation);
+        }
+
+        internal static bool ShouldCancelCloseWithUnsavedEditor(
+            bool editorDirty,
+            MessageBoxResult confirmation) =>
+            editorDirty && confirmation != MessageBoxResult.OK;
+
         private void RefreshList(string? selectedId = null)
         {
             List<UserRuleSummary> summaries = _mainWindow.GetUserRuleSummaries().ToList();
