@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Xml.Linq;
@@ -100,6 +101,38 @@ public sealed class DesktopSearchWindowKeyboardTests
                 isResultItem));
     }
 
+    [STATestMethod]
+    public void ResultActions_FollowCurrentSearchSelection()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        FieldInfo desktopItemsField = typeof(MainWindow).GetField(
+            "_desktopItems",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到已加载桌面项目集合。");
+        var desktopItems = (Dictionary<string, string>)(desktopItemsField.GetValue(mainWindow)
+            ?? throw new AssertFailedException("已加载桌面项目集合尚未初始化。"));
+        string itemName = $"search-action-{Guid.NewGuid():N}.txt";
+        desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+        var window = new DesktopSearchWindow(mainWindow);
+
+        Assert.AreEqual(0, window.ResultsList.SelectedIndex);
+        Assert.IsTrue(window.ResultActionPanel.IsEnabled);
+
+        window.ResultsList.SelectedIndex = -1;
+        Assert.IsFalse(window.ResultActionPanel.IsEnabled);
+
+        window.ResultsList.SelectedIndex = 0;
+        Assert.IsTrue(window.ResultActionPanel.IsEnabled);
+
+        window.QueryBox.Text = $"missing-{Guid.NewGuid():N}";
+        Assert.AreEqual(0, window.ResultsList.Items.Count);
+        Assert.IsFalse(window.ResultActionPanel.IsEnabled);
+
+        window.QueryBox.Text = string.Empty;
+        Assert.AreEqual(1, window.ResultsList.Items.Count);
+        Assert.IsTrue(window.ResultActionPanel.IsEnabled);
+    }
+
     [TestMethod]
     public void SearchWindow_WiresWindowQueryShortcutAndControlActions()
     {
@@ -119,6 +152,13 @@ public sealed class DesktopSearchWindowKeyboardTests
                     (string?)element.Attribute(xaml + "Name"),
                     "ResultsList",
                     StringComparison.Ordinal));
+        XElement resultActionPanel = document
+            .Descendants()
+            .Single(element =>
+                string.Equals(
+                    (string?)element.Attribute(xaml + "Name"),
+                    "ResultActionPanel",
+                    StringComparison.Ordinal));
 
         Assert.AreEqual(
             "QueryBox_PreviewKeyDown",
@@ -130,18 +170,27 @@ public sealed class DesktopSearchWindowKeyboardTests
             "ResultsList_MouseDoubleClick",
             resultsList.Attribute("MouseDoubleClick")?.Value);
         Assert.AreEqual(
+            "ResultsList_SelectionChanged",
+            resultsList.Attribute("SelectionChanged")?.Value);
+        Assert.AreEqual("False", resultActionPanel.Attribute("IsEnabled")?.Value);
+        Assert.AreEqual(
             "DesktopSearchWindow_PreviewKeyDown",
             document.Root?.Attribute("PreviewKeyDown")?.Value);
 
+        XElement locateButton = FindButton(document, "定位并高亮");
+        XElement openButton = FindButton(document, "打开");
+        XElement revealButton = FindButton(document, "在资源管理器中显示");
+        Assert.AreEqual(resultActionPanel, locateButton.Parent);
+        Assert.AreEqual(resultActionPanel, openButton.Parent);
+        Assert.AreEqual(resultActionPanel, revealButton.Parent);
+        Assert.AreEqual("Locate_Click", locateButton.Attribute("Click")?.Value);
+        Assert.AreEqual("Open_Click", openButton.Attribute("Click")?.Value);
+        Assert.AreEqual("Reveal_Click", revealButton.Attribute("Click")?.Value);
         Assert.AreEqual(
             "Enter（定位后返回桌面）",
-            FindButton(document, "定位并高亮").Attribute("ToolTip")?.Value);
-        Assert.AreEqual(
-            "Ctrl+Enter",
-            FindButton(document, "打开").Attribute("ToolTip")?.Value);
-        Assert.AreEqual(
-            "Shift+Enter",
-            FindButton(document, "在资源管理器中显示").Attribute("ToolTip")?.Value);
+            locateButton.Attribute("ToolTip")?.Value);
+        Assert.AreEqual("Ctrl+Enter", openButton.Attribute("ToolTip")?.Value);
+        Assert.AreEqual("Shift+Enter", revealButton.Attribute("ToolTip")?.Value);
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Enter 定位并返回桌面");
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Ctrl+Enter 打开");
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Shift+Enter");

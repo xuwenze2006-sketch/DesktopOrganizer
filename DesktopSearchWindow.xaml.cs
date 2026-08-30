@@ -89,6 +89,7 @@ namespace DesktopOrganizer
             ResultsList.ItemsSource = items;
             ResultsList.SelectedIndex = items.Count > 0 ? 0 : -1;
             ResultCountText.Text = $"{items.Count} 项";
+            UpdateResultActionAvailability();
         }
 
         private void QueryBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshResults();
@@ -124,6 +125,19 @@ namespace DesktopOrganizer
         {
             e.Handled = TryExecuteSelectedAction(
                 ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
+        }
+
+        private void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ResultActionPanel is not null)
+            {
+                UpdateResultActionAvailability();
+            }
+        }
+
+        private void UpdateResultActionAvailability()
+        {
+            ResultActionPanel.IsEnabled = Selected is not null;
         }
 
         private void ViewSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)

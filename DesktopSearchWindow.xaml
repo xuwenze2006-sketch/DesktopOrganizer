@@ -39,6 +39,7 @@
 
         <ListBox x:Name="ResultsList" Grid.Row="2"
                  MouseDoubleClick="ResultsList_MouseDoubleClick"
+                 SelectionChanged="ResultsList_SelectionChanged"
                  PreviewKeyDown="ResultsList_PreviewKeyDown"
                  ToolTip="双击结果或按 Enter 定位并返回桌面；Ctrl+Enter 打开；Shift+Enter 在资源管理器中显示；Ctrl+F 返回搜索框并全选查询文本">
             <ListBox.ItemTemplate>
@@ -61,7 +62,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel x:Name="ResultActionPanel" Orientation="Horizontal" IsEnabled="False">
                 <Button Content="定位并高亮" MinWidth="96" Margin="0,0,8,0" Click="Locate_Click"
                         ToolTip="Enter（定位后返回桌面）"/>
                 <Button Content="打开" MinWidth="72" Margin="0,0,8,0" Click="Open_Click"
