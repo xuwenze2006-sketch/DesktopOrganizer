@@ -51,6 +51,15 @@ public sealed class WorkspaceManagerUiContractTests
                 element.Name.LocalName == "Button" &&
                 string.Equals(
                     (string?)element.Attribute("Content"),
+                    "新建当前快照",
+                    StringComparison.Ordinal))
+                .Attribute("ToolTip")?.Value,
+            "Ctrl+N");
+        StringAssert.Contains(
+            document.Descendants().Single(element =>
+                element.Name.LocalName == "Button" &&
+                string.Equals(
+                    (string?)element.Attribute("Content"),
                     "复制快照…",
                     StringComparison.Ordinal))
                 .Attribute("ToolTip")?.Value,
@@ -64,7 +73,31 @@ public sealed class WorkspaceManagerUiContractTests
                     StringComparison.Ordinal))
                 .Attribute("ToolTip")?.Value,
             "Delete");
-        Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
+        Assert.AreEqual(
+            "WorkspaceManagerWindow_PreviewKeyDown",
+            document.Root?.Attribute("PreviewKeyDown")?.Value);
+    }
+
+    [TestMethod]
+    [DataRow(Key.N, ModifierKeys.Control, false, true)]
+    [DataRow(Key.N, ModifierKeys.Control, true, false)]
+    [DataRow(Key.N, ModifierKeys.None, false, false)]
+    [DataRow(Key.N, ModifierKeys.Control | ModifierKeys.Shift, false, false)]
+    [DataRow(Key.N, ModifierKeys.Control | ModifierKeys.Alt, false, false)]
+    [DataRow(Key.N, ModifierKeys.Alt, false, false)]
+    [DataRow(Key.D, ModifierKeys.Control, false, false)]
+    public void ShouldCreateFromKeyboard_RequiresExactInitialControlN(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            WorkspaceManagerWindow.ShouldCreateFromKeyboard(
+                key,
+                modifiers,
+                isRepeat));
     }
 
     [TestMethod]

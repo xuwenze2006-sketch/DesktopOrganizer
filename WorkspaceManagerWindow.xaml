@@ -7,6 +7,7 @@
         MinWidth="600"
         MinHeight="360"
         WindowStartupLocation="CenterOwner"
+        PreviewKeyDown="WorkspaceManagerWindow_PreviewKeyDown"
         ShowInTaskbar="False">
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -48,7 +49,8 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <WrapPanel>
-                <Button Content="新建当前快照" MinWidth="105" Margin="0,0,8,0" Click="Create_Click"/>
+                <Button Content="新建当前快照" MinWidth="105" Margin="0,0,8,0" Click="Create_Click"
+                        ToolTip="Ctrl+N；从当前屏幕布局创建并激活新的视觉快照"/>
                 <Button Content="复制快照…" MinWidth="88" Margin="0,0,8,0" Click="Duplicate_Click"
                         ToolTip="Ctrl+D；从所选工作区创建独立副本，不切换当前布局"/>
                 <Button Content="切换并恢复…" MinWidth="100" Margin="0,0,8,0" Click="Activate_Click"/>

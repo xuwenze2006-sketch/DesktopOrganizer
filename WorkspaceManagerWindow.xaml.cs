@@ -26,6 +26,20 @@ namespace DesktopOrganizer
 
         private WorkspaceListItem? Selected => WorkspaceList.SelectedItem as WorkspaceListItem;
 
+        private void WorkspaceManagerWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!ShouldCreateFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            Create_Click(sender, e);
+        }
+
         private void RefreshList(string? selectedId = null)
         {
             string? activeId = _mainWindow.GetActiveWorkspaceId();
@@ -120,6 +134,14 @@ namespace DesktopOrganizer
             modifiers == ModifierKeys.None &&
             hasSelection &&
             !isActive;
+
+        internal static bool ShouldCreateFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat) =>
+            key == Key.N &&
+            modifiers == ModifierKeys.Control &&
+            !isRepeat;
 
         internal static bool ShouldRenameFromKeyboard(
             Key key,
