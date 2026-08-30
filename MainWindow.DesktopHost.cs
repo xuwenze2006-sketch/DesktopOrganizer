@@ -238,6 +238,7 @@ namespace DesktopOrganizer
                 Volatile.Write(ref _desktopShellMenuActive, 1);
                 Interlocked.Increment(ref _externalLayerGeneration);
                 Interlocked.Increment(ref _shellMenuCloseGeneration);
+                QueueDesktopShellMenuSelectionClear(windowEvent.Kind);
                 return;
             }
 
@@ -270,6 +271,38 @@ namespace DesktopOrganizer
             Interlocked.Increment(ref _externalLayerGeneration);
             QueueExternalLayerCorrection(windowEvent.WindowHandle, shouldActivate: true);
         }
+
+        private void QueueDesktopShellMenuSelectionClear(
+            NativeMethods.ExternalWindowEventKind eventKind)
+        {
+            try
+            {
+                _ = Dispatcher.BeginInvoke(
+                    DispatcherPriority.Input,
+                    new Action(() =>
+                    {
+                        if (ShouldClearItemSelectionForDesktopShellMenu(
+                                eventKind,
+                                _isClosing,
+                                _selectedItemNames.Count))
+                        {
+                            ClearItemSelection();
+                        }
+                    }));
+            }
+            catch (InvalidOperationException)
+            {
+                // Dispatcher 已进入关闭流程，无需再同步选择状态。
+            }
+        }
+
+        internal static bool ShouldClearItemSelectionForDesktopShellMenu(
+            NativeMethods.ExternalWindowEventKind eventKind,
+            bool isClosing,
+            int selectedItemCount) =>
+            eventKind == NativeMethods.ExternalWindowEventKind.DesktopShellMenuOpened &&
+            !isClosing &&
+            selectedItemCount > 0;
 
         private void QueueDesktopCompanionLayerCorrection(IntPtr companionWindow)
         {
