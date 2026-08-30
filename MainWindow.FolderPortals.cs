@@ -15,6 +15,9 @@ namespace DesktopOrganizer
             new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, CancellationTokenSource> _folderPortalReadCts =
             new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _folderPortalRefreshAfterRead =
+            new(StringComparer.OrdinalIgnoreCase);
+        private readonly FolderPortalWatcherCoordinator _folderPortalWatcherCoordinator;
 
         private FolderPortalInfo? _draggedFolderPortal;
         private FrameworkElement? _draggedFolderPortalVisual;
@@ -65,6 +68,8 @@ namespace DesktopOrganizer
                         StringComparison.Ordinal))
                 {
                     CancelFolderPortalRead(portal.Id);
+                    _folderPortalWatcherCoordinator.Unbind(portal.Id);
+                    _folderPortalRefreshAfterRead.Remove(portal.Id);
                     _folderPortalRuntimeStates.Remove(portal.Id);
                 }
 
@@ -638,10 +643,14 @@ namespace DesktopOrganizer
         {
             if (!_appLayout.FolderPortals.Any(current => ReferenceEquals(current, portal)))
             {
+                _folderPortalWatcherCoordinator.Unbind(portal.Id);
+                _folderPortalRefreshAfterRead.Remove(portal.Id);
                 return;
             }
 
             CancelFolderPortalRead(portal.Id);
+            _folderPortalWatcherCoordinator.CancelPending(portal.Id);
+            _folderPortalRefreshAfterRead.Remove(portal.Id);
             if (!_folderPortalRuntimeStates.TryGetValue(
                     portal.Id,
                     out FolderPortalRuntimeState? state))
@@ -715,6 +724,8 @@ namespace DesktopOrganizer
                 return;
             }
 
+            bool refreshAfterRead = _folderPortalRefreshAfterRead.Remove(portal.Id);
+            bool refreshAfterWatcherBind = false;
             state.IsLoading = false;
             if (result.Success)
             {
@@ -730,9 +741,26 @@ namespace DesktopOrganizer
                 {
                     SaveLayout();
                 }
+
+                if (!_isSafeModeActive && !_isClosing)
+                {
+                    string? previousWatchedPath =
+                        _folderPortalWatcherCoordinator.GetBoundPath(portal.Id);
+                    if (_folderPortalWatcherCoordinator.TryBind(portal.Id, result.CurrentPath))
+                    {
+                        string? currentWatchedPath =
+                            _folderPortalWatcherCoordinator.GetBoundPath(portal.Id);
+                        refreshAfterWatcherBind = currentWatchedPath != null &&
+                            !string.Equals(
+                                previousWatchedPath,
+                                currentWatchedPath,
+                                StringComparison.OrdinalIgnoreCase);
+                    }
+                }
             }
             else
             {
+                _folderPortalWatcherCoordinator.CancelPending(portal.Id);
                 state.IsStale = state.LastSuccessfulResult != null;
                 state.ErrorMessage = string.IsNullOrWhiteSpace(result.ErrorMessage)
                     ? "未能读取文件夹内容。"
@@ -740,6 +768,14 @@ namespace DesktopOrganizer
             }
             state.VisualRevision++;
             RefreshFolderPortalVisual(portal);
+
+            if (result.Success &&
+                (refreshAfterRead || refreshAfterWatcherBind) &&
+                !_isSafeModeActive &&
+                !_isClosing)
+            {
+                QueueFolderPortalRead(portal, portal.CurrentRelativePath);
+            }
         }
 
         private void NavigateFolderPortalUp(FolderPortalInfo portal)
@@ -935,6 +971,8 @@ namespace DesktopOrganizer
             _folderPortalVisualFingerprints.Remove(portalId);
             if (removeRuntimeState)
             {
+                _folderPortalWatcherCoordinator.Unbind(portalId);
+                _folderPortalRefreshAfterRead.Remove(portalId);
                 _folderPortalRuntimeStates.Remove(portalId);
             }
         }
@@ -953,6 +991,8 @@ namespace DesktopOrganizer
         /// </summary>
         private void CancelAllPortalReads(bool clearRuntimeState = true)
         {
+            _folderPortalWatcherCoordinator.UnbindAll();
+            _folderPortalRefreshAfterRead.Clear();
             foreach (CancellationTokenSource cts in _folderPortalReadCts.Values.ToList())
             {
                 cts.Cancel();
@@ -964,6 +1004,78 @@ namespace DesktopOrganizer
                 _folderPortalRuntimeStates.Clear();
             }
             CancelFolderPortalDrag(commit: false);
+        }
+
+        private void FolderPortalWatcherRefreshRequested(
+            string portalId,
+            long notificationVersion)
+        {
+            if (_isClosing || _isSafeModeActive || Dispatcher.HasShutdownStarted)
+            {
+                return;
+            }
+
+            _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                if (_isClosing ||
+                    _isSafeModeActive ||
+                    !_folderPortalWatcherCoordinator.IsCurrentNotification(
+                        portalId,
+                        notificationVersion))
+                {
+                    return;
+                }
+
+                FolderPortalInfo? portal = _appLayout.FolderPortals.FirstOrDefault(candidate =>
+                    candidate.Id.Equals(portalId, StringComparison.OrdinalIgnoreCase));
+                if (portal != null)
+                {
+                    if (_folderPortalRuntimeStates.TryGetValue(
+                            portalId,
+                            out FolderPortalRuntimeState? state) &&
+                        state.IsLoading)
+                    {
+                        _folderPortalRefreshAfterRead.Add(portalId);
+                        return;
+                    }
+                    QueueFolderPortalRead(portal, portal.CurrentRelativePath);
+                }
+            }));
+        }
+
+        private void StopFolderPortalWatchers()
+        {
+            _folderPortalWatcherCoordinator.UnbindAll();
+            _folderPortalRefreshAfterRead.Clear();
+        }
+
+        private void ResumeFolderPortalWatchers()
+        {
+            if (_isClosing || _isSafeModeActive)
+            {
+                return;
+            }
+
+            foreach (FolderPortalInfo portal in _appLayout.FolderPortals.ToList())
+            {
+                if (_folderPortalRuntimeStates.TryGetValue(
+                        portal.Id,
+                        out FolderPortalRuntimeState? state))
+                {
+                    if (state.LastSuccessfulResult is PortalReadResult result)
+                    {
+                        _folderPortalWatcherCoordinator.TryBind(portal.Id, result.CurrentPath);
+                    }
+
+                    if (state.IsLoading)
+                    {
+                        _folderPortalRefreshAfterRead.Add(portal.Id);
+                        continue;
+                    }
+                }
+
+                QueueFolderPortalRead(portal, portal.CurrentRelativePath);
+            }
         }
 
         private void FolderPortal_BlockDrop(object sender, DragEventArgs e)

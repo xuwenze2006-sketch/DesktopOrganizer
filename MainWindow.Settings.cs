@@ -113,6 +113,7 @@ namespace DesktopOrganizer
                 if (updateWatchers)
                 {
                     StopDesktopWatchers();
+                    StopFolderPortalWatchers();
                     CancelScheduledDesktopRefresh();
                     CancelActiveDesktopRefresh();
                 }
@@ -136,6 +137,7 @@ namespace DesktopOrganizer
                     }
 
                     StartDesktopWatchers();
+                    ResumeFolderPortalWatchers();
                     RequestDesktopRefresh(
                         clearIconCache: false,
                         statusMessage: "安全模式已关闭：原设置已恢复，桌面状态已同步");

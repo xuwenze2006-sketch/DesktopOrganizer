@@ -269,6 +269,8 @@ namespace DesktopOrganizer
             _fileOperationService = new FileOperationService();
             _fileOperationJournalStore = new FileOperationJournalStore(
                 _fileOperationJournalPath);
+            _folderPortalWatcherCoordinator = new FolderPortalWatcherCoordinator(
+                FolderPortalWatcherRefreshRequested);
             if (_startQuietly)
             {
                 ControlPanel.Visibility = Visibility.Collapsed;

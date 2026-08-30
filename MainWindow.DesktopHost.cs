@@ -675,6 +675,7 @@ namespace DesktopOrganizer
         {
             _isClosing = true;
             CancelAllPortalReads();
+            _folderPortalWatcherCoordinator.Dispose();
             _lifetimeCts.Cancel();
             lock (_refreshDebounceLock)
             {
