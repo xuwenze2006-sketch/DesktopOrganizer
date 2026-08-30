@@ -36,6 +36,17 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (ShouldToggleGroupCollapsedFromHeader(
+                    e.ChangedButton,
+                    e.ClickCount,
+                    Keyboard.Modifiers,
+                    _appLayout.IsEditMode))
+            {
+                ToggleGroupCollapsed(group);
+                e.Handled = true;
+                return;
+            }
+
             if (!_appLayout.IsEditMode)
             {
                 return;
@@ -82,6 +93,21 @@ namespace DesktopOrganizer
             changedButton == MouseButton.Left &&
             clickCount == 1 &&
             modifiers == ModifierKeys.Control;
+
+        internal static bool ShouldToggleGroupCollapsedFromHeader(
+            MouseButton changedButton,
+            int clickCount,
+            ModifierKeys modifiers,
+            bool isEditMode) =>
+            !isEditMode &&
+            changedButton == MouseButton.Left &&
+            clickCount == 2 &&
+            modifiers == ModifierKeys.None;
+
+        internal static string GetGroupHeaderInteractionToolTip(bool isEditMode) =>
+            isEditMode
+                ? "双击标题非按钮区域可自动适应尺寸；Ctrl+单击可选择或取消选择整组项目"
+                : "双击标题非按钮区域可收起或展开；Ctrl+单击可选择或取消选择整组项目";
 
         private void GroupHeader_MouseMove(object sender, MouseEventArgs e)
         {

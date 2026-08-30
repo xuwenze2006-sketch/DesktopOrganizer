@@ -210,6 +210,8 @@ namespace DesktopOrganizer
             Brush normalBorderBrush = CreateFrozenBrush(WithAlpha(accentColor, normalBorderAlpha));
             Brush hoverBorderBrush = CreateFrozenBrush(WithAlpha(accentColor, 220));
             Style? headerButtonStyle = TryFindResource("GroupHeaderIconButtonStyle") as Style;
+            string headerInteractionToolTip =
+                GetGroupHeaderInteractionToolTip(_appLayout.IsEditMode);
 
             var header = new Border
             {
@@ -219,7 +221,7 @@ namespace DesktopOrganizer
                     ? new CornerRadius(11)
                     : new CornerRadius(11, 11, 0, 0),
                 Cursor = _appLayout.IsEditMode ? Cursors.SizeAll : Cursors.Arrow,
-                ToolTip = "Ctrl+单击标题非按钮区域可选择或取消选择整组项目",
+                ToolTip = headerInteractionToolTip,
                 Tag = group
             };
 
@@ -286,7 +288,7 @@ namespace DesktopOrganizer
                     ? "自动识别分类；手工拖动和重命名会被保留"
                     : !string.IsNullOrWhiteSpace(group.UserRuleId)
                         ? "用户规则创建的虚拟分组；真实文件未移动"
-                        : group.Name)}\nCtrl+单击标题非按钮区域可选择或取消选择整组项目",
+                        : group.Name)}\n{headerInteractionToolTip}",
                 Foreground = WarmPaperTheme.PrimaryTextBrush,
                 FontWeight = FontWeights.SemiBold,
                 FontSize = 13,

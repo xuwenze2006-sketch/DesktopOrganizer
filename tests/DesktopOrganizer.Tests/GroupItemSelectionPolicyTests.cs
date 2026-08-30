@@ -248,4 +248,38 @@ public sealed class GroupItemSelectionPolicyTests
                 clickCount,
                 modifiers));
     }
+
+    [TestMethod]
+    [DataRow(MouseButton.Left, 2, ModifierKeys.None, false, true)]
+    [DataRow(MouseButton.Left, 2, ModifierKeys.None, true, false)]
+    [DataRow(MouseButton.Left, 1, ModifierKeys.None, false, false)]
+    [DataRow(MouseButton.Left, 2, ModifierKeys.Control, false, false)]
+    [DataRow(MouseButton.Left, 2, ModifierKeys.Shift, false, false)]
+    [DataRow(MouseButton.Right, 2, ModifierKeys.None, false, false)]
+    public void ShouldToggleGroupCollapsedFromHeader_RequiresPlainLockedDoubleClick(
+        MouseButton changedButton,
+        int clickCount,
+        ModifierKeys modifiers,
+        bool isEditMode,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldToggleGroupCollapsedFromHeader(
+                changedButton,
+                clickCount,
+                modifiers,
+                isEditMode));
+    }
+
+    [TestMethod]
+    public void GroupHeaderToolTip_ExplainsModeSpecificDoubleClickAction()
+    {
+        StringAssert.Contains(
+            MainWindow.GetGroupHeaderInteractionToolTip(isEditMode: false),
+            "双击标题非按钮区域可收起或展开");
+        StringAssert.Contains(
+            MainWindow.GetGroupHeaderInteractionToolTip(isEditMode: true),
+            "双击标题非按钮区域可自动适应尺寸");
+    }
 }
