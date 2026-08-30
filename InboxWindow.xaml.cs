@@ -168,10 +168,8 @@ namespace DesktopOrganizer
 
         private void AcceptAllReliable_Click(object sender, RoutedEventArgs e)
         {
-            if (HasUnsavedTagEditorText(_loadedTagEditorText, TagEditorBox.Text))
+            if (TryBlockActionForUnsavedTags())
             {
-                StatusText.Text = UnsavedTagEditorMessage;
-                TagEditorBox.Focus();
                 return;
             }
 
@@ -234,6 +232,11 @@ namespace DesktopOrganizer
             if (selected == null || group == null)
             {
                 StatusText.Text = "请先选择待整理项目和一个手工分组。";
+                return;
+            }
+
+            if (TryBlockActionForUnsavedTags())
+            {
                 return;
             }
 
@@ -313,6 +316,18 @@ namespace DesktopOrganizer
                 currentText ?? string.Empty,
                 StringComparison.Ordinal);
 
+        private bool TryBlockActionForUnsavedTags()
+        {
+            if (!HasUnsavedTagEditorText(_loadedTagEditorText, TagEditorBox.Text))
+            {
+                return false;
+            }
+
+            StatusText.Text = UnsavedTagEditorMessage;
+            TagEditorBox.Focus();
+            return true;
+        }
+
         internal static int FindManualGroupSelectionIndex(
             IReadOnlyList<ManualGroupChoice> groups,
             string? selectedGroupId)
@@ -388,6 +403,11 @@ namespace DesktopOrganizer
             if (selected == null)
             {
                 StatusText.Text = "请先选择一个待整理项目。";
+                return;
+            }
+
+            if (TryBlockActionForUnsavedTags())
+            {
                 return;
             }
 

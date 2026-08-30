@@ -176,13 +176,12 @@ public sealed class InboxWindowKeyboardTests
     {
         var mainWindow = new MainWindow(startQuietly: false);
         AppLayoutData layout = GetAppLayout(mainWindow);
-        layout.InboxItems.Clear();
-        layout.ItemTags.Clear();
-        AddInboxItem(layout, "draft.txt", 0);
-        layout.ItemTags["draft.txt"] = ["原标签"];
+        const string displayName = "draft.txt";
+        PrepareActionableInboxItem(layout, displayName);
         var window = new InboxWindow(mainWindow);
         object itemsSource = window.InboxList.ItemsSource;
         object selectedItem = window.InboxList.SelectedItem;
+        Assert.IsTrue(window.AcceptAllReliableButton.IsEnabled);
         window.TagEditorBox.Text = "未保存草稿";
 
         InvokeAcceptAllReliable(window);
@@ -190,6 +189,84 @@ public sealed class InboxWindowKeyboardTests
         Assert.AreSame(itemsSource, window.InboxList.ItemsSource);
         Assert.AreSame(selectedItem, window.InboxList.SelectedItem);
         Assert.AreEqual("未保存草稿", window.TagEditorBox.Text);
+        Assert.IsTrue(layout.InboxItems.ContainsKey(displayName));
+        Assert.AreEqual(InboxReviewState.Pending, layout.InboxItems[displayName].ReviewState);
+        Assert.IsEmpty(layout.Groups);
+        StringAssert.Contains(window.StatusText.Text, "Ctrl+S");
+    }
+
+    [STATestMethod]
+    [DataRow((int)InboxKeyboardAction.AcceptSuggestion)]
+    [DataRow((int)InboxKeyboardAction.LeaveOnDesktop)]
+    [DataRow((int)InboxKeyboardAction.Defer)]
+    public void SelectedAction_WithUnsavedTags_DoesNotRunOrDiscardDraft(int actionValue)
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        const string displayName = "draft.txt";
+        PrepareActionableInboxItem(layout, displayName);
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        object selectedItem = window.InboxList.SelectedItem;
+        window.TagEditorBox.Text = "未保存草稿";
+
+        InvokeSelectedAction(window, (InboxKeyboardAction)actionValue);
+
+        Assert.AreSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreSame(selectedItem, window.InboxList.SelectedItem);
+        Assert.AreEqual("未保存草稿", window.TagEditorBox.Text);
+        Assert.IsTrue(layout.InboxItems.ContainsKey(displayName));
+        Assert.AreEqual(InboxReviewState.Pending, layout.InboxItems[displayName].ReviewState);
+        Assert.IsEmpty(layout.Groups);
+        CollectionAssert.AreEqual(new[] { "原标签" }, layout.ItemTags[displayName]);
+        StringAssert.Contains(window.StatusText.Text, "Ctrl+S");
+    }
+
+    [STATestMethod]
+    public void SelectedAction_WithCleanTags_StillRunsAndRefreshes()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        const string displayName = "clean.txt";
+        PrepareActionableInboxItem(layout, displayName);
+        layout.InboxItems[displayName].ReviewState = InboxReviewState.Deferred;
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        Assert.AreEqual("原标签", window.TagEditorBox.Text);
+
+        InvokeSelectedAction(window, InboxKeyboardAction.Defer);
+
+        Assert.AreNotSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreEqual(displayName, GetSelectedName(window));
+        Assert.AreEqual("原标签", window.TagEditorBox.Text);
+        Assert.AreEqual(InboxReviewState.Deferred, layout.InboxItems[displayName].ReviewState);
+        StringAssert.Contains(window.StatusText.Text, "以后处理");
+    }
+
+    [STATestMethod]
+    public void MoveToManualGroup_WithUnsavedTags_DoesNotRunOrDiscardDraft()
+    {
+        var mainWindow = new MainWindow(startQuietly: false);
+        AppLayoutData layout = GetAppLayout(mainWindow);
+        const string displayName = "draft.txt";
+        PrepareActionableInboxItem(layout, displayName);
+        var targetGroup = new GroupInfo { Id = "manual", Name = "手工分组" };
+        layout.Groups.Add(targetGroup);
+        var window = new InboxWindow(mainWindow);
+        object itemsSource = window.InboxList.ItemsSource;
+        object selectedItem = window.InboxList.SelectedItem;
+        Assert.AreEqual(0, window.ManualGroupSelector.SelectedIndex);
+        window.TagEditorBox.Text = "未保存草稿";
+
+        InvokeMoveToManualGroup(window);
+
+        Assert.AreSame(itemsSource, window.InboxList.ItemsSource);
+        Assert.AreSame(selectedItem, window.InboxList.SelectedItem);
+        Assert.AreEqual("未保存草稿", window.TagEditorBox.Text);
+        Assert.IsTrue(layout.InboxItems.ContainsKey(displayName));
+        Assert.IsEmpty(targetGroup.ItemNames);
+        Assert.IsEmpty(targetGroup.ManuallyAssignedItemNames);
+        CollectionAssert.AreEqual(new[] { "原标签" }, layout.ItemTags[displayName]);
         StringAssert.Contains(window.StatusText.Text, "Ctrl+S");
     }
 
@@ -417,6 +494,43 @@ public sealed class InboxWindowKeyboardTests
         };
     }
 
+    private static void PrepareActionableInboxItem(
+        AppLayoutData layout,
+        string displayName)
+    {
+        layout.InboxItems.Clear();
+        layout.ItemIdentities.Clear();
+        layout.ItemTags.Clear();
+        layout.Groups.Clear();
+        layout.FreeIcons.Clear();
+        layout.AutoClassificationOriginalPositions.Clear();
+        var persistedIdentity = new DesktopItemIdentityInfo
+        {
+            LastKnownPath = $@"C:\Desktop\{displayName}",
+            FileId = $"volume:{displayName}",
+            CreationTimeUtcTicks = DateTime.UnixEpoch.Ticks
+        };
+        layout.InboxItems[displayName] = new InboxItemInfo
+        {
+            Identity = persistedIdentity,
+            DetectedUtc = DateTime.UnixEpoch,
+            UpdatedUtc = DateTime.UnixEpoch,
+            SuggestedCategoryKey = "documents",
+            SuggestedCategoryName = "文档",
+            SuggestedCategoryOrder = 40,
+            MatchReason = "扩展名 .txt",
+            Reliability = ClassificationReliability.Reliable,
+            ReviewState = InboxReviewState.Pending
+        };
+        layout.ItemIdentities[displayName] = new DesktopItemIdentityInfo
+        {
+            LastKnownPath = persistedIdentity.LastKnownPath,
+            FileId = persistedIdentity.FileId,
+            CreationTimeUtcTicks = persistedIdentity.CreationTimeUtcTicks
+        };
+        layout.ItemTags[displayName] = ["原标签"];
+    }
+
     private static void InvokeAcceptAllReliable(InboxWindow window)
     {
         MethodInfo handler = typeof(InboxWindow).GetMethod(
@@ -424,6 +538,26 @@ public sealed class InboxWindowKeyboardTests
             BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new AssertFailedException("未找到批量接受处理器。");
         handler.Invoke(window, [window.AcceptAllReliableButton, new RoutedEventArgs()]);
+    }
+
+    private static void InvokeSelectedAction(
+        InboxWindow window,
+        InboxKeyboardAction action)
+    {
+        MethodInfo method = typeof(InboxWindow).GetMethod(
+            "ExecuteSelectedAction",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到单项收件箱动作入口。");
+        method.Invoke(window, [action]);
+    }
+
+    private static void InvokeMoveToManualGroup(InboxWindow window)
+    {
+        MethodInfo handler = typeof(InboxWindow).GetMethod(
+            "MoveToManualGroup_Click",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到加入手工分组处理器。");
+        handler.Invoke(window, [window, new RoutedEventArgs()]);
     }
 
     private static void InvokeRefresh(
