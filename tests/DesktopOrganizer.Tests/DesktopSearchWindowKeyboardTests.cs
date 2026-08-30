@@ -189,6 +189,9 @@ public sealed class DesktopSearchWindowKeyboardTests
         window.QueryBox.Text = string.Empty;
         Assert.AreEqual(0, window.ResultsList.SelectedIndex);
         Assert.AreEqual(alphabeticFirst, GetSelectedDisplayName(window));
+
+        window.QueryBox.Text = "common";
+        Assert.AreEqual(rankedFirst, GetSelectedDisplayName(window));
     }
 
     [TestMethod]
