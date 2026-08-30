@@ -49,6 +49,19 @@ namespace DesktopOrganizer
         private void WorkspaceList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
             UpdatePreview();
 
+        private void WorkspaceList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != MouseButton.Left ||
+                e.OriginalSource is not DependencyObject source ||
+                ItemsControl.ContainerFromElement(WorkspaceList, source) is not ListBoxItem)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            Activate_Click(sender, e);
+        }
+
         private void UpdatePreview()
         {
             WorkspaceListItem? item = Selected;

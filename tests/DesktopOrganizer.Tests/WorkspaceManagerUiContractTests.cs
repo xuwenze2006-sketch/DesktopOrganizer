@@ -25,6 +25,22 @@ public sealed class WorkspaceManagerUiContractTests
         Assert.AreEqual("Disabled", scrollViewer.Attribute("HorizontalScrollBarVisibility")?.Value);
     }
 
+    [TestMethod]
+    public void WorkspaceList_WiresDoubleClickActivation()
+    {
+        XDocument document = LoadWorkspaceManagerXaml();
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XElement workspaceList = document.Descendants().Single(element =>
+            string.Equals(
+                (string?)element.Attribute(xaml + "Name"),
+                "WorkspaceList",
+                StringComparison.Ordinal));
+
+        Assert.AreEqual(
+            "WorkspaceList_MouseDoubleClick",
+            workspaceList.Attribute("MouseDoubleClick")?.Value);
+    }
+
     private static XDocument LoadWorkspaceManagerXaml(
         [CallerFilePath] string sourceFilePath = "")
     {
