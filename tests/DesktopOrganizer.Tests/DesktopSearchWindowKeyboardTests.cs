@@ -33,20 +33,24 @@ public sealed class DesktopSearchWindowKeyboardTests
     }
 
     [TestMethod]
-    [DataRow(Key.Enter, ModifierKeys.None, (int)DesktopSearchKeyboardAction.Locate)]
-    [DataRow(Key.Enter, ModifierKeys.Control, (int)DesktopSearchKeyboardAction.Open)]
-    [DataRow(Key.Enter, ModifierKeys.Shift, (int)DesktopSearchKeyboardAction.Reveal)]
-    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, (int)DesktopSearchKeyboardAction.None)]
-    [DataRow(Key.Enter, ModifierKeys.Alt, (int)DesktopSearchKeyboardAction.None)]
-    [DataRow(Key.Escape, ModifierKeys.None, (int)DesktopSearchKeyboardAction.None)]
-    public void ResolveKeyboardAction_RequiresExactEnterShortcut(
+    [DataRow(Key.Enter, ModifierKeys.None, false, (int)DesktopSearchKeyboardAction.Locate)]
+    [DataRow(Key.Enter, ModifierKeys.Control, false, (int)DesktopSearchKeyboardAction.Open)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, false, (int)DesktopSearchKeyboardAction.Reveal)]
+    [DataRow(Key.Enter, ModifierKeys.None, true, (int)DesktopSearchKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Control, true, (int)DesktopSearchKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Shift, true, (int)DesktopSearchKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Control | ModifierKeys.Shift, false, (int)DesktopSearchKeyboardAction.None)]
+    [DataRow(Key.Enter, ModifierKeys.Alt, false, (int)DesktopSearchKeyboardAction.None)]
+    [DataRow(Key.Escape, ModifierKeys.None, false, (int)DesktopSearchKeyboardAction.None)]
+    public void ResolveKeyboardAction_RequiresExactInitialEnterShortcut(
         Key key,
         ModifierKeys modifiers,
+        bool isRepeat,
         int expected)
     {
         Assert.AreEqual(
             (DesktopSearchKeyboardAction)expected,
-            DesktopSearchWindow.ResolveKeyboardAction(key, modifiers));
+            DesktopSearchWindow.ResolveKeyboardAction(key, modifiers, isRepeat));
     }
 
     [TestMethod]

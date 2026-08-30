@@ -118,13 +118,13 @@ namespace DesktopOrganizer
             }
 
             e.Handled = TryExecuteSelectedAction(
-                ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
+                ResolveKeyboardAction(e.Key, Keyboard.Modifiers, e.IsRepeat));
         }
 
         private void ResultsList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             e.Handled = TryExecuteSelectedAction(
-                ResolveKeyboardAction(e.Key, Keyboard.Modifiers));
+                ResolveKeyboardAction(e.Key, Keyboard.Modifiers, e.IsRepeat));
         }
 
         private void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -220,9 +220,10 @@ namespace DesktopOrganizer
 
         internal static DesktopSearchKeyboardAction ResolveKeyboardAction(
             Key key,
-            ModifierKeys modifiers)
+            ModifierKeys modifiers,
+            bool isRepeat)
         {
-            if (key != Key.Enter)
+            if (key != Key.Enter || isRepeat)
             {
                 return DesktopSearchKeyboardAction.None;
             }
