@@ -202,15 +202,9 @@ namespace DesktopOrganizer
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            NativeMethods.DesktopKeyboardCommand? command = null;
-            if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
-            {
-                command = NativeMethods.DesktopKeyboardCommand.UndoFileMove;
-            }
-            else if (e.Key == Key.Escape && Keyboard.Modifiers == ModifierKeys.None)
-            {
-                command = NativeMethods.DesktopKeyboardCommand.ClearSelection;
-            }
+            NativeMethods.DesktopKeyboardCommand? command = ResolveDesktopKeyboardCommand(
+                e.Key,
+                Keyboard.Modifiers);
 
             if (command != null && ExecuteDesktopKeyboardCommand(command.Value))
             {
@@ -259,6 +253,8 @@ namespace DesktopOrganizer
                     _fileMoveHistory.First != null && !HasPendingFileOperations,
                 NativeMethods.DesktopKeyboardCommand.ClearSelection =>
                     _selectedItemNames.Count > 0,
+                NativeMethods.DesktopKeyboardCommand.SelectAllItems =>
+                    _desktopItems.Count > 0,
                 _ => false
             };
         }
@@ -272,8 +268,50 @@ namespace DesktopOrganizer
                     TryUndoLastFileMove(),
                 NativeMethods.DesktopKeyboardCommand.ClearSelection
                     when _selectedItemNames.Count > 0 => ClearSelectionFromKeyboard(),
+                NativeMethods.DesktopKeyboardCommand.SelectAllItems
+                    when _desktopItems.Count > 0 => SelectAllItemsFromKeyboard(),
                 _ => false
             };
+        }
+
+        internal static NativeMethods.DesktopKeyboardCommand? ResolveDesktopKeyboardCommand(
+            Key key,
+            ModifierKeys modifiers) => (key, modifiers) switch
+        {
+            (Key.Z, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.UndoFileMove,
+            (Key.A, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.SelectAllItems,
+            (Key.Escape, ModifierKeys.None) => NativeMethods.DesktopKeyboardCommand.ClearSelection,
+            _ => null
+        };
+
+        internal static int ReplaceSelectionWithAllLoadedItems(
+            ISet<string> selectedItemNames,
+            IEnumerable<string> loadedItemNames)
+        {
+            ArgumentNullException.ThrowIfNull(selectedItemNames);
+            ArgumentNullException.ThrowIfNull(loadedItemNames);
+
+            selectedItemNames.Clear();
+            foreach (string name in loadedItemNames)
+            {
+                selectedItemNames.Add(name);
+            }
+            return selectedItemNames.Count;
+        }
+
+        private bool SelectAllItemsFromKeyboard()
+        {
+            int selectedCount = ReplaceSelectionWithAllLoadedItems(
+                _selectedItemNames,
+                _desktopItems.Keys);
+            if (selectedCount == 0)
+            {
+                return false;
+            }
+
+            RefreshItemSelectionVisuals();
+            StatusText.Text = $"已选择全部 {selectedCount} 个桌面项目；右键可批量操作，Esc 清除选择";
+            return true;
         }
 
         private bool ClearSelectionFromKeyboard()

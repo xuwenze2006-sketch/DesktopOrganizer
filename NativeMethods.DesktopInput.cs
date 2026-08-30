@@ -6,7 +6,8 @@ namespace DesktopOrganizer
         internal enum DesktopKeyboardCommand
         {
             UndoFileMove,
-            ClearSelection
+            ClearSelection,
+            SelectAllItems
         }
 
         /// <summary>
@@ -75,6 +76,32 @@ namespace DesktopOrganizer
             IntPtr desktopListView = FindDesktopListView();
             IntPtr desktopListRoot = NormalizeRootWindow(desktopListView);
             return desktopListRoot != IntPtr.Zero && foregroundRoot == desktopListRoot;
+        }
+
+        internal static DesktopKeyboardCommand? ResolveDesktopKeyboardCommand(
+            uint virtualKey,
+            bool controlDown,
+            bool shiftDown,
+            bool altDown,
+            bool windowsDown)
+        {
+            if (shiftDown || altDown || windowsDown)
+            {
+                return null;
+            }
+            if (controlDown && virtualKey == VK_Z)
+            {
+                return DesktopKeyboardCommand.UndoFileMove;
+            }
+            if (controlDown && virtualKey == VK_A)
+            {
+                return DesktopKeyboardCommand.SelectAllItems;
+            }
+            if (!controlDown && virtualKey == VK_ESCAPE)
+            {
+                return DesktopKeyboardCommand.ClearSelection;
+            }
+            return null;
         }
 
         private sealed class DesktopInputSubscription : IDisposable
@@ -218,23 +245,12 @@ namespace DesktopOrganizer
                 bool altDown = IsVirtualKeyDown(VK_MENU);
                 bool windowsDown = IsVirtualKeyDown(VK_LWIN) || IsVirtualKeyDown(VK_RWIN);
 
-                DesktopKeyboardCommand? command = null;
-                if (virtualKey == VK_Z &&
-                    controlDown &&
-                    !shiftDown &&
-                    !altDown &&
-                    !windowsDown)
-                {
-                    command = DesktopKeyboardCommand.UndoFileMove;
-                }
-                else if (virtualKey == VK_ESCAPE &&
-                         !controlDown &&
-                         !shiftDown &&
-                         !altDown &&
-                         !windowsDown)
-                {
-                    command = DesktopKeyboardCommand.ClearSelection;
-                }
+                DesktopKeyboardCommand? command = ResolveDesktopKeyboardCommand(
+                    virtualKey,
+                    controlDown,
+                    shiftDown,
+                    altDown,
+                    windowsDown);
 
                 if (command == null)
                 {
@@ -244,7 +260,7 @@ namespace DesktopOrganizer
                 try
                 {
                     // 只有调用方确认命令可执行并已排队时才消费按键，避免
-                    // 不激活窗口与原前台应用同时处理同一个 Ctrl+Z/Esc。
+                    // 不激活窗口与原前台应用同时处理同一个 Ctrl+A/Ctrl+Z/Esc。
                     return _callback(command.Value);
                 }
                 catch
@@ -450,6 +466,7 @@ namespace DesktopOrganizer
         private const int VK_SHIFT = 0x10;
         private const int VK_MENU = 0x12;
         private const int VK_ESCAPE = 0x1B;
+        private const int VK_A = 0x41;
         private const int VK_Z = 0x5A;
         private const int VK_LWIN = 0x5B;
         private const int VK_RWIN = 0x5C;

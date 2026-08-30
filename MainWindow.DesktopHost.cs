@@ -85,7 +85,7 @@ namespace DesktopOrganizer
             _hwndSource?.AddHook(WindowProc);
 
             // 主窗口保持 WS_EX_NOACTIVATE，不能依赖 WPF 键盘焦点。输入监听只观察
-            // Ctrl+Z/Esc；仅在命令可执行时消费该次按键，其他输入继续传给系统。
+            // Ctrl+A/Ctrl+Z/Esc；仅在命令可执行时消费该次按键，其他输入继续传给系统。
             _desktopKeyboardMonitor = NativeMethods.WatchDesktopKeyboardCommands(
                 hwnd,
                 desktopHostProvider: () => _desktopHostHandle,

@@ -125,8 +125,8 @@
 - 退出安全模式会先恢复 Watcher，再请求一次桌面快照刷新；手动刷新在安全模式下仍然可用。
 ## v1.12.4 键盘命令边界
 
-- 主窗口继续使用 `WS_EX_NOACTIVATE`，不会为了接收 Ctrl+Z/Esc 改成可激活窗口。
-- 键盘钩子只识别 `UndoFileMove` 与 `ClearSelection`；命令可执行时消费对应按键，避免未激活整理层与原前台应用同时处理，其他输入继续传递。
+- 主窗口继续使用 `WS_EX_NOACTIVATE`，不会为了接收 Ctrl+A/Ctrl+Z/Esc 改成可激活窗口。
+- 键盘钩子只识别 `SelectAllItems`、`UndoFileMove` 与 `ClearSelection`；命令可执行时消费对应按键，避免未激活整理层与原前台应用同时处理，其他输入继续传递。
 - 鼠标钩子只记录最后一次按钮按下是否命中主整理窗口；任何外部窗口点击都会清除该临时语境。
 - 前台切换监听覆盖 Alt+Tab/Win+Tab 等无鼠标路径；普通资源管理器窗口不会因与桌面共用 explorer.exe 而被误判为桌面。
 - 钩子回调不执行文件 I/O 或 WPF 更新，只通过 Dispatcher 异步调用统一命令入口。
