@@ -49,6 +49,20 @@ public sealed class DesktopSearchWindowKeyboardTests
     }
 
     [TestMethod]
+    [DataRow((int)DesktopSearchKeyboardAction.Locate, true)]
+    [DataRow((int)DesktopSearchKeyboardAction.Open, false)]
+    [DataRow((int)DesktopSearchKeyboardAction.Reveal, false)]
+    [DataRow((int)DesktopSearchKeyboardAction.None, false)]
+    public void ShouldCloseAfterAction_OnlyReturnsToDesktopAfterLocate(
+        int action,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            DesktopSearchWindow.ShouldCloseAfterAction((DesktopSearchKeyboardAction)action));
+    }
+
+    [TestMethod]
     public void SearchWindow_WiresKeyboardHandlersOnlyToSearchControls()
     {
         XDocument document = LoadSearchWindowXaml();
@@ -77,12 +91,15 @@ public sealed class DesktopSearchWindowKeyboardTests
         Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
 
         Assert.AreEqual(
+            "Enter（定位后返回桌面）",
+            FindButton(document, "定位并高亮").Attribute("ToolTip")?.Value);
+        Assert.AreEqual(
             "Ctrl+Enter",
             FindButton(document, "打开").Attribute("ToolTip")?.Value);
         Assert.AreEqual(
             "Shift+Enter",
             FindButton(document, "在资源管理器中显示").Attribute("ToolTip")?.Value);
-        StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Enter 定位");
+        StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Enter 定位并返回桌面");
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Ctrl+Enter 打开");
         StringAssert.Contains(queryBox.Attribute("ToolTip")?.Value, "Shift+Enter");
     }

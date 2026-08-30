@@ -31,7 +31,7 @@
                      VerticalContentAlignment="Center"
                      TextChanged="QueryBox_TextChanged"
                      PreviewKeyDown="QueryBox_PreviewKeyDown"
-                     ToolTip="上下方向键选择；Enter 定位；Ctrl+Enter 打开；Shift+Enter 在资源管理器中显示"/>
+                     ToolTip="上下方向键选择；Enter 定位并返回桌面；Ctrl+Enter 打开；Shift+Enter 在资源管理器中显示"/>
             <ComboBox x:Name="ViewSelector" Grid.Column="1" Margin="10,0,0,0"
                       DisplayMemberPath="Name" SelectionChanged="ViewSelector_SelectionChanged"/>
         </Grid>
@@ -61,7 +61,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal">
                 <Button Content="定位并高亮" MinWidth="96" Margin="0,0,8,0" Click="Locate_Click"
-                        ToolTip="Enter"/>
+                        ToolTip="Enter（定位后返回桌面）"/>
                 <Button Content="打开" MinWidth="72" Margin="0,0,8,0" Click="Open_Click"
                         ToolTip="Ctrl+Enter"/>
                 <Button Content="在资源管理器中显示" MinWidth="140" Click="Reveal_Click"

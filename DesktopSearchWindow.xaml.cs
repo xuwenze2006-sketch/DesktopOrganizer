@@ -161,8 +161,15 @@ namespace DesktopOrganizer
                 default:
                     return false;
             }
+            if (ShouldCloseAfterAction(action))
+            {
+                Close();
+            }
             return true;
         }
+
+        internal static bool ShouldCloseAfterAction(DesktopSearchKeyboardAction action) =>
+            action == DesktopSearchKeyboardAction.Locate;
 
         internal static DesktopSearchKeyboardAction ResolveKeyboardAction(
             Key key,
