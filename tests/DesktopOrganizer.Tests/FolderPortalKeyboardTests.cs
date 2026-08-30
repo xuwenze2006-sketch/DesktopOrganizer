@@ -170,6 +170,21 @@ public sealed class FolderPortalKeyboardTests
     }
 
     [TestMethod]
+    [DataRow(MouseButton.Left, true)]
+    [DataRow(MouseButton.Right, false)]
+    [DataRow(MouseButton.Middle, false)]
+    [DataRow(MouseButton.XButton1, false)]
+    [DataRow(MouseButton.XButton2, false)]
+    public void ShouldOpenFolderPortalEntryFromDoubleClick_RequiresLeftButton(
+        MouseButton changedButton,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            MainWindow.ShouldOpenFolderPortalEntryFromDoubleClick(changedButton));
+    }
+
+    [TestMethod]
     [DataRow(Key.Enter, ModifierKeys.Shift, false, true, true)]
     [DataRow(Key.Enter, ModifierKeys.Shift, true, true, false)]
     [DataRow(Key.Enter, ModifierKeys.Shift, false, false, false)]

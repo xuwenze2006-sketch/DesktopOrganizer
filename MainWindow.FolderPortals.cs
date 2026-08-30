@@ -527,8 +527,14 @@ namespace DesktopOrganizer
             row.Content = content;
             row.MouseDoubleClick += (_, eventArgs) =>
             {
-                OpenFolderPortalEntry(portal, entry);
+                if (!ShouldOpenFolderPortalEntryFromDoubleClick(
+                        eventArgs.ChangedButton))
+                {
+                    return;
+                }
+
                 eventArgs.Handled = true;
+                OpenFolderPortalEntry(portal, entry);
             };
             row.ContextMenu = CreateFolderPortalEntryContextMenu(portal, entry);
             row.PreviewDragEnter += FolderPortal_BlockDrop;
@@ -927,6 +933,10 @@ namespace DesktopOrganizer
             modifiers == ModifierKeys.None &&
             !isRepeat &&
             hasEntry;
+
+        internal static bool ShouldOpenFolderPortalEntryFromDoubleClick(
+            MouseButton changedButton) =>
+            changedButton == MouseButton.Left;
 
         internal static bool ShouldRevealFolderPortalEntryFromKeyboard(
             Key key,
