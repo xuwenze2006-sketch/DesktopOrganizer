@@ -45,6 +45,7 @@ public sealed class WorkspaceManagerUiContractTests
             workspaceList.Attribute("PreviewKeyDown")?.Value);
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "F2");
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Ctrl+D");
+        StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Ctrl+S");
         StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "Delete");
         StringAssert.Contains(
             document.Descendants().Single(element =>
@@ -64,6 +65,15 @@ public sealed class WorkspaceManagerUiContractTests
                     StringComparison.Ordinal))
                 .Attribute("ToolTip")?.Value,
             "Ctrl+D");
+        StringAssert.Contains(
+            document.Descendants().Single(element =>
+                element.Name.LocalName == "Button" &&
+                string.Equals(
+                    (string?)element.Attribute("Content"),
+                    "用当前布局覆盖…",
+                    StringComparison.Ordinal))
+                .Attribute("ToolTip")?.Value,
+            "Ctrl+S");
         StringAssert.Contains(
             document.Descendants().Single(element =>
                 element.Name.LocalName == "Button" &&
@@ -119,6 +129,31 @@ public sealed class WorkspaceManagerUiContractTests
         Assert.AreEqual(
             expected,
             WorkspaceManagerWindow.ShouldDuplicateFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                hasSelection));
+    }
+
+    [TestMethod]
+    [DataRow(Key.S, ModifierKeys.Control, false, true, true)]
+    [DataRow(Key.S, ModifierKeys.Control, false, false, false)]
+    [DataRow(Key.S, ModifierKeys.Control, true, true, false)]
+    [DataRow(Key.S, ModifierKeys.None, false, true, false)]
+    [DataRow(Key.S, ModifierKeys.Control | ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.S, ModifierKeys.Control | ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.S, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.D, ModifierKeys.Control, false, true, false)]
+    public void ShouldOverwriteFromKeyboard_RequiresExactInitialControlSOnSelection(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool hasSelection,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            WorkspaceManagerWindow.ShouldOverwriteFromKeyboard(
                 key,
                 modifiers,
                 isRepeat,

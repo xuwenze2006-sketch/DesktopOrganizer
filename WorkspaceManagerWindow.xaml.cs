@@ -101,6 +101,17 @@ namespace DesktopOrganizer
                 return;
             }
 
+            if (ShouldOverwriteFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    item != null))
+            {
+                e.Handled = true;
+                Overwrite_Click(sender, e);
+                return;
+            }
+
             if (ShouldDeleteFromKeyboard(
                     e.Key,
                     Keyboard.Modifiers,
@@ -159,6 +170,16 @@ namespace DesktopOrganizer
             bool isRepeat,
             bool hasSelection) =>
             key == Key.D &&
+            modifiers == ModifierKeys.Control &&
+            !isRepeat &&
+            hasSelection;
+
+        internal static bool ShouldOverwriteFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasSelection) =>
+            key == Key.S &&
             modifiers == ModifierKeys.Control &&
             !isRepeat &&
             hasSelection;
