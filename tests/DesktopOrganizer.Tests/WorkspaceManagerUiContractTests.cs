@@ -43,7 +43,32 @@ public sealed class WorkspaceManagerUiContractTests
         Assert.AreEqual(
             "WorkspaceList_PreviewKeyDown",
             workspaceList.Attribute("PreviewKeyDown")?.Value);
+        StringAssert.Contains(workspaceList.Attribute("ToolTip")?.Value, "F2");
         Assert.IsNull(document.Root?.Attribute("PreviewKeyDown"));
+    }
+
+    [TestMethod]
+    [DataRow(Key.F2, ModifierKeys.None, false, true, true)]
+    [DataRow(Key.F2, ModifierKeys.None, false, false, false)]
+    [DataRow(Key.F2, ModifierKeys.None, true, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Control, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Shift, false, true, false)]
+    [DataRow(Key.F2, ModifierKeys.Alt, false, true, false)]
+    [DataRow(Key.Enter, ModifierKeys.None, false, true, false)]
+    public void ShouldRenameFromKeyboard_RequiresPlainNonRepeatF2OnSelection(
+        Key key,
+        ModifierKeys modifiers,
+        bool isRepeat,
+        bool hasSelection,
+        bool expected)
+    {
+        Assert.AreEqual(
+            expected,
+            WorkspaceManagerWindow.ShouldRenameFromKeyboard(
+                key,
+                modifiers,
+                isRepeat,
+                hasSelection));
     }
 
     [TestMethod]

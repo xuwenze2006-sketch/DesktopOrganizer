@@ -65,6 +65,17 @@ namespace DesktopOrganizer
         private void WorkspaceList_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             WorkspaceListItem? item = Selected;
+            if (ShouldRenameFromKeyboard(
+                    e.Key,
+                    Keyboard.Modifiers,
+                    e.IsRepeat,
+                    item != null))
+            {
+                e.Handled = true;
+                Rename_Click(sender, e);
+                return;
+            }
+
             if (!ShouldActivateFromKeyboard(
                     e.Key,
                     Keyboard.Modifiers,
@@ -87,6 +98,16 @@ namespace DesktopOrganizer
             modifiers == ModifierKeys.None &&
             hasSelection &&
             !isActive;
+
+        internal static bool ShouldRenameFromKeyboard(
+            Key key,
+            ModifierKeys modifiers,
+            bool isRepeat,
+            bool hasSelection) =>
+            key == Key.F2 &&
+            modifiers == ModifierKeys.None &&
+            !isRepeat &&
+            hasSelection;
 
         private void UpdatePreview()
         {
