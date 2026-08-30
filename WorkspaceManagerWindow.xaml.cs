@@ -162,6 +162,23 @@ namespace DesktopOrganizer
             bool listIsEnabled) =>
             windowIsVisible && listIsEnabled;
 
+        internal static string? ResolvePostDeleteSelectionId(
+            IReadOnlyList<string> orderedWorkspaceIds,
+            int deletedIndex)
+        {
+            if (deletedIndex < 0 ||
+                deletedIndex >= orderedWorkspaceIds.Count ||
+                orderedWorkspaceIds.Count <= 1)
+            {
+                return null;
+            }
+
+            int adjacentIndex = deletedIndex + 1 < orderedWorkspaceIds.Count
+                ? deletedIndex + 1
+                : deletedIndex - 1;
+            return orderedWorkspaceIds[adjacentIndex];
+        }
+
         internal static bool ShouldActivateFromKeyboard(
             Key key,
             ModifierKeys modifiers,
@@ -435,12 +452,19 @@ namespace DesktopOrganizer
             {
                 return;
             }
+
+            string? nextSelectionId = ResolvePostDeleteSelectionId(
+                WorkspaceList.Items
+                    .Cast<WorkspaceListItem>()
+                    .Select(workspace => workspace.Id)
+                    .ToList(),
+                WorkspaceList.SelectedIndex);
             if (!_mainWindow.TryDeleteWorkspace(item.Id, out string error))
             {
                 ShowError(error);
                 return;
             }
-            RefreshList();
+            RefreshList(nextSelectionId);
         }
 
         private WorkspaceListItem? RequireSelection()

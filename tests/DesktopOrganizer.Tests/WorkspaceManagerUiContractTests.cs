@@ -250,6 +250,26 @@ public sealed class WorkspaceManagerUiContractTests
                 listIsEnabled));
     }
 
+    [TestMethod]
+    public void ResolvePostDeleteSelectionId_PrefersNextThenPrevious()
+    {
+        IReadOnlyList<string> workspaceIds = ["a", "b", "c"];
+
+        Assert.AreEqual(
+            "b",
+            WorkspaceManagerWindow.ResolvePostDeleteSelectionId(workspaceIds, 0));
+        Assert.AreEqual(
+            "c",
+            WorkspaceManagerWindow.ResolvePostDeleteSelectionId(workspaceIds, 1));
+        Assert.AreEqual(
+            "b",
+            WorkspaceManagerWindow.ResolvePostDeleteSelectionId(workspaceIds, 2));
+        Assert.IsNull(WorkspaceManagerWindow.ResolvePostDeleteSelectionId(["only"], 0));
+        Assert.IsNull(WorkspaceManagerWindow.ResolvePostDeleteSelectionId([], 0));
+        Assert.IsNull(WorkspaceManagerWindow.ResolvePostDeleteSelectionId(workspaceIds, -1));
+        Assert.IsNull(WorkspaceManagerWindow.ResolvePostDeleteSelectionId(workspaceIds, 3));
+    }
+
     private static XDocument LoadWorkspaceManagerXaml(
         [CallerFilePath] string sourceFilePath = "")
     {
