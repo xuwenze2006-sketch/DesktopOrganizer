@@ -798,6 +798,94 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void MoveSelectedItemsToGroup_InvalidatesUndoAfterTargetAutoFitChangesSize()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo targetGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            foreach (string name in new[] { "A.txt", "B.txt", "C.txt" })
+            {
+                desktopItems[name] = $@"C:\Desktop\{name}";
+            }
+
+            targetGroup.ItemNames = ["A.txt"];
+            targetGroup.Width = 190;
+            targetGroup.Height = 134;
+            targetGroup.IsSizeLocked = true;
+            layout.FreeIcons["B.txt"] = new IconPosition { X = 400, Y = 120 };
+            layout.FreeIcons["C.txt"] = new IconPosition { X = 500, Y = 120 };
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            targetGroup.IsSizeLocked = false;
+            HashSet<string> selectedItemNames = GetField<HashSet<string>>(
+                window,
+                "_selectedItemNames");
+            selectedItemNames.Clear();
+            selectedItemNames.UnionWith(["B.txt", "C.txt"]);
+
+            InvokePrivateMethod(window, "MoveSelectedItemsToGroup", targetGroup);
+
+            Assert.IsTrue(targetGroup.ItemNames.ToHashSet(StringComparer.OrdinalIgnoreCase)
+                .SetEquals(["A.txt", "B.txt", "C.txt"]));
+            Assert.IsFalse(layout.FreeIcons.ContainsKey("B.txt"));
+            Assert.IsFalse(layout.FreeIcons.ContainsKey("C.txt"));
+            Assert.IsEmpty(selectedItemNames);
+            Assert.AreEqual(280, targetGroup.Width, 0.001);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void MoveSelectedItemsToGroup_WhenSelectionAlreadyInTarget_PreservesUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "Already-grouped.txt";
+            GroupInfo targetGroup = PrepareAutoFitGroup(window);
+            targetGroup.ItemNames = [itemName];
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+            HashSet<string> selectedItemNames = GetField<HashSet<string>>(
+                window,
+                "_selectedItemNames");
+            selectedItemNames.Clear();
+            selectedItemNames.Add(itemName);
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokePrivateMethod(window, "MoveSelectedItemsToGroup", targetGroup);
+
+            CollectionAssert.AreEqual(new[] { itemName }, targetGroup.ItemNames);
+            Assert.IsTrue(selectedItemNames.SetEquals([itemName]));
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");

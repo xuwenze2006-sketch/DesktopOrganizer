@@ -374,6 +374,8 @@ namespace DesktopOrganizer
                 return;
             }
 
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             long movedUtcTicks = DateTime.UtcNow.Ticks;
             foreach (string name in result.MovedNames)
             {
