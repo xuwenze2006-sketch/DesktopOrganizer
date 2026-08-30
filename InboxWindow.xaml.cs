@@ -23,6 +23,8 @@ namespace DesktopOrganizer
 
         private void Refresh(string? selectedName = null)
         {
+            string? selectedManualGroupId =
+                (ManualGroupSelector.SelectedItem as ManualGroupChoice)?.Id;
             List<InboxListItemView> items = _mainWindow.GetInboxItems().ToList();
             InboxList.ItemsSource = items;
             InboxList.SelectedItem = items.FirstOrDefault(item =>
@@ -30,7 +32,9 @@ namespace DesktopOrganizer
                 items.FirstOrDefault();
             List<ManualGroupChoice> groups = _mainWindow.GetManualInboxGroups().ToList();
             ManualGroupSelector.ItemsSource = groups;
-            ManualGroupSelector.SelectedIndex = groups.Count > 0 ? 0 : -1;
+            ManualGroupSelector.SelectedIndex = FindManualGroupSelectionIndex(
+                groups,
+                selectedManualGroupId);
             int bulkAcceptCount = _mainWindow.GetPendingReliableInboxSuggestionCount();
             AcceptAllReliableButton.Content = $"接受全部可靠建议 ({bulkAcceptCount})";
             AcceptAllReliableButton.IsEnabled = bulkAcceptCount > 0;
@@ -221,6 +225,28 @@ namespace DesktopOrganizer
             bool saveSucceeded,
             bool hasSelection) =>
             saveSucceeded && hasSelection;
+
+        internal static int FindManualGroupSelectionIndex(
+            IReadOnlyList<ManualGroupChoice> groups,
+            string? selectedGroupId)
+        {
+            ArgumentNullException.ThrowIfNull(groups);
+            if (!string.IsNullOrWhiteSpace(selectedGroupId))
+            {
+                for (int index = 0; index < groups.Count; index++)
+                {
+                    if (string.Equals(
+                            groups[index].Id,
+                            selectedGroupId,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return index;
+                    }
+                }
+            }
+
+            return groups.Count > 0 ? 0 : -1;
+        }
 
         internal static bool ShouldAcceptAllReliableFromKeyboard(
             Key key,

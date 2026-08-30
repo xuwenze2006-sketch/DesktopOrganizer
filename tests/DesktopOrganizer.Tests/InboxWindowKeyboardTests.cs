@@ -111,6 +111,44 @@ public sealed class InboxWindowKeyboardTests
     }
 
     [TestMethod]
+    public void FindManualGroupSelectionIndex_FollowsStableIdAcrossRefresh()
+    {
+        ManualGroupChoice[] reorderedGroups =
+        [
+            new("other", "同名分组"),
+            new("target", "同名分组")
+        ];
+
+        Assert.AreEqual(
+            1,
+            InboxWindow.FindManualGroupSelectionIndex(
+                reorderedGroups,
+                "TARGET"));
+        Assert.AreEqual(
+            0,
+            InboxWindow.FindManualGroupSelectionIndex(
+                [new("duplicate", "旧名称"), new("DUPLICATE", "新名称")],
+                "duplicate"));
+    }
+
+    [TestMethod]
+    public void FindManualGroupSelectionIndex_FallsBackToFirstOrNone()
+    {
+        ManualGroupChoice[] groups =
+        [
+            new("first", "第一组"),
+            new("second", "第二组")
+        ];
+
+        Assert.AreEqual(0, InboxWindow.FindManualGroupSelectionIndex(groups, "missing"));
+        Assert.AreEqual(0, InboxWindow.FindManualGroupSelectionIndex(groups, null));
+        Assert.AreEqual(0, InboxWindow.FindManualGroupSelectionIndex(groups, "   "));
+        Assert.AreEqual(
+            -1,
+            InboxWindow.FindManualGroupSelectionIndex([], "missing"));
+    }
+
+    [TestMethod]
     public void InboxWindow_WiresKeyboardHandlersOnlyToTheirTargetControls()
     {
         XDocument document = LoadInboxWindowXaml();
