@@ -1067,6 +1067,123 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void ApplyInboxAcceptancePlan_NewGroupInvalidatesUndoBeforeOldLocationCanOverlap()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "Incoming.txt";
+            GroupInfo existingGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            existingGroup.X = 20;
+            existingGroup.Y = 112;
+            existingGroup.Width = 190;
+            existingGroup.Height = 134;
+            existingGroup.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            existingGroup.X = 500;
+            existingGroup.Y = 400;
+            DesktopItemIdentityInfo identity = PrepareInboxItem(layout, itemName);
+            layout.FreeIcons[itemName] = new IconPosition { X = 700, Y = 100 };
+            var plan = new InboxAcceptancePlan(
+                itemName,
+                new DesktopCategoryDefinition("documents", "文档", 10),
+                identity);
+
+            bool applied = (bool)(InvokePrivateMethod(
+                window,
+                "ApplyInboxAcceptancePlan",
+                plan) ?? false);
+
+            GroupInfo createdGroup = layout.Groups.Single(group =>
+                group.IsAutoCategory &&
+                group.AutoCategoryKey == "documents");
+            Assert.IsTrue(applied);
+            Assert.AreEqual(20, createdGroup.X, 0.001);
+            Assert.AreEqual(112, createdGroup.Y, 0.001);
+            Assert.IsTrue(new Rect(
+                20,
+                112,
+                190,
+                134).IntersectsWith(new Rect(
+                    createdGroup.X,
+                    createdGroup.Y,
+                    createdGroup.Width,
+                    createdGroup.Height)));
+            CollectionAssert.Contains(createdGroup.ItemNames, itemName);
+            Assert.IsFalse(layout.InboxItems.ContainsKey(itemName));
+            Assert.IsFalse(layout.FreeIcons.ContainsKey(itemName));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void MoveInboxItemToManualGroup_AutoFitInvalidatesStaleUndoSize()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string existingName = "Existing.txt";
+            const string incomingName = "Incoming.txt";
+            GroupInfo targetGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            targetGroup.ItemNames = [existingName];
+            targetGroup.ManuallyAssignedItemNames = [existingName];
+            targetGroup.X = 20;
+            targetGroup.Y = 112;
+            targetGroup.Width = 190;
+            targetGroup.Height = 134;
+            targetGroup.IsSizeLocked = true;
+            PrepareInboxItem(layout, incomingName);
+            layout.FreeIcons[incomingName] = new IconPosition { X = 700, Y = 100 };
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[existingName] = $@"C:\Desktop\{existingName}";
+            desktopItems[incomingName] = $@"C:\Desktop\{incomingName}";
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            targetGroup.IsSizeLocked = false;
+            targetGroup.X = 500;
+
+            bool moved = window.TryMoveInboxItemToManualGroup(
+                incomingName,
+                targetGroup.Id,
+                out _);
+
+            Assert.IsTrue(moved);
+            CollectionAssert.AreEqual(
+                new[] { existingName, incomingName },
+                targetGroup.ItemNames);
+            CollectionAssert.AreEqual(
+                new[] { existingName, incomingName },
+                targetGroup.ManuallyAssignedItemNames);
+            Assert.AreEqual(220, targetGroup.Width, 0.001);
+            Assert.IsFalse(layout.InboxItems.ContainsKey(incomingName));
+            Assert.IsFalse(layout.FreeIcons.ContainsKey(incomingName));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
@@ -1103,6 +1220,29 @@ public sealed class SmartLayoutUndoTests
                 }
             ]));
         return PrepareGroup(window);
+    }
+
+    private static DesktopItemIdentityInfo PrepareInboxItem(
+        AppLayoutData layout,
+        string itemName)
+    {
+        var identity = new DesktopItemIdentityInfo
+        {
+            LastKnownPath = $@"C:\Desktop\{itemName}"
+        };
+        layout.ItemIdentities.Clear();
+        layout.InboxItems.Clear();
+        layout.ItemIdentities[itemName] = identity;
+        layout.InboxItems[itemName] = new InboxItemInfo
+        {
+            Identity = identity,
+            SuggestedCategoryKey = "documents",
+            SuggestedCategoryName = "文档",
+            SuggestedCategoryOrder = 10,
+            Reliability = ClassificationReliability.Reliable,
+            ReviewState = InboxReviewState.Pending
+        };
+        return identity;
     }
 
     private static object CaptureSmartLayoutSnapshot(MainWindow window)

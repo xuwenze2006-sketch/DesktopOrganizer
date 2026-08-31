@@ -235,6 +235,8 @@ namespace DesktopOrganizer
                     _ = AutoFitGroup(group, clampPosition: true);
                 }
             }
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
             UpdateInboxButton();
             GroupInfo? target = _appLayout.Groups.FirstOrDefault(group =>
@@ -393,6 +395,8 @@ namespace DesktopOrganizer
             _appLayout.FreeIcons.Remove(plan.DisplayName);
             _appLayout.ItemLastMovedUtcTicks[plan.DisplayName] = DateTime.UtcNow.Ticks;
             UpdateAutoCategoryGroupSize(target);
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             return true;
         }
 
