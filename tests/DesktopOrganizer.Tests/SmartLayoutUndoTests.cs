@@ -1040,13 +1040,14 @@ public sealed class SmartLayoutUndoTests
             sourceGroup.X = 20;
             var releasedPosition = new IconPosition { X = 222, Y = 112 };
 
-            InvokePrivateMethod(
+            bool changed = (bool)(InvokePrivateMethod(
                 window,
                 "CommitFreeIconDrop",
                 itemName,
                 sourceGroup,
-                releasedPosition);
+                releasedPosition) ?? false);
 
+            Assert.IsTrue(changed);
             Assert.IsEmpty(sourceGroup.ItemNames);
             Assert.IsEmpty(sourceGroup.ManuallyAssignedItemNames);
             Assert.AreSame(releasedPosition, layout.FreeIcons[itemName]);
@@ -1058,6 +1059,152 @@ public sealed class SmartLayoutUndoTests
                 sourceGroup.Height).Contains(new Point(
                     releasedPosition.X,
                     releasedPosition.Y)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void CommitFreeIconDrop_FreeIconMovedIntoSnapshotGroupPositionInvalidatesUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "Moved.txt";
+            GroupInfo group = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            layout.FreeIcons[itemName] = new IconPosition { X = 700, Y = 100 };
+            group.X = 222;
+            group.Y = 112;
+            group.Width = 190;
+            group.Height = 134;
+            group.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            group.X = 20;
+            group.Y = 400;
+            var finalPosition = new IconPosition { X = 222, Y = 112 };
+
+            bool changed = (bool)(InvokePrivateMethod(
+                window,
+                "CommitFreeIconDrop",
+                itemName,
+                null!,
+                finalPosition) ?? false);
+
+            Assert.IsTrue(changed);
+            Assert.AreSame(finalPosition, layout.FreeIcons[itemName]);
+            Assert.IsTrue(new Rect(
+                222,
+                112,
+                190,
+                134).Contains(new Point(finalPosition.X, finalPosition.Y)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void CommitFreeIconDrop_FreeIconReturnedToSamePositionPreservesUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "Unchanged.txt";
+            PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            layout.FreeIcons[itemName] = new IconPosition { X = 700, Y = 100 };
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            bool changed = (bool)(InvokePrivateMethod(
+                window,
+                "CommitFreeIconDrop",
+                itemName,
+                null!,
+                new IconPosition { X = 700, Y = 100 }) ?? true);
+
+            Assert.IsFalse(changed);
+            Assert.AreEqual(700, layout.FreeIcons[itemName].X, 0.001);
+            Assert.AreEqual(100, layout.FreeIcons[itemName].Y, 0.001);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void TryCommitPushPreview_DraggedOnlyMoveInvalidatesUndoBeforeItCanBeCovered()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string draggedName = "Dragged.txt";
+            const string stationaryName = "Stationary.txt";
+            GroupInfo group = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            layout.FreeIcons[draggedName] = new IconPosition { X = 700, Y = 100 };
+            layout.FreeIcons[stationaryName] = new IconPosition { X = 900, Y = 100 };
+            group.X = 222;
+            group.Y = 112;
+            group.Width = 190;
+            group.Height = 134;
+            group.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            group.X = 20;
+            group.Y = 400;
+            var originalPositions = new Dictionary<string, IconPosition>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                [draggedName] = new IconPosition { X = 700, Y = 100 },
+                [stationaryName] = new IconPosition { X = 900, Y = 100 }
+            };
+            var previewPositions = new Dictionary<string, IconPosition>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                [draggedName] = new IconPosition { X = 222, Y = 112 },
+                [stationaryName] = new IconPosition { X = 900, Y = 100 }
+            };
+            SetField(window, "_pushPreviewOriginalPositions", originalPositions);
+            SetField(window, "_pushPreviewPositions", previewPositions);
+            SetField(window, "_pushPreviewDraggedName", draggedName);
+            var dragged = new Border();
+            object[] arguments = [draggedName, dragged, -1];
+
+            bool committed = (bool)(InvokePrivateMethod(
+                window,
+                "TryCommitPushPreview",
+                arguments) ?? false);
+
+            Assert.IsTrue(committed);
+            Assert.AreEqual(0, (int)arguments[2]);
+            Assert.AreEqual(222, layout.FreeIcons[draggedName].X, 0.001);
+            Assert.AreEqual(112, layout.FreeIcons[draggedName].Y, 0.001);
+            Assert.IsTrue(new Rect(
+                222,
+                112,
+                190,
+                134).Contains(new Point(
+                    layout.FreeIcons[draggedName].X,
+                    layout.FreeIcons[draggedName].Y)));
             Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
             Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
         }

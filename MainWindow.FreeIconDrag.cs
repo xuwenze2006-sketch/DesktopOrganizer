@@ -904,11 +904,17 @@ namespace DesktopOrganizer
             return dropResult;
         }
 
-        private void CommitFreeIconDrop(
+        private bool CommitFreeIconDrop(
             string name,
             GroupInfo? sourceGroup,
             IconPosition position)
         {
+            bool changed = sourceGroup != null ||
+                           !_appLayout.FreeIcons.TryGetValue(
+                               name,
+                               out IconPosition? originalPosition) ||
+                           originalPosition == null ||
+                           !PositionsEqual(originalPosition, position);
             if (sourceGroup != null)
             {
                 foreach (GroupInfo group in _appLayout.Groups)
@@ -926,13 +932,18 @@ namespace DesktopOrganizer
             }
 
             _appLayout.FreeIcons[name] = position;
-            if (sourceGroup != null)
+            if (changed)
             {
                 _lastSmartLayoutSnapshot = null;
                 UndoSmartLayoutButton.IsEnabled = false;
+            }
+            if (sourceGroup != null)
+            {
                 RebuildDesktopIcons();
                 StatusText.Text = $"已将“{name}”移出分类，可在桌面自由摆放";
             }
+
+            return changed;
         }
 
         // ==================== 图标挤压排列预览 ====================

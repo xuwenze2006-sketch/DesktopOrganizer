@@ -403,10 +403,21 @@ namespace DesktopOrganizer
                 _pushPreviewPositions,
                 _pushPreviewOriginalPositions,
                 draggedName);
+            bool layoutChanged = _pushPreviewPositions.Any(pair =>
+                !_pushPreviewOriginalPositions.TryGetValue(
+                    pair.Key,
+                    out IconPosition? originalPosition) ||
+                originalPosition == null ||
+                !PositionsEqual(pair.Value, originalPosition));
 
             foreach ((string name, IconPosition position) in _pushPreviewPositions)
             {
                 _appLayout.FreeIcons[name] = ClonePosition(position);
+            }
+            if (layoutChanged)
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
             }
 
             Canvas.SetLeft(dragged, draggedPosition.X);
