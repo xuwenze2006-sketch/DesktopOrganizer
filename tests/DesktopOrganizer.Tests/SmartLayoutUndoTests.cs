@@ -886,6 +886,132 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void ApplyVirtualGroupDrop_FromFreeIconInvalidatesUndoBeforeGroupsCanOverlap()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string freeName = "C.txt";
+            GroupInfo targetGroup = PrepareAutoFitGroup(window);
+            var neighborGroup = new GroupInfo
+            {
+                Id = "neighbor-group",
+                Name = "相邻分类",
+                X = 252,
+                Y = 100,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true
+            };
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.Groups.Add(neighborGroup);
+            layout.FreeIcons.Clear();
+            layout.FreeIcons[freeName] = new IconPosition { X = 700, Y = 100 };
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            foreach (string name in new[] { "A.txt", "B.txt", freeName })
+            {
+                desktopItems[name] = $@"C:\Desktop\{name}";
+            }
+
+            targetGroup.ItemNames = ["A.txt", "B.txt"];
+            targetGroup.X = 20;
+            targetGroup.Y = 100;
+            targetGroup.Width = 220;
+            targetGroup.Height = 134;
+            targetGroup.IsSizeLocked = false;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            targetGroup.X = 500;
+
+            GroupItemDropResult result = (GroupItemDropResult)(InvokePrivateMethod(
+                window,
+                "ApplyVirtualGroupDrop",
+                freeName,
+                null!,
+                targetGroup,
+                2,
+                new[] { "A.txt", "B.txt" })
+                ?? throw new AssertFailedException("虚拟归组没有返回结果。"));
+
+            Assert.IsTrue(result.Applied);
+            Assert.IsTrue(result.Changed);
+            CollectionAssert.AreEqual(
+                new[] { "A.txt", "B.txt", freeName },
+                targetGroup.ItemNames);
+            Assert.IsFalse(layout.FreeIcons.ContainsKey(freeName));
+            Assert.AreEqual(280, targetGroup.Width, 0.001);
+            Assert.IsTrue(new Rect(
+                20,
+                100,
+                targetGroup.Width,
+                targetGroup.Height).IntersectsWith(new Rect(
+                    neighborGroup.X,
+                    neighborGroup.Y,
+                    neighborGroup.Width,
+                    neighborGroup.Height)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void ApplyVirtualGroupDrop_SameGroupReorderPreservesUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            GetField<AppLayoutData>(window, "_appLayout").FreeIcons.Clear();
+            group.ItemNames = ["A.txt", "B.txt", "C.txt"];
+            group.SortMode = GroupSortMode.Custom;
+            group.IsSizeLocked = true;
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            foreach (string name in group.ItemNames)
+            {
+                desktopItems[name] = $@"C:\Desktop\{name}";
+            }
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            GroupItemDropResult result = (GroupItemDropResult)(InvokePrivateMethod(
+                window,
+                "ApplyVirtualGroupDrop",
+                "B.txt",
+                group,
+                group,
+                3,
+                new[] { "A.txt", "B.txt", "C.txt" })
+                ?? throw new AssertFailedException("虚拟归组没有返回结果。"));
+
+            Assert.IsTrue(result.Applied);
+            Assert.IsTrue(result.Changed);
+            Assert.IsFalse(result.MovedBetweenGroups);
+            CollectionAssert.AreEqual(
+                new[] { "A.txt", "C.txt", "B.txt" },
+                group.ItemNames);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");

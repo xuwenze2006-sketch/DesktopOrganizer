@@ -785,19 +785,12 @@ namespace DesktopOrganizer
                     if (targetGroup != null)
                     {
                         CancelPushPreview(restoreVisuals: true);
-                        bool movedBetweenGroups = sourceGroup != null && !ReferenceEquals(sourceGroup, targetGroup);
-                        if (sourceGroup?.IsAutoCategory == true && movedBetweenGroups)
-                        {
-                            _appLayout.AutoClassificationOriginalPositions.Remove(name);
-                        }
-
                         (List<string> targetVisibleOrder, int insertionBoundary) =
                             GetGroupDropPlacement(targetGroup, finalCanvasPoint);
-                        GroupItemDropResult dropResult = GroupItemDropPolicy.Apply(
-                            _appLayout.Groups,
+                        GroupItemDropResult dropResult = ApplyVirtualGroupDrop(
                             name,
-                            sourceGroup?.Id,
-                            targetGroup.Id,
+                            sourceGroup,
+                            targetGroup,
                             insertionBoundary,
                             targetVisibleOrder);
                         if (!dropResult.Applied)
@@ -807,8 +800,6 @@ namespace DesktopOrganizer
                         }
                         else
                         {
-                            _appLayout.FreeIcons.Remove(name);
-                            RebuildDesktopIcons();
                             StatusText.Text = sourceGroup == null
                                 ? $"已将“{name}”加入虚拟分类“{targetGroup.Name}”；真实文件未移动"
                                 : dropResult.MovedBetweenGroups
@@ -895,6 +886,42 @@ namespace DesktopOrganizer
             EndPushPreviewSession();
             SaveLayout();
             e.Handled = true;
+        }
+
+        private GroupItemDropResult ApplyVirtualGroupDrop(
+            string name,
+            GroupInfo? sourceGroup,
+            GroupInfo targetGroup,
+            int insertionBoundary,
+            IReadOnlyList<string> targetVisibleOrder)
+        {
+            bool movedBetweenGroups = sourceGroup != null &&
+                                      !ReferenceEquals(sourceGroup, targetGroup);
+            if (sourceGroup?.IsAutoCategory == true && movedBetweenGroups)
+            {
+                _appLayout.AutoClassificationOriginalPositions.Remove(name);
+            }
+
+            GroupItemDropResult dropResult = GroupItemDropPolicy.Apply(
+                _appLayout.Groups,
+                name,
+                sourceGroup?.Id,
+                targetGroup.Id,
+                insertionBoundary,
+                targetVisibleOrder);
+            if (!dropResult.Applied)
+            {
+                return dropResult;
+            }
+
+            _appLayout.FreeIcons.Remove(name);
+            if (dropResult.Changed && !ReferenceEquals(sourceGroup, targetGroup))
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
+            }
+            RebuildDesktopIcons();
+            return dropResult;
         }
 
         // ==================== 图标挤压排列预览 ====================
