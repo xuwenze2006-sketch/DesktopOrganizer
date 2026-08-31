@@ -207,6 +207,12 @@ namespace DesktopOrganizer
                 return;
             }
 
+            ClearAutoClassificationAfterConfirmation(autoGroups);
+        }
+
+        private void ClearAutoClassificationAfterConfirmation(
+            IReadOnlyCollection<GroupInfo> autoGroups)
+        {
             var existing = new Dictionary<string, string>(_desktopItems, StringComparer.OrdinalIgnoreCase);
             var manualGroupedNames = new HashSet<string>(
                 _appLayout.Groups
@@ -247,41 +253,52 @@ namespace DesktopOrganizer
                     continue;
                 }
 
-                IconPosition restored = ClonePosition(requested);
-                ClampIconPosition(restored);
-                restoreRequests.Add((name, restored));
+                restoreRequests.Add((name, ClonePosition(requested)));
             }
 
-            Dictionary<string, IconPosition> restoredPositions;
-            if (_appLayout.SnapToGrid)
+            var restoringNames = new HashSet<string>(
+                restoreRequests.Select(request => request.Name),
+                StringComparer.OrdinalIgnoreCase);
+            var ignoredGroupIds = new HashSet<string>(
+                autoGroups.Select(group => group.Id),
+                StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, IconPosition>? plan;
+            if (restoreRequests.Count == 0)
             {
-                var restoringNames = new HashSet<string>(
-                    restoreRequests.Select(request => request.Name),
-                    StringComparer.OrdinalIgnoreCase);
-                var ignoredGroupIds = new HashSet<string>(
-                    autoGroups.Select(group => group.Id),
-                    StringComparer.OrdinalIgnoreCase);
-                Dictionary<string, IconPosition>? plan = TryPlanAlignedIconPositions(
-                    restoreRequests,
+                plan = new Dictionary<string, IconPosition>(StringComparer.OrdinalIgnoreCase);
+            }
+            else if (_appLayout.SnapToGrid)
+            {
+                List<(string Name, IconPosition Requested)> alignedRequests = restoreRequests
+                    .Select(request =>
+                    {
+                        IconPosition requested = ClonePosition(request.Requested);
+                        ClampIconPosition(requested);
+                        return (request.Name, requested);
+                    })
+                    .ToList();
+                plan = TryPlanAlignedIconPositions(
+                    alignedRequests,
                     GetOccupiedFreeGridCells(restoringNames),
                     ignoredGroupIds);
-                if (plan == null)
-                {
-                    StatusText.Text = "没有足够的可用网格，自动分类保持不变";
-                    return;
-                }
-
-                restoredPositions = plan;
             }
             else
             {
-                restoredPositions = restoreRequests.ToDictionary(
-                    request => request.Name,
-                    request => request.Requested,
-                    StringComparer.OrdinalIgnoreCase);
+                plan = TryPlanFreeIconPositions(
+                    restoreRequests,
+                    restoringNames,
+                    ignoredGroupIds: ignoredGroupIds);
             }
 
-            CommitClearAutoClassification(autoGroups, restoredPositions);
+            if (plan == null || plan.Count != restoreRequests.Count)
+            {
+                StatusText.Text = _appLayout.SnapToGrid
+                    ? "没有足够的可用网格，自动分类保持不变"
+                    : "没有足够的可用位置，自动分类保持不变";
+                return;
+            }
+
+            CommitClearAutoClassification(autoGroups, plan);
         }
 
         private void CommitClearAutoClassification(

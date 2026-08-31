@@ -94,6 +94,153 @@ public sealed class GroupReleasePlacementTests
     }
 
     [STATestMethod]
+    public void ClearAutoClassification_SnapDisabled_AvoidsBottomClampAndExistingFreeIcon()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string existingName = "Existing.txt";
+            const string firstName = "Restored-A.txt";
+            const string secondName = "Restored-B.txt";
+            AppLayoutData layout = PrepareLayout(window, 1200, 800);
+            layout.FreeIcons[existingName] = new IconPosition { X = 20, Y = 710 };
+            var autoGroup = new GroupInfo
+            {
+                Id = "auto-group",
+                Name = "自动分类",
+                X = 20,
+                Y = 640,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true,
+                IsAutoCategory = true,
+                ItemNames = [firstName, secondName]
+            };
+            layout.Groups.Add(autoGroup);
+            layout.AutoClassificationOriginalPositions[firstName] =
+                new IconPosition { X = 20, Y = 784 };
+            layout.AutoClassificationOriginalPositions[secondName] =
+                new IconPosition { X = 110, Y = 784 };
+            PrepareDesktopItems(window, existingName, firstName, secondName);
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokeClearAutoClassificationAfterConfirmation(window, [autoGroup]);
+
+            Assert.IsFalse(layout.Groups.Contains(autoGroup));
+            Assert.AreEqual(20, layout.FreeIcons[existingName].X, 0.001);
+            Assert.AreEqual(710, layout.FreeIcons[existingName].Y, 0.001);
+            Assert.AreEqual(20, layout.FreeIcons[firstName].X, 0.001);
+            Assert.AreEqual(604, layout.FreeIcons[firstName].Y, 0.001);
+            Assert.AreEqual(110, layout.FreeIcons[secondName].X, 0.001);
+            Assert.AreEqual(710, layout.FreeIcons[secondName].Y, 0.001);
+            Assert.IsFalse(HasPositiveAreaOverlap(
+                GetIconBounds(layout.FreeIcons[existingName]),
+                GetIconBounds(layout.FreeIcons[firstName])));
+            Assert.IsFalse(HasPositiveAreaOverlap(
+                GetIconBounds(layout.FreeIcons[existingName]),
+                GetIconBounds(layout.FreeIcons[secondName])));
+            Assert.IsFalse(HasPositiveAreaOverlap(
+                GetIconBounds(layout.FreeIcons[firstName]),
+                GetIconBounds(layout.FreeIcons[secondName])));
+            Assert.HasCount(0, layout.AutoClassificationOriginalPositions);
+            CollectionAssert.Contains(
+                GetField<HashSet<string>>(window, "_canceledAutoCategoryGroupIds").ToList(),
+                autoGroup.Id);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+            Assert.AreEqual("已取消自动分类，恢复 2 个自由图标", window.StatusText.Text);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void ClearAutoClassification_SnapDisabled_NoCapacityKeepsAllStateUnchanged()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string firstName = "Restored-A.txt";
+            const string secondName = "Restored-B.txt";
+            AppLayoutData layout = PrepareLayout(window, 180, 90);
+            var manualGroup = new GroupInfo
+            {
+                Id = "manual-group",
+                Name = "手工分类",
+                X = 0,
+                Y = 0,
+                Width = 90,
+                Height = 90,
+                IsSizeLocked = true
+            };
+            var autoGroup = new GroupInfo
+            {
+                Id = "auto-group",
+                Name = "自动分类",
+                X = 90,
+                Y = 0,
+                Width = 90,
+                Height = 90,
+                IsSizeLocked = true,
+                IsAutoCategory = true,
+                ItemNames = [firstName, secondName],
+                ManuallyAssignedItemNames = [firstName, secondName]
+            };
+            layout.Groups.Add(manualGroup);
+            layout.Groups.Add(autoGroup);
+            var firstOriginal = new IconPosition { X = 90, Y = 0 };
+            var secondOriginal = new IconPosition { X = 90, Y = 0 };
+            layout.AutoClassificationOriginalPositions[firstName] = firstOriginal;
+            layout.AutoClassificationOriginalPositions[secondName] = secondOriginal;
+            PrepareDesktopItems(window, firstName, secondName);
+            HashSet<string> canceledGroupIds = GetField<HashSet<string>>(
+                window,
+                "_canceledAutoCategoryGroupIds");
+            canceledGroupIds.Clear();
+            canceledGroupIds.Add("previously-canceled");
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokeClearAutoClassificationAfterConfirmation(window, [autoGroup]);
+
+            Assert.HasCount(2, layout.Groups);
+            Assert.AreSame(manualGroup, layout.Groups[0]);
+            Assert.AreSame(autoGroup, layout.Groups[1]);
+            Assert.AreEqual(0, manualGroup.X, 0.001);
+            Assert.AreEqual(0, manualGroup.Y, 0.001);
+            Assert.AreEqual(90, manualGroup.Width, 0.001);
+            Assert.AreEqual(90, manualGroup.Height, 0.001);
+            CollectionAssert.AreEqual(new[] { firstName, secondName }, autoGroup.ItemNames);
+            CollectionAssert.AreEqual(
+                new[] { firstName, secondName },
+                autoGroup.ManuallyAssignedItemNames);
+            Assert.HasCount(0, layout.FreeIcons);
+            Assert.HasCount(2, layout.AutoClassificationOriginalPositions);
+            Assert.AreSame(
+                firstOriginal,
+                layout.AutoClassificationOriginalPositions[firstName]);
+            Assert.AreSame(
+                secondOriginal,
+                layout.AutoClassificationOriginalPositions[secondName]);
+            Assert.IsTrue(canceledGroupIds.SetEquals(["previously-canceled"]));
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+            Assert.AreEqual(
+                "没有足够的可用位置，自动分类保持不变",
+                window.StatusText.Text);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
     public void RemoveFromGroup_SnapDisabled_AvoidsExistingFreeIcon()
     {
         var window = new MainWindow(startQuietly: false);
@@ -236,6 +383,7 @@ public sealed class GroupReleasePlacementTests
         layout.Groups.Clear();
         layout.FolderPortals.Clear();
         layout.FreeIcons.Clear();
+        layout.AutoClassificationOriginalPositions.Clear();
         layout.SnapToGrid = false;
         layout.RecycleBinWidget.IsVisible = false;
         SetField(
@@ -298,6 +446,17 @@ public sealed class GroupReleasePlacementTests
             BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new AssertFailedException("未找到移出分类入口。");
         method.Invoke(window, [group, name]);
+    }
+
+    private static void InvokeClearAutoClassificationAfterConfirmation(
+        MainWindow window,
+        IReadOnlyCollection<GroupInfo> autoGroups)
+    {
+        MethodInfo method = typeof(MainWindow).GetMethod(
+            "ClearAutoClassificationAfterConfirmation",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到取消自动分类执行入口。");
+        method.Invoke(window, [autoGroups]);
     }
 
     private static Rect GetIconBounds(IconPosition position) =>
