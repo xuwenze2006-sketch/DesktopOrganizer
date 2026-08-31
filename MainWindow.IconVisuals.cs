@@ -668,6 +668,8 @@ namespace DesktopOrganizer
             }
 
             _selectedItemNames.Clear();
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = $"已将 {removalRequests.Count} 个项目移出分类框";
         }

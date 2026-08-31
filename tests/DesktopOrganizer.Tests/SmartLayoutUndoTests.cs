@@ -799,6 +799,71 @@ public sealed class SmartLayoutUndoTests
     }
 
     [STATestMethod]
+    public void RemoveSelectedItemsFromLockedGroup_InvalidatesUndoBeforeReleasedIconsOverlap()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string firstName = "Released-A.txt";
+            const string secondName = "Released-B.txt";
+            const string remainingName = "Remaining.txt";
+            GroupInfo group = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.SnapToGrid = false;
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            foreach (string name in new[] { firstName, secondName, remainingName })
+            {
+                desktopItems[name] = $@"C:\Desktop\{name}";
+            }
+
+            group.ItemNames = [firstName, secondName, remainingName];
+            group.ManuallyAssignedItemNames = [firstName, secondName, remainingName];
+            group.X = 250;
+            group.Y = 112;
+            group.Width = 190;
+            group.Height = 134;
+            group.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            group.X = 48;
+            HashSet<string> selectedItemNames = GetField<HashSet<string>>(
+                window,
+                "_selectedItemNames");
+            selectedItemNames.Add(firstName);
+            selectedItemNames.Add(secondName);
+
+            InvokePrivateMethod(window, "RemoveSelectedItemsFromGroups");
+
+            CollectionAssert.AreEqual(new[] { remainingName }, group.ItemNames);
+            CollectionAssert.AreEqual(new[] { remainingName }, group.ManuallyAssignedItemNames);
+            Assert.IsEmpty(selectedItemNames);
+            Assert.AreEqual(250, layout.FreeIcons[firstName].X, 0.001);
+            Assert.AreEqual(112, layout.FreeIcons[firstName].Y, 0.001);
+            Assert.AreEqual(250, layout.FreeIcons[secondName].X, 0.001);
+            Assert.AreEqual(124, layout.FreeIcons[secondName].Y, 0.001);
+            var snapshotBounds = new Rect(250, 112, 190, 134);
+            Assert.IsTrue(snapshotBounds.Contains(new Point(
+                layout.FreeIcons[firstName].X,
+                layout.FreeIcons[firstName].Y)));
+            Assert.IsTrue(snapshotBounds.Contains(new Point(
+                layout.FreeIcons[secondName].X,
+                layout.FreeIcons[secondName].Y)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
     public void MoveSelectedItemsToGroup_InvalidatesUndoAfterTargetAutoFitChangesSize()
     {
         var window = new MainWindow(startQuietly: false);
