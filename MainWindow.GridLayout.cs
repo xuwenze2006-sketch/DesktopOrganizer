@@ -191,7 +191,8 @@ namespace DesktopOrganizer
         private Dictionary<string, IconPosition>? TryPlanFreeIconPositions(
             IEnumerable<(string Name, IconPosition Requested)> requests,
             IReadOnlySet<string> excludedNames,
-            IReadOnlyDictionary<string, Rect>? groupBoundsOverrides = null)
+            IReadOnlyDictionary<string, Rect>? groupBoundsOverrides = null,
+            IReadOnlySet<string>? ignoredGroupIds = null)
         {
             var groupedNames = new HashSet<string>(
                 _appLayout.Groups.SelectMany(group => group.ItemNames),
@@ -215,6 +216,11 @@ namespace DesktopOrganizer
 
             foreach (GroupInfo group in _appLayout.Groups)
             {
+                if (ignoredGroupIds?.Contains(group.Id) == true)
+                {
+                    continue;
+                }
+
                 obstacles.Add(groupBoundsOverrides != null &&
                               groupBoundsOverrides.TryGetValue(group.Id, out Rect overrideBounds)
                     ? overrideBounds

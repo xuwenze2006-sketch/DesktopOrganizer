@@ -361,34 +361,47 @@ namespace DesktopOrganizer
                     X = group.X + (i % 4) * IconCellWidth,
                     Y = group.Y + GetGroupDisplayHeight(group) + 10 + (i / 4) * IconCellHeight
                 };
-                ClampIconPosition(position);
                 releaseRequests.Add((name, position));
             }
 
-            Dictionary<string, IconPosition> releasedPositions;
+            var releasedNameSet = new HashSet<string>(
+                releasedNames,
+                StringComparer.OrdinalIgnoreCase);
+            var ignoredGroupIds = new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase) { group.Id };
+            Dictionary<string, IconPosition>? plan;
             if (_appLayout.SnapToGrid)
             {
-                var releasedNameSet = new HashSet<string>(releasedNames, StringComparer.OrdinalIgnoreCase);
-                var ignoredGroupIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { group.Id };
-                Dictionary<string, IconPosition>? plan = TryPlanAlignedIconPositions(
-                    releaseRequests,
+                List<(string Name, IconPosition Requested)> alignedRequests = releaseRequests
+                    .Select(request =>
+                    {
+                        IconPosition requested = ClonePosition(request.Requested);
+                        ClampIconPosition(requested);
+                        return (request.Name, requested);
+                    })
+                    .ToList();
+                plan = TryPlanAlignedIconPositions(
+                    alignedRequests,
                     GetOccupiedFreeGridCells(releasedNameSet),
                     ignoredGroupIds);
-                if (plan == null)
-                {
-                    StatusText.Text = $"没有足够的可用网格，分组“{group.Name}”未删除";
-                    return;
-                }
-
-                releasedPositions = plan;
             }
             else
             {
-                releasedPositions = releaseRequests.ToDictionary(
-                    request => request.Name,
-                    request => request.Requested,
-                    StringComparer.OrdinalIgnoreCase);
+                plan = TryPlanFreeIconPositions(
+                    releaseRequests,
+                    releasedNameSet,
+                    ignoredGroupIds: ignoredGroupIds);
             }
+
+            if (plan == null || plan.Count != releaseRequests.Count)
+            {
+                StatusText.Text = _appLayout.SnapToGrid
+                    ? $"没有足够的可用网格，分组“{group.Name}”未删除"
+                    : $"没有足够的可用位置，分组“{group.Name}”未删除";
+                return;
+            }
+
+            Dictionary<string, IconPosition> releasedPositions = plan;
 
             foreach ((string name, IconPosition position) in releasedPositions)
             {
