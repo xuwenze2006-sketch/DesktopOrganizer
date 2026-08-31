@@ -1679,6 +1679,116 @@ public sealed class SmartLayoutUndoTests
     }
 
     [STATestMethod]
+    public void ApplyAutoClassification_NewGroupInvalidatesUndoBeforeOldLocationCanOverlap()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "AutoItem.txt";
+            GroupInfo existingGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            layout.FreeIcons[itemName] = new IconPosition { X = 700, Y = 100 };
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+            existingGroup.X = 20;
+            existingGroup.Y = 112;
+            existingGroup.Width = 190;
+            existingGroup.Height = 134;
+            existingGroup.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            existingGroup.X = 500;
+            existingGroup.Y = 400;
+            var category = new DesktopCategoryDefinition("documents", "文档", 10);
+            var plan = new Dictionary<DesktopCategoryDefinition, List<string>>
+            {
+                [category] = [itemName]
+            };
+
+            InvokePrivateMethod(window, "ApplyAutoClassification", plan, desktopItems);
+
+            GroupInfo createdGroup = layout.Groups.Single(group =>
+                group.IsAutoCategory &&
+                group.AutoCategoryKey == category.Key);
+            Assert.AreEqual(20, createdGroup.X, 0.001);
+            Assert.AreEqual(112, createdGroup.Y, 0.001);
+            Assert.IsTrue(new Rect(
+                20,
+                112,
+                190,
+                134).IntersectsWith(new Rect(
+                    createdGroup.X,
+                    createdGroup.Y,
+                    createdGroup.Width,
+                    createdGroup.Height)));
+            CollectionAssert.Contains(createdGroup.ItemNames, itemName);
+            Assert.IsFalse(layout.FreeIcons.ContainsKey(itemName));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void ApplyAutoClassification_UnchangedPlanPreservesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "AutoItem.txt";
+            PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            layout.FreeIcons[itemName] = new IconPosition { X = 700, Y = 100 };
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+            var category = new DesktopCategoryDefinition("documents", "文档", 10);
+            var plan = new Dictionary<DesktopCategoryDefinition, List<string>>
+            {
+                [category] = [itemName]
+            };
+            InvokePrivateMethod(window, "ApplyAutoClassification", plan, desktopItems);
+            GroupInfo autoGroup = layout.Groups.Single(group =>
+                group.IsAutoCategory &&
+                group.AutoCategoryKey == category.Key);
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokePrivateMethod(window, "ApplyAutoClassification", plan, desktopItems);
+
+            GroupInfo rebuiltGroup = layout.Groups.Single(group =>
+                group.IsAutoCategory &&
+                group.AutoCategoryKey == category.Key);
+            Assert.AreEqual(autoGroup.Id, rebuiltGroup.Id);
+            Assert.AreEqual(autoGroup.X, rebuiltGroup.X, 0.001);
+            Assert.AreEqual(autoGroup.Y, rebuiltGroup.Y, 0.001);
+            Assert.AreEqual(autoGroup.Width, rebuiltGroup.Width, 0.001);
+            Assert.AreEqual(autoGroup.Height, rebuiltGroup.Height, 0.001);
+            CollectionAssert.AreEqual(autoGroup.ItemNames, rebuiltGroup.ItemNames);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
     public void ApplyInboxAcceptancePlan_NewGroupInvalidatesUndoBeforeOldLocationCanOverlap()
     {
         var window = new MainWindow(startQuietly: false);

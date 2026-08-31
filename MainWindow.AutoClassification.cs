@@ -337,6 +337,7 @@ namespace DesktopOrganizer
             Dictionary<DesktopCategoryDefinition, List<string>> plan,
             Dictionary<string, string> existing)
         {
+            WorkspaceLayoutState groupStateBefore = WorkspaceLayoutManager.Capture(_appLayout);
             List<GroupInfo> previousGroups = _appLayout.Groups
                 .Where(group => group.IsAutoCategory && !string.IsNullOrWhiteSpace(group.AutoCategoryKey))
                 .ToList();
@@ -477,6 +478,12 @@ namespace DesktopOrganizer
             }
 
             RebuildDesktopIconsAndSaveLayout();
+            if (_lastSmartLayoutSnapshot != null &&
+                HasGroupStateChanged(groupStateBefore, _appLayout.Groups))
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
+            }
             StatusText.Text = $"已自动分类 {candidateNames.Count} 个项目，共 {plan.Count} 类；真实文件未移动";
         }
 

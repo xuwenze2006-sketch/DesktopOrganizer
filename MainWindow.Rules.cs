@@ -549,7 +549,7 @@ namespace DesktopOrganizer
                     changed |= ApplyRuleAction(rule, action);
                 }
                 if (_lastSmartLayoutSnapshot != null &&
-                    HasRuleGroupStateChanged(visualBackup, _appLayout.Groups))
+                    HasGroupStateChanged(visualBackup, _appLayout.Groups))
                 {
                     _lastSmartLayoutSnapshot = null;
                     UndoSmartLayoutButton.IsEnabled = false;
@@ -568,7 +568,7 @@ namespace DesktopOrganizer
             }
         }
 
-        private static bool HasRuleGroupStateChanged(
+        private static bool HasGroupStateChanged(
             WorkspaceLayoutState before,
             IReadOnlyList<GroupInfo> currentGroups)
         {
