@@ -1298,6 +1298,260 @@ public sealed class SmartLayoutUndoTests
     }
 
     [STATestMethod]
+    public void ApplyRulePlan_NewGroupInvalidatesUndoBeforeOldLocationCanOverlap()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "RuleItem.txt";
+            const string itemPath = @"C:\Desktop\RuleItem.txt";
+            GroupInfo existingGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            layout.FreeIcons[itemName] = new IconPosition { X = 700, Y = 100 };
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = itemPath;
+            existingGroup.X = 20;
+            existingGroup.Y = 112;
+            existingGroup.Width = 190;
+            existingGroup.Height = 134;
+            existingGroup.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            existingGroup.X = 500;
+            existingGroup.Y = 400;
+            var rule = new UserOrganizationRuleInfo
+            {
+                Id = "rule-1",
+                Name = "文档规则"
+            };
+            var plan = new OrganizationRuleExecutionPlan(
+                rule.Id,
+                [
+                    new OrganizationRulePlannedAction(
+                        itemName,
+                        itemPath,
+                        OrganizationRuleAction.AddToVirtualGroup(rule.Id, "规则文档"),
+                        "扩展名命中")
+                ]);
+
+            (bool applied, bool changed, string error) = InvokeRulePlan(window, rule, plan);
+
+            GroupInfo createdGroup = layout.Groups.Single(group =>
+                group.UserRuleId == rule.Id);
+            Assert.IsTrue(applied);
+            Assert.IsTrue(changed);
+            Assert.AreEqual(string.Empty, error);
+            Assert.AreEqual(20, createdGroup.X, 0.001);
+            Assert.AreEqual(112, createdGroup.Y, 0.001);
+            CollectionAssert.Contains(createdGroup.ItemNames, itemName);
+            Assert.IsFalse(layout.FreeIcons.ContainsKey(itemName));
+            Assert.IsTrue(new Rect(
+                20,
+                112,
+                190,
+                134).IntersectsWith(new Rect(
+                    createdGroup.X,
+                    createdGroup.Y,
+                    createdGroup.Width,
+                    createdGroup.Height)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void ApplyRulePlan_MoveBetweenGroupsInvalidatesBeforeDeferredSourceAutoFit()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string remainingName = "A.txt";
+            const string movedName = "B.txt";
+            GroupInfo sourceGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            sourceGroup.Name = "源规则组";
+            sourceGroup.UserRuleId = "source-rule";
+            sourceGroup.ItemNames = [remainingName, movedName];
+            sourceGroup.Width = 220;
+            sourceGroup.Height = 134;
+            sourceGroup.IsSizeLocked = false;
+            var rule = new UserOrganizationRuleInfo
+            {
+                Id = "target-rule",
+                Name = "迁移规则"
+            };
+            var targetGroup = new GroupInfo
+            {
+                Id = "target-group",
+                Name = "目标规则组",
+                UserRuleId = rule.Id,
+                X = 500,
+                Y = 400,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true
+            };
+            layout.Groups.Add(targetGroup);
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[remainingName] = $@"C:\Desktop\{remainingName}";
+            desktopItems[movedName] = $@"C:\Desktop\{movedName}";
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            var plan = new OrganizationRuleExecutionPlan(
+                rule.Id,
+                [
+                    new OrganizationRulePlannedAction(
+                        movedName,
+                        desktopItems[movedName],
+                        OrganizationRuleAction.AddToVirtualGroup(rule.Id, targetGroup.Name),
+                        "规则迁移")
+                ]);
+
+            (bool applied, bool changed, string error) = InvokeRulePlan(window, rule, plan);
+
+            Assert.IsTrue(applied);
+            Assert.IsTrue(changed);
+            Assert.AreEqual(string.Empty, error);
+            CollectionAssert.AreEqual(new[] { remainingName }, sourceGroup.ItemNames);
+            CollectionAssert.AreEqual(new[] { movedName }, targetGroup.ItemNames);
+            Assert.AreEqual(220, sourceGroup.Width, 0.001);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+
+            InvokePrivateMethod(window, "RebuildDesktopIconsAndSaveLayout");
+
+            Assert.AreEqual(190, sourceGroup.Width, 0.001);
+            Assert.IsTrue(targetGroup.IsSizeLocked);
+            Assert.AreEqual(190, targetGroup.Width, 0.001);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void ApplyRulePlan_TagOnlyChangePreservesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "RuleItem.txt";
+            const string itemPath = @"C:\Desktop\RuleItem.txt";
+            PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.ItemTags.Clear();
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = itemPath;
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            var rule = new UserOrganizationRuleInfo
+            {
+                Id = "rule-tag",
+                Name = "标签规则"
+            };
+            var plan = new OrganizationRuleExecutionPlan(
+                rule.Id,
+                [
+                    new OrganizationRulePlannedAction(
+                        itemName,
+                        itemPath,
+                        OrganizationRuleAction.AddTag("重要"),
+                        "名称命中")
+                ]);
+
+            (bool applied, bool changed, string error) = InvokeRulePlan(window, rule, plan);
+
+            Assert.IsTrue(applied);
+            Assert.IsTrue(changed);
+            Assert.AreEqual(string.Empty, error);
+            CollectionAssert.Contains(layout.ItemTags[itemName], "重要");
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void ApplyRulePlan_TargetRenameOnlyPreservesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "RuleItem.txt";
+            const string itemPath = @"C:\Desktop\RuleItem.txt";
+            GroupInfo targetGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            var rule = new UserOrganizationRuleInfo
+            {
+                Id = "rule-rename",
+                Name = "重命名规则"
+            };
+            targetGroup.Name = "旧名称";
+            targetGroup.UserRuleId = rule.Id;
+            targetGroup.ItemNames = [itemName];
+            targetGroup.Width = 190;
+            targetGroup.Height = 134;
+            targetGroup.IsSizeLocked = true;
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = itemPath;
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            var plan = new OrganizationRuleExecutionPlan(
+                rule.Id,
+                [
+                    new OrganizationRulePlannedAction(
+                        itemName,
+                        itemPath,
+                        OrganizationRuleAction.AddToVirtualGroup(rule.Id, "新名称"),
+                        "规则名称更新")
+                ]);
+
+            (bool applied, bool changed, string error) = InvokeRulePlan(window, rule, plan);
+
+            Assert.IsTrue(applied);
+            Assert.IsTrue(changed);
+            Assert.AreEqual(string.Empty, error);
+            Assert.AreEqual("新名称", targetGroup.Name);
+            CollectionAssert.AreEqual(new[] { itemName }, targetGroup.ItemNames);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
     public void ApplyInboxAcceptancePlan_NewGroupInvalidatesUndoBeforeOldLocationCanOverlap()
     {
         var window = new MainWindow(startQuietly: false);
@@ -1473,6 +1727,19 @@ public sealed class SmartLayoutUndoTests
             ReviewState = InboxReviewState.Pending
         };
         return identity;
+    }
+
+    private static (bool Applied, bool Changed, string Error) InvokeRulePlan(
+        MainWindow window,
+        UserOrganizationRuleInfo rule,
+        OrganizationRuleExecutionPlan plan)
+    {
+        object[] arguments = [rule, plan, false, "not-written"];
+        bool applied = (bool)(InvokePrivateMethod(
+            window,
+            "TryApplyRulePlan",
+            arguments) ?? false);
+        return (applied, (bool)arguments[2], (string)arguments[3]);
     }
 
     private static object CaptureSmartLayoutSnapshot(MainWindow window)

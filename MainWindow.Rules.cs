@@ -548,6 +548,12 @@ namespace DesktopOrganizer
                 {
                     changed |= ApplyRuleAction(rule, action);
                 }
+                if (_lastSmartLayoutSnapshot != null &&
+                    HasRuleGroupStateChanged(visualBackup, _appLayout.Groups))
+                {
+                    _lastSmartLayoutSnapshot = null;
+                    UndoSmartLayoutButton.IsEnabled = false;
+                }
                 return true;
             }
             catch (Exception exception)
@@ -560,6 +566,41 @@ namespace DesktopOrganizer
                 error = $"规则执行失败：{exception.Message}";
                 return false;
             }
+        }
+
+        private static bool HasRuleGroupStateChanged(
+            WorkspaceLayoutState before,
+            IReadOnlyList<GroupInfo> currentGroups)
+        {
+            if (before.Groups.Count != currentGroups.Count)
+            {
+                return true;
+            }
+
+            foreach (GroupInfo current in currentGroups)
+            {
+                GroupInfo? previous = before.Groups.FirstOrDefault(group =>
+                    group.Id.Equals(current.Id, StringComparison.OrdinalIgnoreCase));
+                if (previous == null ||
+                    Math.Abs(previous.X - current.X) > 0.01 ||
+                    Math.Abs(previous.Y - current.Y) > 0.01 ||
+                    Math.Abs(previous.Width - current.Width) > 0.01 ||
+                    Math.Abs(previous.Height - current.Height) > 0.01 ||
+                    previous.IsCollapsed != current.IsCollapsed ||
+                    previous.IsSizeLocked != current.IsSizeLocked ||
+                    !new HashSet<string>(
+                        previous.ItemNames,
+                        StringComparer.OrdinalIgnoreCase).SetEquals(current.ItemNames) ||
+                    !new HashSet<string>(
+                        previous.ManuallyAssignedItemNames,
+                        StringComparer.OrdinalIgnoreCase).SetEquals(
+                            current.ManuallyAssignedItemNames))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool ApplyRuleAction(
