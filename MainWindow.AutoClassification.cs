@@ -281,6 +281,13 @@ namespace DesktopOrganizer
                     StringComparer.OrdinalIgnoreCase);
             }
 
+            CommitClearAutoClassification(autoGroups, restoredPositions);
+        }
+
+        private void CommitClearAutoClassification(
+            IReadOnlyCollection<GroupInfo> autoGroups,
+            IReadOnlyDictionary<string, IconPosition> restoredPositions)
+        {
             _canceledAutoCategoryGroupIds.UnionWith(autoGroups.Select(group => group.Id));
             _canceledAutoCategoryGroupIds.UnionWith(_fileMoveHistory
                 .Where(record => record.SourceGroupSnapshot?.IsAutoCategory == true)
@@ -293,6 +300,8 @@ namespace DesktopOrganizer
             }
 
             _appLayout.AutoClassificationOriginalPositions.Clear();
+            _lastSmartLayoutSnapshot = null;
+            UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
             StatusText.Text = $"已取消自动分类，恢复 {restoredPositions.Count} 个自由图标";
         }

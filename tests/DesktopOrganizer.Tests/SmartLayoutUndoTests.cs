@@ -1789,6 +1789,86 @@ public sealed class SmartLayoutUndoTests
     }
 
     [STATestMethod]
+    public void CommitClearAutoClassification_RestoredIconInvalidatesUndoBeforeOldLocationCanOverlap()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "AutoItem.txt";
+            GroupInfo existingGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.RecycleBinWidget.IsVisible = false;
+            layout.FreeIcons.Clear();
+            existingGroup.X = 20;
+            existingGroup.Y = 112;
+            existingGroup.Width = 190;
+            existingGroup.Height = 134;
+            existingGroup.IsSizeLocked = true;
+            var autoGroup = new GroupInfo
+            {
+                Id = "auto-documents",
+                Name = "文档",
+                X = 700,
+                Y = 400,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true,
+                IsAutoCategory = true,
+                AutoCategoryKey = "documents",
+                ItemNames = [itemName]
+            };
+            layout.Groups.Add(autoGroup);
+            layout.AutoClassificationOriginalPositions.Clear();
+            layout.AutoClassificationOriginalPositions[itemName] =
+                new IconPosition { X = 20, Y = 112 };
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            existingGroup.X = 500;
+            existingGroup.Y = 400;
+            var restoredPositions = new Dictionary<string, IconPosition>(
+                StringComparer.OrdinalIgnoreCase)
+            {
+                [itemName] = new IconPosition { X = 20, Y = 112 }
+            };
+
+            InvokePrivateMethod(
+                window,
+                "CommitClearAutoClassification",
+                new List<GroupInfo> { autoGroup },
+                restoredPositions);
+
+            Assert.IsFalse(layout.Groups.Any(group => group.IsAutoCategory));
+            Assert.AreEqual(500, existingGroup.X, 0.001);
+            Assert.AreEqual(400, existingGroup.Y, 0.001);
+            Assert.AreEqual(20, layout.FreeIcons[itemName].X, 0.001);
+            Assert.AreEqual(112, layout.FreeIcons[itemName].Y, 0.001);
+            Assert.IsTrue(new Rect(
+                20,
+                112,
+                190,
+                134).Contains(new Point(
+                    layout.FreeIcons[itemName].X,
+                    layout.FreeIcons[itemName].Y)));
+            Assert.HasCount(0, layout.AutoClassificationOriginalPositions);
+            CollectionAssert.Contains(
+                GetField<HashSet<string>>(window, "_canceledAutoCategoryGroupIds").ToList(),
+                autoGroup.Id);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
     public void ApplyInboxAcceptancePlan_NewGroupInvalidatesUndoBeforeOldLocationCanOverlap()
     {
         var window = new MainWindow(startQuietly: false);
