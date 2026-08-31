@@ -252,13 +252,18 @@ namespace DesktopOrganizer
                 X = group.X + group.Width + 12,
                 Y = group.Y
             };
-            ClampIconPosition(position);
+            var movingNames = new HashSet<string>(
+                [name],
+                StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, Rect> groupBoundsAfterRemoval =
+                BuildGroupBoundsAfterRemovingItems(movingNames);
             if (_appLayout.SnapToGrid)
             {
+                ClampIconPosition(position);
                 IconPosition? alignedPosition = FindAlignedIconPosition(
                     name,
                     position,
-                    BuildGroupBoundsAfterRemovingItems([name]));
+                    groupBoundsAfterRemoval);
                 if (alignedPosition == null)
                 {
                     StatusText.Text = $"没有可用网格，“{name}”仍保留在“{group.Name}”";
@@ -266,6 +271,22 @@ namespace DesktopOrganizer
                 }
 
                 position = alignedPosition;
+            }
+            else
+            {
+                Dictionary<string, IconPosition>? plan = TryPlanFreeIconPositions(
+                    [(name, position)],
+                    movingNames,
+                    groupBoundsAfterRemoval);
+                if (plan == null ||
+                    !plan.TryGetValue(name, out IconPosition? plannedPosition) ||
+                    plannedPosition == null)
+                {
+                    StatusText.Text = $"没有可用位置，“{name}”仍保留在“{group.Name}”";
+                    return;
+                }
+
+                position = plannedPosition;
             }
 
             group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));

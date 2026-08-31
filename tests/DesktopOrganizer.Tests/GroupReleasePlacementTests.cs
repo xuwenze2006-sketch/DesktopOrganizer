@@ -93,6 +93,143 @@ public sealed class GroupReleasePlacementTests
         }
     }
 
+    [STATestMethod]
+    public void RemoveFromGroup_SnapDisabled_AvoidsExistingFreeIcon()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string existingName = "Existing.txt";
+            const string releasedName = "Released.txt";
+            AppLayoutData layout = PrepareLayout(window, 1200, 800);
+            layout.FreeIcons[existingName] = new IconPosition { X = 222, Y = 100 };
+            var group = new GroupInfo
+            {
+                Id = "source-group",
+                Name = "来源分类",
+                X = 20,
+                Y = 100,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true,
+                ItemNames = [releasedName],
+                ManuallyAssignedItemNames = [releasedName]
+            };
+            layout.Groups.Add(group);
+            PrepareDesktopItems(window, existingName, releasedName);
+
+            InvokeRemoveFromGroup(window, group, releasedName);
+
+            Assert.IsEmpty(group.ItemNames);
+            Assert.IsEmpty(group.ManuallyAssignedItemNames);
+            Assert.AreEqual(222, layout.FreeIcons[existingName].X, 0.001);
+            Assert.AreEqual(100, layout.FreeIcons[existingName].Y, 0.001);
+            Assert.AreEqual(222, layout.FreeIcons[releasedName].X, 0.001);
+            Assert.AreEqual(10, layout.FreeIcons[releasedName].Y, 0.001);
+            Assert.IsFalse(HasPositiveAreaOverlap(
+                GetIconBounds(layout.FreeIcons[existingName]),
+                GetIconBounds(layout.FreeIcons[releasedName])));
+            Assert.IsFalse(HasPositiveAreaOverlap(
+                new Rect(group.X, group.Y, group.Width, group.Height),
+                GetIconBounds(layout.FreeIcons[releasedName])));
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void RemoveFromLockedGroup_SnapDisabled_AvoidsRightEdgeClampIntoSourceGroup()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string releasedName = "Released.txt";
+            AppLayoutData layout = PrepareLayout(window, 1200, 800);
+            var group = new GroupInfo
+            {
+                Id = "source-group",
+                Name = "右侧分类",
+                X = 1010,
+                Y = 100,
+                Width = 190,
+                Height = 134,
+                IsSizeLocked = true,
+                ItemNames = [releasedName],
+                ManuallyAssignedItemNames = [releasedName]
+            };
+            layout.Groups.Add(group);
+            PrepareDesktopItems(window, releasedName);
+
+            InvokeRemoveFromGroup(window, group, releasedName);
+
+            Assert.IsEmpty(group.ItemNames);
+            Assert.AreEqual(1110, layout.FreeIcons[releasedName].X, 0.001);
+            Assert.AreEqual(10, layout.FreeIcons[releasedName].Y, 0.001);
+            Assert.IsFalse(HasPositiveAreaOverlap(
+                new Rect(group.X, group.Y, group.Width, group.Height),
+                GetIconBounds(layout.FreeIcons[releasedName])));
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void RemoveFromGroup_SnapDisabled_NoCapacityKeepsGroupAndUndoUnchanged()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string releasedName = "Released.txt";
+            AppLayoutData layout = PrepareLayout(window, 180, 90);
+            var originalPosition = new IconPosition { X = 15, Y = 25 };
+            var group = new GroupInfo
+            {
+                Id = "source-group",
+                Name = "来源分类",
+                X = 0,
+                Y = 0,
+                Width = 180,
+                Height = 90,
+                IsSizeLocked = true,
+                IsAutoCategory = true,
+                ItemNames = [releasedName],
+                ManuallyAssignedItemNames = [releasedName]
+            };
+            layout.Groups.Add(group);
+            layout.AutoClassificationOriginalPositions[releasedName] = originalPosition;
+            PrepareDesktopItems(window, releasedName);
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokeRemoveFromGroup(window, group, releasedName);
+
+            CollectionAssert.AreEqual(new[] { releasedName }, group.ItemNames);
+            CollectionAssert.AreEqual(
+                new[] { releasedName },
+                group.ManuallyAssignedItemNames);
+            Assert.HasCount(0, layout.FreeIcons);
+            Assert.AreSame(
+                originalPosition,
+                layout.AutoClassificationOriginalPositions[releasedName]);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+            Assert.AreEqual(
+                $"没有可用位置，“{releasedName}”仍保留在“{group.Name}”",
+                window.StatusText.Text);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static AppLayoutData PrepareLayout(MainWindow window, double width, double height)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
@@ -149,6 +286,18 @@ public sealed class GroupReleasePlacementTests
             BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new AssertFailedException("未找到删除分组入口。");
         method.Invoke(window, [group]);
+    }
+
+    private static void InvokeRemoveFromGroup(
+        MainWindow window,
+        GroupInfo group,
+        string name)
+    {
+        MethodInfo method = typeof(MainWindow).GetMethod(
+            "RemoveFromGroup",
+            BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到移出分类入口。");
+        method.Invoke(window, [group, name]);
     }
 
     private static Rect GetIconBounds(IconPosition position) =>
