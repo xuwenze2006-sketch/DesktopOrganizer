@@ -1552,6 +1552,133 @@ public sealed class SmartLayoutUndoTests
     }
 
     [STATestMethod]
+    public void RestoreLayoutAfterUndo_RecreatedCurrentGroupInvalidatesUndoBeforeOverlap()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string activeWorkspaceId = "active";
+            const string itemName = "Restored.txt";
+            const string restoredGroupId = "restored-auto-group";
+            GroupInfo existingGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            layout.Workspaces.Clear();
+            layout.ActiveWorkspaceId = activeWorkspaceId;
+            layout.Workspaces.Add(new WorkspaceProfileInfo
+            {
+                Id = activeWorkspaceId,
+                Name = "当前",
+                Layout = new WorkspaceLayoutState()
+            });
+            GetField<HashSet<string>>(window, "_canceledAutoCategoryGroupIds").Clear();
+            existingGroup.X = 20;
+            existingGroup.Y = 112;
+            existingGroup.Width = 190;
+            existingGroup.Height = 134;
+            existingGroup.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            existingGroup.X = 500;
+            existingGroup.Y = 400;
+            object undoRecord = CreateWorkspaceUndoRecord(
+                window,
+                activeWorkspaceId,
+                itemName,
+                restoredGroupId);
+
+            bool currentWorkspaceRestored = (bool)(InvokePrivateMethod(
+                window,
+                "RestoreLayoutAfterUndo",
+                undoRecord) ?? false);
+
+            GroupInfo restoredGroup = layout.Groups.Single(group =>
+                group.Id == restoredGroupId);
+            Assert.IsTrue(currentWorkspaceRestored);
+            CollectionAssert.AreEqual(new[] { itemName }, restoredGroup.ItemNames);
+            Assert.AreEqual(20, restoredGroup.X, 0.001);
+            Assert.AreEqual(112, restoredGroup.Y, 0.001);
+            Assert.AreEqual(500, existingGroup.X, 0.001);
+            Assert.AreEqual(400, existingGroup.Y, 0.001);
+            Assert.IsTrue(new Rect(
+                20,
+                112,
+                190,
+                134).IntersectsWith(new Rect(
+                    restoredGroup.X,
+                    restoredGroup.Y,
+                    restoredGroup.Width,
+                    restoredGroup.Height)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void RestoreLayoutAfterUndo_InactiveWorkspaceOnlyPreservesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string activeWorkspaceId = "active";
+            const string inactiveWorkspaceId = "inactive";
+            const string itemName = "Restored.txt";
+            const string restoredGroupId = "restored-auto-group";
+            GroupInfo existingGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            layout.Workspaces.Clear();
+            layout.ActiveWorkspaceId = activeWorkspaceId;
+            layout.Workspaces.Add(new WorkspaceProfileInfo
+            {
+                Id = activeWorkspaceId,
+                Name = "当前",
+                Layout = new WorkspaceLayoutState()
+            });
+            var inactiveWorkspace = new WorkspaceProfileInfo
+            {
+                Id = inactiveWorkspaceId,
+                Name = "非当前",
+                Layout = new WorkspaceLayoutState()
+            };
+            layout.Workspaces.Add(inactiveWorkspace);
+            GetField<HashSet<string>>(window, "_canceledAutoCategoryGroupIds").Clear();
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            object undoRecord = CreateWorkspaceUndoRecord(
+                window,
+                inactiveWorkspaceId,
+                itemName,
+                restoredGroupId);
+
+            bool currentWorkspaceRestored = (bool)(InvokePrivateMethod(
+                window,
+                "RestoreLayoutAfterUndo",
+                undoRecord) ?? true);
+
+            Assert.IsFalse(currentWorkspaceRestored);
+            Assert.HasCount(1, layout.Groups);
+            Assert.AreSame(existingGroup, layout.Groups[0]);
+            GroupInfo restoredGroup = inactiveWorkspace.Layout.Groups.Single(group =>
+                group.Id == restoredGroupId);
+            CollectionAssert.AreEqual(new[] { itemName }, restoredGroup.ItemNames);
+            Assert.IsFalse(layout.FreeIcons.ContainsKey(itemName));
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
     public void ApplyInboxAcceptancePlan_NewGroupInvalidatesUndoBeforeOldLocationCanOverlap()
     {
         var window = new MainWindow(startQuietly: false);
@@ -1740,6 +1867,64 @@ public sealed class SmartLayoutUndoTests
             "TryApplyRulePlan",
             arguments) ?? false);
         return (applied, (bool)arguments[2], (string)arguments[3]);
+    }
+
+    private static object CreateWorkspaceUndoRecord(
+        MainWindow window,
+        string workspaceId,
+        string itemName,
+        string groupId)
+    {
+        var groupSnapshot = new FileOperationGroupSnapshot
+        {
+            Id = groupId,
+            Name = "文档",
+            X = 20,
+            Y = 112,
+            Width = 190,
+            Height = 134,
+            IsAutoCategory = true,
+            AutoCategoryKey = "documents",
+            IsSizeLocked = true,
+            SortMode = nameof(GroupSortMode.Custom)
+        };
+        var placement = new FileOperationWorkspacePlacementSnapshot
+        {
+            WorkspaceId = workspaceId,
+            SourceGroupId = groupId,
+            SourceGroup = groupSnapshot,
+            SourceGroupItemIndex = 0
+        };
+        var journalEntry = new FileOperationJournalEntry
+        {
+            Id = "move-entry",
+            Kind = FileOperationJournalKind.MoveIntoFolder,
+            State = FileOperationJournalState.Succeeded,
+            DisplayName = itemName,
+            SourcePath = $@"C:\Desktop\{itemName}",
+            DestinationPath = $@"C:\Desktop\Archive\{itemName}",
+            ExpectedIdentity = "identity",
+            ResultIdentity = "identity",
+            LayoutSnapshot = new FileOperationLayoutSnapshot
+            {
+                SourceWorkspaceId = workspaceId,
+                SourceGroupId = groupId,
+                SourceGroup = groupSnapshot,
+                SourceGroupItemIndex = 0,
+                WorkspacePlacements = [placement]
+            }
+        };
+        FileOperationJournalData journal = GetField<FileOperationJournalData>(
+            window,
+            "_fileOperationJournal");
+        journal.Entries.Clear();
+        journal.Entries.Add(journalEntry);
+        MethodInfo createRecord = typeof(MainWindow).GetMethod(
+            "CreateUndoRecordFromJournalEntry",
+            BindingFlags.Static | BindingFlags.NonPublic)
+            ?? throw new AssertFailedException("未找到文件移动撤销记录入口。");
+        return createRecord.Invoke(null, [journalEntry])
+            ?? throw new AssertFailedException("未能创建文件移动撤销记录。");
     }
 
     private static object CaptureSmartLayoutSnapshot(MainWindow window)

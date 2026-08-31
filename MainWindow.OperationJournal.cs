@@ -439,10 +439,13 @@ namespace DesktopOrganizer
 
         /// <summary>
         /// 恢复真实移动前项目在全部命名工作区中的位置。返回 true 表示新格式快照
-        /// 已完整处理，调用方不应再走只恢复单一来源工作区的兼容路径。
+        /// 已完整处理；currentWorkspaceRestored 仅表示当前根布局也已成功恢复。
         /// </summary>
-        private bool RestoreWorkspacePlacementsAfterUndo(FileMoveUndoRecord record)
+        private bool RestoreWorkspacePlacementsAfterUndo(
+            FileMoveUndoRecord record,
+            out bool currentWorkspaceRestored)
         {
+            currentWorkspaceRestored = false;
             FileOperationLayoutSnapshot? snapshot =
                 FindOriginalMoveEntry(record.JournalEntryId)?.LayoutSnapshot;
             if (snapshot?.WorkspacePlacements == null ||
@@ -475,6 +478,7 @@ namespace DesktopOrganizer
             if (activePlacement != null)
             {
                 RestoreCurrentWorkspacePlacement(record.DisplayName, activePlacement);
+                currentWorkspaceRestored = true;
             }
             // 未命名根布局没有 WorkspaceId，继续走兼容路径恢复顶部快照；
             // 上面的循环仍已恢复所有已命名工作区。

@@ -1060,7 +1060,7 @@ namespace DesktopOrganizer
             return new UndoMoveCompletion(UndoMoveCompletionKind.Success, null);
         }
 
-        private void RestoreLayoutAfterUndo(FileMoveUndoRecord record)
+        private bool RestoreLayoutAfterUndo(FileMoveUndoRecord record)
         {
             if (_fileMoveHistory.First?.Value == record)
             {
@@ -1068,9 +1068,12 @@ namespace DesktopOrganizer
             }
             UpdateUndoFileMoveButton();
             RestoreItemMetadataAfterUndo(record);
-            if (RestoreWorkspacePlacementsAfterUndo(record))
+            bool newFormatHandled = RestoreWorkspacePlacementsAfterUndo(
+                record,
+                out bool currentWorkspaceRestored);
+            if (newFormatHandled)
             {
-                return;
+                return CompleteLayoutRestoreAfterUndo(currentWorkspaceRestored);
             }
 
             if (!string.IsNullOrWhiteSpace(record.SourceWorkspaceId) &&
@@ -1084,7 +1087,7 @@ namespace DesktopOrganizer
                 if (sourceWorkspace != null)
                 {
                     RestoreWorkspaceSnapshotAfterUndo(record, sourceWorkspace.Layout);
-                    return;
+                    return CompleteLayoutRestoreAfterUndo(currentWorkspaceRestored);
                 }
             }
 
@@ -1144,6 +1147,19 @@ namespace DesktopOrganizer
                 _appLayout.AutoClassificationOriginalPositions[record.DisplayName] =
                     ClonePosition(record.AutoClassificationOriginalPosition);
             }
+
+            return CompleteLayoutRestoreAfterUndo(currentWorkspaceRestored: true);
+        }
+
+        private bool CompleteLayoutRestoreAfterUndo(bool currentWorkspaceRestored)
+        {
+            if (currentWorkspaceRestored)
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
+            }
+
+            return currentWorkspaceRestored;
         }
 
         private void RestoreWorkspaceSnapshotAfterUndo(
