@@ -618,7 +618,7 @@ namespace DesktopOrganizer
                 var position = new IconPosition
                 {
                     X = group.X + group.Width + 12,
-                    Y = group.Y + removalRequests.Count * 12
+                    Y = group.Y + removalRequests.Count * IconCellHeight
                 };
                 ClampIconPosition(position);
                 removalRequests.Add((name, group, position));

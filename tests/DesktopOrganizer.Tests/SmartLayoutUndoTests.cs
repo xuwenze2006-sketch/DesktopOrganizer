@@ -846,7 +846,10 @@ public sealed class SmartLayoutUndoTests
             Assert.AreEqual(250, layout.FreeIcons[firstName].X, 0.001);
             Assert.AreEqual(112, layout.FreeIcons[firstName].Y, 0.001);
             Assert.AreEqual(250, layout.FreeIcons[secondName].X, 0.001);
-            Assert.AreEqual(124, layout.FreeIcons[secondName].Y, 0.001);
+            Assert.AreEqual(
+                90,
+                layout.FreeIcons[secondName].Y - layout.FreeIcons[firstName].Y,
+                0.001);
             var snapshotBounds = new Rect(250, 112, 190, 134);
             Assert.IsTrue(snapshotBounds.Contains(new Point(
                 layout.FreeIcons[firstName].X,
