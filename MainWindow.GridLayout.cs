@@ -188,6 +188,66 @@ namespace DesktopOrganizer
                 StringComparer.OrdinalIgnoreCase);
         }
 
+        private Dictionary<string, IconPosition>? TryPlanFreeIconPositions(
+            IEnumerable<(string Name, IconPosition Requested)> requests,
+            IReadOnlySet<string> excludedNames,
+            IReadOnlyDictionary<string, Rect>? groupBoundsOverrides = null)
+        {
+            var groupedNames = new HashSet<string>(
+                _appLayout.Groups.SelectMany(group => group.ItemNames),
+                StringComparer.OrdinalIgnoreCase);
+            var obstacles = new List<Rect>();
+            foreach ((string name, IconPosition position) in _appLayout.FreeIcons)
+            {
+                if (excludedNames.Contains(name) ||
+                    groupedNames.Contains(name) ||
+                    position == null)
+                {
+                    continue;
+                }
+
+                obstacles.Add(new Rect(
+                    position.X,
+                    position.Y,
+                    IconCellWidth,
+                    IconCellHeight));
+            }
+
+            foreach (GroupInfo group in _appLayout.Groups)
+            {
+                obstacles.Add(groupBoundsOverrides != null &&
+                              groupBoundsOverrides.TryGetValue(group.Id, out Rect overrideBounds)
+                    ? overrideBounds
+                    : GetGroupBounds(group));
+            }
+
+            obstacles.AddRange(GetFolderPortalObstacles());
+            Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
+            if (recycleObstacle.HasValue)
+            {
+                obstacles.Add(recycleObstacle.Value);
+            }
+
+            Dictionary<string, Point>? plan = FreeIconPlacementPlanner.TryPlan(
+                requests.Select(request => new FreeIconPlacementRequest(
+                    request.Name,
+                    request.Requested.X,
+                    request.Requested.Y)),
+                _desktopGeometry.Monitors.Select(monitor => monitor.WorkArea),
+                obstacles,
+                IconCellWidth,
+                IconCellHeight,
+                StringComparer.OrdinalIgnoreCase);
+            return plan?.ToDictionary(
+                pair => pair.Key,
+                pair => new IconPosition
+                {
+                    X = pair.Value.X,
+                    Y = pair.Value.Y
+                },
+                StringComparer.OrdinalIgnoreCase);
+        }
+
         private Dictionary<string, Rect> BuildGroupBoundsAfterRemovingItems(
             IEnumerable<string> removedItemNames)
         {

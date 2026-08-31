@@ -620,7 +620,6 @@ namespace DesktopOrganizer
                     X = group.X + group.Width + 12,
                     Y = group.Y + removalRequests.Count * IconCellHeight
                 };
-                ClampIconPosition(position);
                 removalRequests.Add((name, group, position));
             }
 
@@ -630,30 +629,44 @@ namespace DesktopOrganizer
                 return;
             }
 
-            Dictionary<string, IconPosition> plannedPositions;
+            var movingNames = new HashSet<string>(
+                removalRequests.Select(request => request.Name),
+                StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, Rect> groupBoundsAfterRemoval =
+                BuildGroupBoundsAfterRemovingItems(movingNames);
+            Dictionary<string, IconPosition>? plan;
             if (_appLayout.SnapToGrid)
             {
-                var movingNames = new HashSet<string>(
-                    removalRequests.Select(request => request.Name),
-                    StringComparer.OrdinalIgnoreCase);
-                plannedPositions = TryPlanAlignedIconPositions(
-                    removalRequests.Select(request => (request.Name, request.Requested)),
+                List<(string Name, IconPosition Requested)> alignedRequests = removalRequests
+                    .Select(request =>
+                    {
+                        IconPosition requested = ClonePosition(request.Requested);
+                        ClampIconPosition(requested);
+                        return (request.Name, requested);
+                    })
+                    .ToList();
+                plan = TryPlanAlignedIconPositions(
+                    alignedRequests,
                     GetOccupiedFreeGridCells(movingNames),
-                    groupBoundsOverrides: BuildGroupBoundsAfterRemovingItems(movingNames))
-                    ?? [];
-                if (plannedPositions.Count != removalRequests.Count)
-                {
-                    StatusText.Text = "没有足够的可用网格，所选项目仍保留在原分类框中";
-                    return;
-                }
+                    groupBoundsOverrides: groupBoundsAfterRemoval);
             }
             else
             {
-                plannedPositions = removalRequests.ToDictionary(
-                    request => request.Name,
-                    request => request.Requested,
-                    StringComparer.OrdinalIgnoreCase);
+                plan = TryPlanFreeIconPositions(
+                    removalRequests.Select(request => (request.Name, request.Requested)),
+                    movingNames,
+                    groupBoundsAfterRemoval);
             }
+
+            if (plan == null || plan.Count != removalRequests.Count)
+            {
+                StatusText.Text = _appLayout.SnapToGrid
+                    ? "没有足够的可用网格，所选项目仍保留在原分类框中"
+                    : "没有足够的可用位置，所选项目仍保留在原分类框中";
+                return;
+            }
+
+            Dictionary<string, IconPosition> plannedPositions = plan;
 
             foreach ((string name, GroupInfo group, _) in removalRequests)
             {

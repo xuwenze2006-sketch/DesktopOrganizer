@@ -805,6 +805,7 @@ public sealed class SmartLayoutUndoTests
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {
+            const string existingFreeName = "Existing.txt";
             const string firstName = "Released-A.txt";
             const string secondName = "Released-B.txt";
             const string remainingName = "Remaining.txt";
@@ -813,11 +814,18 @@ public sealed class SmartLayoutUndoTests
             layout.SnapToGrid = false;
             layout.RecycleBinWidget.IsVisible = false;
             layout.FreeIcons.Clear();
+            layout.FreeIcons[existingFreeName] = new IconPosition { X = 250, Y = 640 };
             Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
                 window,
                 "_desktopItems");
             desktopItems.Clear();
-            foreach (string name in new[] { firstName, secondName, remainingName })
+            foreach (string name in new[]
+                     {
+                         existingFreeName,
+                         firstName,
+                         secondName,
+                         remainingName
+                     })
             {
                 desktopItems[name] = $@"C:\Desktop\{name}";
             }
@@ -825,13 +833,14 @@ public sealed class SmartLayoutUndoTests
             group.ItemNames = [firstName, secondName, remainingName];
             group.ManuallyAssignedItemNames = [firstName, secondName, remainingName];
             group.X = 250;
-            group.Y = 112;
+            group.Y = 460;
             group.Width = 190;
             group.Height = 134;
             group.IsSizeLocked = true;
             CaptureSmartLayoutSnapshot(window);
             window.UndoSmartLayoutButton.IsEnabled = true;
             group.X = 48;
+            group.Y = 640;
             HashSet<string> selectedItemNames = GetField<HashSet<string>>(
                 window,
                 "_selectedItemNames");
@@ -843,14 +852,17 @@ public sealed class SmartLayoutUndoTests
             CollectionAssert.AreEqual(new[] { remainingName }, group.ItemNames);
             CollectionAssert.AreEqual(new[] { remainingName }, group.ManuallyAssignedItemNames);
             Assert.IsEmpty(selectedItemNames);
+            Assert.AreEqual(250, layout.FreeIcons[existingFreeName].X, 0.001);
+            Assert.AreEqual(640, layout.FreeIcons[existingFreeName].Y, 0.001);
             Assert.AreEqual(250, layout.FreeIcons[firstName].X, 0.001);
-            Assert.AreEqual(112, layout.FreeIcons[firstName].Y, 0.001);
+            Assert.AreEqual(550, layout.FreeIcons[firstName].Y, 0.001);
             Assert.AreEqual(250, layout.FreeIcons[secondName].X, 0.001);
+            Assert.AreEqual(460, layout.FreeIcons[secondName].Y, 0.001);
             Assert.AreEqual(
                 90,
-                layout.FreeIcons[secondName].Y - layout.FreeIcons[firstName].Y,
+                layout.FreeIcons[firstName].Y - layout.FreeIcons[secondName].Y,
                 0.001);
-            var snapshotBounds = new Rect(250, 112, 190, 134);
+            var snapshotBounds = new Rect(250, 460, 190, 134);
             Assert.IsTrue(snapshotBounds.Contains(new Point(
                 layout.FreeIcons[firstName].X,
                 layout.FreeIcons[firstName].Y)));
