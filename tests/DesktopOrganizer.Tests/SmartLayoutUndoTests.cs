@@ -1012,6 +1012,61 @@ public sealed class SmartLayoutUndoTests
         }
     }
 
+    [STATestMethod]
+    public void CommitFreeIconDrop_FromGroupInvalidatesUndoBeforeIconCanBeCovered()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            const string itemName = "Released.txt";
+            GroupInfo sourceGroup = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            desktopItems[itemName] = $@"C:\Desktop\{itemName}";
+            sourceGroup.ItemNames = [itemName];
+            sourceGroup.ManuallyAssignedItemNames = [itemName];
+            sourceGroup.X = 222;
+            sourceGroup.Y = 112;
+            sourceGroup.Width = 190;
+            sourceGroup.Height = 134;
+            sourceGroup.IsSizeLocked = true;
+            CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            sourceGroup.X = 20;
+            var releasedPosition = new IconPosition { X = 222, Y = 112 };
+
+            InvokePrivateMethod(
+                window,
+                "CommitFreeIconDrop",
+                itemName,
+                sourceGroup,
+                releasedPosition);
+
+            Assert.IsEmpty(sourceGroup.ItemNames);
+            Assert.IsEmpty(sourceGroup.ManuallyAssignedItemNames);
+            Assert.AreSame(releasedPosition, layout.FreeIcons[itemName]);
+            Assert.AreEqual(20, sourceGroup.X, 0.001);
+            Assert.IsTrue(new Rect(
+                222,
+                112,
+                sourceGroup.Width,
+                sourceGroup.Height).Contains(new Point(
+                    releasedPosition.X,
+                    releasedPosition.Y)));
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
     private static GroupInfo PrepareGroup(MainWindow window)
     {
         AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");

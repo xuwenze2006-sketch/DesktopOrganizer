@@ -851,27 +851,7 @@ namespace DesktopOrganizer
                                 Canvas.SetTop(dragged, position.Y);
                             }
 
-                            if (sourceGroup != null)
-                            {
-                                foreach (GroupInfo group in _appLayout.Groups)
-                                {
-                                    group.ItemNames.RemoveAll(item => item.Equals(name, StringComparison.OrdinalIgnoreCase));
-                                    group.ManuallyAssignedItemNames.RemoveAll(item =>
-                                        item.Equals(name, StringComparison.OrdinalIgnoreCase));
-                                }
-
-                                if (sourceGroup.IsAutoCategory)
-                                {
-                                    _appLayout.AutoClassificationOriginalPositions.Remove(name);
-                                }
-                            }
-
-                            _appLayout.FreeIcons[name] = position;
-                            if (sourceGroup != null)
-                            {
-                                RebuildDesktopIcons();
-                                StatusText.Text = $"已将“{name}”移出分类，可在桌面自由摆放";
-                            }
+                            CommitFreeIconDrop(name, sourceGroup, position);
                         }
                     }
                 }
@@ -922,6 +902,37 @@ namespace DesktopOrganizer
             }
             RebuildDesktopIcons();
             return dropResult;
+        }
+
+        private void CommitFreeIconDrop(
+            string name,
+            GroupInfo? sourceGroup,
+            IconPosition position)
+        {
+            if (sourceGroup != null)
+            {
+                foreach (GroupInfo group in _appLayout.Groups)
+                {
+                    group.ItemNames.RemoveAll(item =>
+                        item.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    group.ManuallyAssignedItemNames.RemoveAll(item =>
+                        item.Equals(name, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (sourceGroup.IsAutoCategory)
+                {
+                    _appLayout.AutoClassificationOriginalPositions.Remove(name);
+                }
+            }
+
+            _appLayout.FreeIcons[name] = position;
+            if (sourceGroup != null)
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
+                RebuildDesktopIcons();
+                StatusText.Text = $"已将“{name}”移出分类，可在桌面自由摆放";
+            }
         }
 
         // ==================== 图标挤压排列预览 ====================
