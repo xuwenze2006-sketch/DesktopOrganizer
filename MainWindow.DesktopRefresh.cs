@@ -281,6 +281,11 @@ namespace DesktopOrganizer
                 ClampGroupToCanvas(group);
                 targetGroupFingerprints[group.Id] = BuildGroupVisualFingerprint(group, existing);
             }
+            if (layoutChanged)
+            {
+                _lastSmartLayoutSnapshot = null;
+                UndoSmartLayoutButton.IsEnabled = false;
+            }
 
             foreach (FolderPortalInfo portal in _appLayout.FolderPortals)
             {

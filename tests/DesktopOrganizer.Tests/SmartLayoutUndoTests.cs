@@ -1215,6 +1215,89 @@ public sealed class SmartLayoutUndoTests
     }
 
     [STATestMethod]
+    public void RebuildDesktopIcons_MissingGroupItemInvalidatesStaleLockedUndoSize()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            group.ItemNames = ["A.txt", "B.txt", "C.txt"];
+            group.Width = 190;
+            group.Height = 134;
+            group.IsSizeLocked = true;
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            foreach (string name in group.ItemNames)
+            {
+                desktopItems[name] = $@"C:\Desktop\{name}";
+            }
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+            group.IsSizeLocked = false;
+            InvokeAutoFitGroup(window, group);
+            Assert.AreEqual(280, group.Width, 0.001);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+            desktopItems.Remove("C.txt");
+
+            InvokePrivateMethod(window, "RebuildDesktopIconsAndSaveLayout");
+
+            CollectionAssert.AreEqual(new[] { "A.txt", "B.txt" }, group.ItemNames);
+            Assert.AreEqual(220, group.Width, 0.001);
+            Assert.IsFalse(group.IsSizeLocked);
+            Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
+    public void RebuildDesktopIcons_UnchangedGroupPreservesSmartLayoutUndo()
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            AppLayoutData layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.FreeIcons.Clear();
+            group.ItemNames = ["A.txt", "B.txt"];
+            group.Width = 220;
+            group.Height = 134;
+            group.IsSizeLocked = false;
+            Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
+                window,
+                "_desktopItems");
+            desktopItems.Clear();
+            foreach (string name in group.ItemNames)
+            {
+                desktopItems[name] = $@"C:\Desktop\{name}";
+            }
+            object snapshot = CaptureSmartLayoutSnapshot(window);
+            window.UndoSmartLayoutButton.IsEnabled = true;
+
+            InvokePrivateMethod(window, "RebuildDesktopIconsAndSaveLayout");
+
+            CollectionAssert.AreEqual(new[] { "A.txt", "B.txt" }, group.ItemNames);
+            Assert.AreEqual(220, group.Width, 0.001);
+            Assert.AreSame(snapshot, GetRawField(window, "_lastSmartLayoutSnapshot"));
+            Assert.IsTrue(window.UndoSmartLayoutButton.IsEnabled);
+        }
+        finally
+        {
+            layoutSaveTimer.Stop();
+        }
+    }
+
+    [STATestMethod]
     public void ApplyInboxAcceptancePlan_NewGroupInvalidatesUndoBeforeOldLocationCanOverlap()
     {
         var window = new MainWindow(startQuietly: false);
