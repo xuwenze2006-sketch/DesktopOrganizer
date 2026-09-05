@@ -50,7 +50,76 @@ public sealed class LightDesktopLayoutTests
                     "可见最后一行的双行文字必须完整落在正文内。" );
             }
         }
+        Border section = f.Field<List<FrameworkElement>>("_lightDesktopDecorations").OfType<Border>().Single();
+        FrameworkElement projectVisual = f.Visual(projects);
+        Assert.AreEqual(Canvas.GetLeft(projectVisual) + projectVisual.ActualWidth,
+            Canvas.GetLeft(section) + section.ActualWidth, 1 / scale,
+            "连接底板须对齐包含边框的实际右边缘。");
+        Assert.AreEqual(projects.Y + projects.Height,
+            Canvas.GetTop(section), 1 / scale, "底板只托入项目底部留白，不能移动入口或缩减正文高度。");
+        RenderTargetBitmap frame = f.RenderFrame();
+        int seamY = (int)Math.Round((projects.Y + projects.Height) * scale);
+        var seamPixels = new byte[4 * 8];
+        frame.CopyPixels(new Int32Rect((int)((projects.X + projects.Width / 2) * scale), seamY - 1, 1, 8),
+            seamPixels, 4, 0);
+        int[] red = Enumerable.Range(0, 8).Select(index => (int)seamPixels[index * 4 + 2]).ToArray();
         f.Render($"light-desktop-{scale}.png");
+        Assert.IsTrue(red.Max() - red.Min() < 40,
+            $"接缝只能是浅分隔线，不能透出深色壁纸形成裂缝。像素={string.Join(',', red)}");
+    }
+
+    [STATestMethod]
+    public void Section_DetachesAndReconnects_WhenProjectCollapsesOrDragIsCancelled()
+    {
+        using var f = new Fixture();
+        GroupInfo project = f.Group("开发项目");
+        string anchors = JsonSerializer.Serialize(f.Layout.Groups.Select(g => new { g.Id, g.X, g.Y }));
+        Assert.AreEqual(0, ((Border)f.Visual(project)).CornerRadius.BottomLeft);
+        f.Invoke("ToggleGroupCollapsed", project); f.Measure();
+        Assert.IsTrue(((Border)f.Visual(project)).CornerRadius.BottomLeft > 0);
+        Assert.IsTrue(f.Field<List<FrameworkElement>>("_lightDesktopDecorations")
+            .OfType<Border>().Single().CornerRadius.TopLeft > 0);
+        f.Invoke("ToggleGroupCollapsed", project); f.Measure();
+        Assert.AreEqual(0, ((Border)f.Visual(project)).CornerRadius.BottomLeft);
+
+        f.SetField("_draggedElement", f.Visual(project));
+        f.SetField("_draggedGroup", project);
+        f.SetField("_draggedIsGroup", true);
+        f.SetField("_groupDragMoved", true);
+        f.SetField("_groupDragStartPosition", new Point(project.X, project.Y));
+        Canvas.SetLeft(f.Visual(project), project.X + 60);
+        f.Invoke("RefreshLightDesktopSection"); f.Measure();
+        Assert.IsTrue(((Border)f.Visual(project)).CornerRadius.BottomLeft > 0);
+        f.Invoke("CompleteGroupDrag", false); f.Measure();
+        Assert.AreEqual(0, ((Border)f.Visual(project)).CornerRadius.BottomLeft);
+        Assert.AreEqual(anchors, JsonSerializer.Serialize(f.Layout.Groups.Select(g => new { g.Id, g.X, g.Y })));
+    }
+
+    [STATestMethod]
+    public void Section_Detaches_WhenProjectIsResizedOrEntriesAreMovedAway()
+    {
+        using var f = new Fixture();
+        GroupInfo project = f.Group("开发项目");
+        double originalWidth = project.Width;
+        f.Layout.IsEditMode = true;
+        var thumb = ((Grid)((Border)f.Visual(project)).Child).Children
+            .OfType<System.Windows.Controls.Primitives.Thumb>().Single();
+        f.Invoke("ResizeThumb_DragDelta", thumb,
+            new System.Windows.Controls.Primitives.DragDeltaEventArgs(30, 0));
+        f.Measure();
+        Assert.IsTrue(((Border)f.Visual(project)).CornerRadius.BottomLeft > 0);
+
+        project.IsSizeLocked = false;
+        project.Width = originalWidth;
+        f.Invoke("RebuildDesktopIcons"); f.Measure();
+        Assert.AreEqual(0, ((Border)f.Visual(project)).CornerRadius.BottomLeft);
+        foreach (GroupInfo entry in f.Layout.Groups.Where(g => g.DesktopRole == DesktopZoneRole.Other))
+            entry.X += 60;
+        f.Invoke("RefreshLightDesktopEntries"); f.Measure();
+        Assert.IsTrue(((Border)f.Visual(project)).CornerRadius.BottomLeft > 0);
+        Assert.IsTrue(f.Field<List<FrameworkElement>>("_lightDesktopDecorations")
+            .OfType<Border>().Single().CornerRadius.TopLeft > 0);
+        f.Render("light-desktop-detached.png");
     }
 
     [STATestMethod]
@@ -200,6 +269,8 @@ public sealed class LightDesktopLayoutTests
         public GroupInfo Group(string name) => Layout.Groups.Single(g => g.Name == name);
         public FrameworkElement Visual(GroupInfo group) => Field<Dictionary<string, FrameworkElement>>("_groupVisuals")[group.Id];
         public T Field<T>(string name) => (T)typeof(MainWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(Window)!;
+        public void SetField(string name, object value) => typeof(MainWindow)
+            .GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(Window, value);
         public object? Invoke(string name, params object[] args)
         {
             MethodInfo method = typeof(MainWindow).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -214,15 +285,20 @@ public sealed class LightDesktopLayoutTests
             Window.RootGrid.Arrange(new Rect(0, 0, 1600, 1200));
             Window.RootGrid.UpdateLayout();
         }
-        public void Render(string name)
+        public void Render(string name, [System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "")
         {
             if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_LIGHT_QA") != "1") return;
-            string output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../artifacts/light-desktop"));
+            string output = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourceFilePath)!, "../../artifacts/light-desktop"));
             Directory.CreateDirectory(output);
-            var bitmap = new RenderTargetBitmap((int)(1600 * _scale), (int)(1200 * _scale), 96 * _scale, 96 * _scale, PixelFormats.Pbgra32);
-            bitmap.Render(Window.RootGrid);
+            RenderTargetBitmap bitmap = RenderFrame();
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using var stream = File.Create(Path.Combine(output, name)); encoder.Save(stream);
+        }
+        public RenderTargetBitmap RenderFrame()
+        {
+            var bitmap = new RenderTargetBitmap((int)(1600 * _scale), (int)(1200 * _scale), 96 * _scale, 96 * _scale, PixelFormats.Pbgra32);
+            bitmap.Render(Window.RootGrid);
+            return bitmap;
         }
         public void Dispose() { Field<DispatcherTimer>("_layoutSaveTimer").Stop(); Invoke("StopGroupPeek"); _source.Dispose(); }
     }

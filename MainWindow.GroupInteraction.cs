@@ -136,6 +136,7 @@ namespace DesktopOrganizer
 
                 _groupDragMoved = true;
                 Panel.SetZIndex(_draggedElement, 500);
+                RefreshLightDesktopSection();
             }
 
             double left = canvasPosition.X - _dragStartOffset.X;
@@ -232,6 +233,7 @@ namespace DesktopOrganizer
             Panel.SetZIndex(draggedElement, 100);
             ResetGroupDragState();
             if (draggedGroup != null && IsLightDesktopEntry(draggedGroup)) RefreshLightDesktopEntries();
+            else RefreshLightDesktopSection();
 
             if (commit && moved && positionChanged)
             {
@@ -330,6 +332,7 @@ namespace DesktopOrganizer
                     GetDesiredGroupColumnCount(group),
                     GetGroupedIconTileWidth(group) + tileMargin * 2);
             }
+            RefreshLightDesktopSection();
         }
 
         private void DeleteGroup_Click(object sender, RoutedEventArgs e)

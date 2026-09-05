@@ -3,18 +3,18 @@ namespace DesktopOrganizer
     public partial class MainWindow
     {
         private static readonly Brush LightDesktopSurfaceBrush =
-            CreateFrozenBrush(Color.FromArgb(232, 240, 246, 246));
+            CreateFrozenBrush(Color.FromArgb(248, 240, 246, 246));
         private readonly Dictionary<string, Border> _lightDesktopEntries = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<FrameworkElement> _lightDesktopDecorations = new();
+        private Border? _joinedLightDesktopProject;
         private string? _lightDesktopDrawerId;
         private long _lightDesktopDrawerGeneration;
 
         private void RefreshLightDesktopEntries()
         {
-            foreach (FrameworkElement visual in _lightDesktopEntries.Values.Concat(_lightDesktopDecorations))
+            foreach (FrameworkElement visual in _lightDesktopEntries.Values)
                 IconCanvas.Children.Remove(visual);
             _lightDesktopEntries.Clear();
-            _lightDesktopDecorations.Clear();
             var entries = _appLayout.Groups.Where(IsLightDesktopEntry).ToList();
             if (!entries.Any(group => group.Id == _lightDesktopDrawerId))
                 _lightDesktopDrawerId = null;
@@ -81,6 +81,25 @@ namespace DesktopOrganizer
                 Panel.SetZIndex(anchor, GroupNormalZIndex);
                 IconCanvas.Children.Add(anchor);
             }
+            RefreshLightDesktopSection();
+            if (_lightDesktopDrawerId is string openId && _groupPeekVisuals.ContainsKey(openId))
+            {
+                _activeGroupPeekId = openId;
+                ApplyGroupPeekVisualState(openId);
+            }
+        }
+
+        private void RefreshLightDesktopSection()
+        {
+            if (_joinedLightDesktopProject != null)
+            {
+                _joinedLightDesktopProject.CornerRadius = new CornerRadius(11);
+                _joinedLightDesktopProject = null;
+            }
+            foreach (FrameworkElement visual in _lightDesktopDecorations)
+                IconCanvas.Children.Remove(visual);
+            _lightDesktopDecorations.Clear();
+            var entries = _appLayout.Groups.Where(IsLightDesktopEntry).ToList();
             if (entries.Count > 0)
             {
                 double left = entries.Min(group => group.X), top = entries.Min(group => group.Y);
@@ -89,24 +108,38 @@ namespace DesktopOrganizer
                 // 用户手动分散入口后不再铺一张巨大的底板。
                 if (right - left <= LightDesktopLayoutPolicy.ColumnWidth + 1)
                 {
-                    var section = new Border { Width = right - left, Height = bottom - top + 24,
-                        Background = LightDesktopSurfaceBrush, CornerRadius = new CornerRadius(0, 0, 11, 11),
+                    double sectionTop = top - 24;
+                    double sectionWidth = right - left;
+                    bool draggingEntry = _groupDragMoved && _draggedGroup != null && entries.Contains(_draggedGroup);
+                    GroupInfo? project = _appLayout.Groups.FirstOrDefault(group =>
+                        group.DesktopRole == DesktopZoneRole.Projects && !group.IsCollapsed && !group.IsSizeLocked &&
+                        !draggingEntry && !(_groupDragMoved && _draggedGroup == group) &&
+                        Math.Abs(group.X - left) < 0.5 && Math.Abs(group.Width - sectionWidth) < 0.5 &&
+                        Math.Abs(group.Y + group.Height - sectionTop) < 0.5);
+                    bool joined = project != null && _groupPeekVisuals.ContainsKey(project.Id);
+                    if (joined)
+                    {
+                        GroupPeekVisualRegistration registration = _groupPeekVisuals[project!.Id];
+                        _joinedLightDesktopProject = registration.Container;
+                        _joinedLightDesktopProject.CornerRadius = new CornerRadius(11, 11, 0, 0);
+                        // Outer 的固定尺寸外还有边框；只调整底板，保持图标和入口坐标不变。
+                        Thickness border = registration.Container.BorderThickness;
+                        sectionWidth = registration.Outer.Width + border.Left + border.Right;
+                        // 底板略托入底部留白，避免缩放取整后透明边框透出壁纸。
+                        sectionTop = project.Y + registration.Outer.Height;
+                    }
+                    var section = new Border { Width = sectionWidth, Height = bottom - sectionTop,
+                        Background = LightDesktopSurfaceBrush,
+                        CornerRadius = joined ? new CornerRadius(0, 0, 11, 11) : new CornerRadius(11),
                         IsHitTestVisible = false };
                     var heading = new TextBlock { Text = "其他分类", FontSize = 10,
                         Foreground = WarmPaperTheme.SecondaryTextBrush, Margin = new Thickness(11, 5, 0, 0) };
                     section.Child = heading;
-                    section.BorderBrush = CreateFrozenBrush(Color.FromArgb(35, 112, 130, 136));
-                    section.BorderThickness = new Thickness(0, 1, 0, 0);
-                    Canvas.SetLeft(section, left); Canvas.SetTop(section, top - 24);
+                    Canvas.SetLeft(section, left); Canvas.SetTop(section, sectionTop);
                     Panel.SetZIndex(section, GroupNormalZIndex - 1);
                     _lightDesktopDecorations.Add(section);
                     IconCanvas.Children.Add(section);
                 }
-            }
-            if (_lightDesktopDrawerId is string openId && _groupPeekVisuals.ContainsKey(openId))
-            {
-                _activeGroupPeekId = openId;
-                ApplyGroupPeekVisualState(openId);
             }
         }
 
@@ -142,7 +175,7 @@ namespace DesktopOrganizer
             registration.Outer.Height = height;
             registration.Body.Visibility = Visibility.Visible;
             registration.Header.CornerRadius = new CornerRadius(11, 11, 0, 0);
-            registration.Container.Background = CreateFrozenBrush(Color.FromArgb(248, 240, 246, 246));
+            registration.Container.Background = LightDesktopSurfaceBrush;
             Canvas.SetLeft(registration.Container, x);
             Canvas.SetTop(registration.Container, y);
             Panel.SetZIndex(registration.Container, GroupPeekZIndex);
