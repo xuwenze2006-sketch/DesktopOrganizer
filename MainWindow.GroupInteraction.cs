@@ -317,6 +317,15 @@ namespace DesktopOrganizer
                 grid.Width = group.Width;
                 grid.Height = group.Height;
             }
+
+            if (_groupItemPanels.TryGetValue(group.Id, out VirtualizingGroupPanel? panel))
+            {
+                double tileMargin = _appLayout.CompactGroupLayout ? 1.5 : 2;
+                panel.Width = Math.Max(120, group.Width - 20);
+                panel.UpdateLayoutMetrics(
+                    GetDesiredGroupColumnCount(group),
+                    GetGroupedIconTileWidth(group) + tileMargin * 2);
+            }
         }
 
         private void DeleteGroup_Click(object sender, RoutedEventArgs e)

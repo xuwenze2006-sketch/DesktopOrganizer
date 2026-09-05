@@ -11,6 +11,49 @@ namespace DesktopOrganizer.Tests;
 public sealed class SmartLayoutUndoTests
 {
     [STATestMethod]
+    [DataRow(true, 329.9, 0.1, 4)]
+    [DataRow(true, 330.0, -0.1, 3)]
+    [DataRow(false, 329.9, 0.1, 3)]
+    public void ResizeThumb_UpdatesIconColumnsBeforeDragCompletes(
+        bool compact, double width, double change, int expectedColumns)
+    {
+        var window = new MainWindow(startQuietly: false);
+        DispatcherTimer timer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
+        try
+        {
+            GroupInfo group = PrepareAutoFitGroup(window);
+            var layout = GetField<AppLayoutData>(window, "_appLayout");
+            layout.CompactGroupLayout = compact;
+            layout.IsEditMode = true;
+            group.Width = width;
+            var panel = new VirtualizingGroupPanel(
+                Enumerable.Range(0, 12).Select(i => new GroupVirtualItem($"item-{i}", "unused")).ToList(),
+                _ => new Border { Margin = new Thickness(compact ? 1.5 : 2) },
+                _ => { }, compact && width >= 330 ? 4 : 3, 83, 78, 0);
+            GetField<Dictionary<string, VirtualizingGroupPanel>>(window, "_groupItemPanels")[group.Id] = panel;
+            panel.Measure(new Size(width - 20, 156));
+            panel.Arrange(new Rect(0, 0, width - 20, 156));
+            var fourth = (FrameworkElement)panel.Children[3];
+
+            InvokeResizeThumbDragDelta(window, new Thumb { Tag = group }, change, 0);
+            panel.Measure(new Size(group.Width - 20, 156));
+            panel.Arrange(new Rect(0, 0, group.Width - 20, 156));
+
+            Assert.AreEqual(expectedColumns == 4 ? 0 : 78,
+                fourth.TranslatePoint(new Point(), panel).Y - fourth.Margin.Top, 0.01);
+            Assert.AreEqual(group.Width - 20, panel.Width, 0.01);
+            Assert.IsTrue(group.IsSizeLocked);
+            Assert.AreSame(panel,
+                GetField<Dictionary<string, VirtualizingGroupPanel>>(window, "_groupItemPanels")[group.Id]);
+            Assert.IsFalse(timer.IsEnabled); // 拖动预览不触发布局保存。
+        }
+        finally
+        {
+            timer.Stop();
+        }
+    }
+
+    [STATestMethod]
     public void CompleteGroupDrag_CommittedMoveInvalidatesSmartLayoutUndo()
     {
         var window = new MainWindow(startQuietly: false);

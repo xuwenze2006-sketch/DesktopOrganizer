@@ -16,8 +16,8 @@ namespace DesktopOrganizer
         private readonly Action<double>? _verticalOffsetChanged;
         private readonly Dictionary<int, FrameworkElement> _realized = new();
         private readonly HashSet<int> _suppressedIndices = new();
-        private readonly int _columnCount;
-        private readonly double _slotWidth;
+        private int _columnCount;
+        private double _slotWidth;
         private readonly double _rowHeight;
         private double _extentWidth;
         private double _extentHeight;
@@ -55,6 +55,27 @@ namespace DesktopOrganizer
         }
 
         public bool IsStable => _isStable && _suppressedIndices.Count == 0;
+
+        /// <summary>缩放期间就地更新网格，保留已实现控件与滚动位置。</summary>
+        public void UpdateLayoutMetrics(int columnCount, double slotWidth)
+        {
+            columnCount = Math.Max(1, columnCount);
+            slotWidth = Math.Max(1, slotWidth);
+            if (_columnCount == columnCount && AreClose(_slotWidth, slotWidth))
+            {
+                return;
+            }
+
+            _columnCount = columnCount;
+            _slotWidth = slotWidth;
+            ClearInsertionIndicator();
+            foreach (FrameworkElement child in _realized.Values)
+            {
+                child.Width = Math.Max(1, slotWidth - child.Margin.Left - child.Margin.Right);
+            }
+            InvalidateMeasure();
+            InvalidateArrange();
+        }
 
         public bool MatchesItems(IReadOnlyList<GroupVirtualItem> expected)
         {

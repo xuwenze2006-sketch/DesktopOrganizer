@@ -9,6 +9,35 @@ namespace DesktopOrganizer.Tests;
 public sealed class VirtualizingGroupPanelTests
 {
     [STATestMethod]
+    public void UpdateLayoutMetrics_ReflowsExistingIconsAndUpdatesScrollExtent()
+    {
+        VirtualizingGroupPanel panel = CreatePanel(12, out var visuals, out var recycled);
+        panel.Measure(new Size(300, 160));
+        panel.Arrange(new Rect(0, 0, 300, 160));
+        FrameworkElement fourth = visuals["item-3"];
+        Assert.AreEqual(new Point(0, 80), fourth.TranslatePoint(new Point(), panel));
+        panel.SetVerticalOffset(160);
+        panel.UpdateLayoutMetrics(4, 80);
+        panel.Measure(new Size(320, 160));
+        panel.Arrange(new Rect(0, 0, 320, 160));
+
+        Assert.AreSame(fourth, visuals["item-3"]);
+        Assert.AreEqual(240, panel.ExtentHeight);
+        Assert.AreEqual(80, panel.VerticalOffset); // 新的最大偏移，不能越过内容底部。
+        Assert.AreEqual(80, fourth.Width);
+        Assert.AreEqual(new Point(240, -80), fourth.TranslatePoint(new Point(), panel));
+        Assert.HasCount(0, recycled);
+        Assert.HasCount(12, panel.GetItemNamesSnapshot());
+
+        panel.UpdateLayoutMetrics(3, 100);
+        panel.Measure(new Size(300, 160));
+        panel.Arrange(new Rect(0, 0, 300, 160));
+        Assert.AreEqual(320, panel.ExtentHeight);
+        Assert.AreEqual(80, panel.VerticalOffset);
+        Assert.AreEqual(new Point(0, 0), fourth.TranslatePoint(new Point(), panel));
+    }
+
+    [STATestMethod]
     public void CalculateInsertionBoundary_IncludesCurrentVerticalOffset()
     {
         VirtualizingGroupPanel panel = CreatePanel(itemCount: 15, out _);
