@@ -10,7 +10,8 @@ namespace DesktopOrganizer
             ArgumentNullException.ThrowIfNull(displayAreaSelector);
 
             return groups
-                .OrderByDescending(group => group.ItemNames.Count)
+                .OrderBy(group => group.IsCollapsed)
+                .ThenByDescending(group => group.ItemNames.Count)
                 .ThenByDescending(displayAreaSelector)
                 .ThenBy(group => group.IsAutoCategory ? 1 : 0)
                 .ThenBy(group => group.Name, StringComparer.CurrentCultureIgnoreCase)

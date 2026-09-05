@@ -466,6 +466,7 @@ namespace DesktopOrganizer
                 target.UserRuleId,
                 StringComparison.OrdinalIgnoreCase) &&
             current.IsSizeLocked == target.IsSizeLocked &&
+            current.UseUniformTrackWidth == target.UseUniformTrackWidth &&
             current.SortMode == target.SortMode;
 
         private static bool PortalsEquivalent(FolderPortalInfo current, FolderPortalInfo target) =>
@@ -622,6 +623,7 @@ namespace DesktopOrganizer
                 AutoCategoryKey = group.AutoCategoryKey,
                 UserRuleId = group.UserRuleId,
                 IsSizeLocked = group.IsSizeLocked,
+                UseUniformTrackWidth = group.UseUniformTrackWidth,
                 SortMode = group.SortMode
             };
         }

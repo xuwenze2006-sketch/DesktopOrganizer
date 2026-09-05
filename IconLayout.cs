@@ -65,6 +65,9 @@ namespace DesktopOrganizer
         /// <summary>用户手动缩放后锁定尺寸；为 false 时根据图标数量自动适应。</summary>
         public bool IsSizeLocked { get; set; }
 
+        /// <summary>智能布局使用统一轨道宽度；手动锁定尺寸时不干预用户选择。</summary>
+        public bool UseUniformTrackWidth { get; set; }
+
         /// <summary>分类框内部项目排序；Custom 保留用户拖放顺序。</summary>
         public GroupSortMode SortMode { get; set; } = GroupSortMode.Custom;
     }

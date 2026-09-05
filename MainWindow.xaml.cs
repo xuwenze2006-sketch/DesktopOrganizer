@@ -10,6 +10,7 @@ namespace DesktopOrganizer
         private const double GroupMinHeight = 130;
         private const double GroupHeaderHeight = 38;
         private const double GroupPreferredWidth = 280;
+        private const double GroupUniformTrackWidth = 352;
         private const double GroupMaxAutoWidth = 360;
         private const double IconLabelLineHeight = 16;
         private const double IconLabelHeight = IconLabelLineHeight * 2;
@@ -233,7 +234,8 @@ namespace DesktopOrganizer
             double Width,
             double Height,
             bool IsCollapsed,
-            bool IsSizeLocked);
+            bool IsSizeLocked,
+            bool UseUniformTrackWidth);
 
         private readonly record struct FreeIconVisualState(
             string VisualKind,

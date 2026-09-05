@@ -5,6 +5,20 @@ namespace DesktopOrganizer
     {
         private int GetDesiredGroupColumnCount(GroupInfo group)
         {
+            if (group.UseUniformTrackWidth && !group.IsSizeLocked)
+            {
+                int contentColumns = group.ItemNames.Count switch
+                {
+                    <= 1 => 1,
+                    2 => 2,
+                    <= 9 => 3,
+                    _ => _appLayout.CompactGroupLayout ? 4 : 3
+                };
+                int fittingColumns = group.Width >= 330 && _appLayout.CompactGroupLayout
+                    ? 4 : group.Width >= 260 ? 3 : group.Width >= 215 ? 2 : 1;
+                return Math.Min(contentColumns, fittingColumns);
+            }
+
             if (_appLayout.CompactGroupLayout && group.Width >= 330)
             {
                 return 4;
@@ -55,6 +69,11 @@ namespace DesktopOrganizer
                     2 => (2, 220),
                     _ => (3, GroupPreferredWidth)
                 };
+            }
+
+            if (group.UseUniformTrackWidth)
+            {
+                desiredWidth = GroupUniformTrackWidth;
             }
 
             int rows = Math.Clamp(
@@ -532,7 +551,8 @@ namespace DesktopOrganizer
                 Margin = _appLayout.CompactGroupLayout
                     ? new Thickness(6, 6, 6, 6)
                     : new Thickness(8, 7, 8, 8),
-                Width = Math.Max(120, group.Width - 20),
+                Width = GetGroupedIconPanelWidth(group),
+                HorizontalAlignment = HorizontalAlignment.Center,
                 ClipToBounds = true,
                 UseLayoutRounding = true,
                 SnapsToDevicePixels = true

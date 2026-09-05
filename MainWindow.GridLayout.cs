@@ -288,6 +288,7 @@ namespace DesktopOrganizer
                     AutoCategoryKey = group.AutoCategoryKey,
                     UserRuleId = group.UserRuleId,
                     IsSizeLocked = false,
+                    UseUniformTrackWidth = group.UseUniformTrackWidth,
                     SortMode = group.SortMode
                 };
                 AutoFitGroup(plannedGroup, clampPosition: false);

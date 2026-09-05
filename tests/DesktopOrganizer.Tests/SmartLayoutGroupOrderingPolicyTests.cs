@@ -7,7 +7,7 @@ namespace DesktopOrganizer.Tests;
 public sealed class SmartLayoutGroupOrderingPolicyTests
 {
     [TestMethod]
-    public void Order_MoreItemsFirst_RegardlessOfAreaOrAutoCategory()
+    public void Order_ExpandedFirst_ThenMoreItemsRegardlessOfAreaOrAutoCategory()
     {
         GroupInfo fewManual = CreateGroup("few-manual", 2, width: 1000, height: 1000);
         GroupInfo manyAuto = CreateGroup("many-auto", 27, width: 180, height: 42, isAutoCategory: true);
@@ -19,7 +19,7 @@ public sealed class SmartLayoutGroupOrderingPolicyTests
             group => group.Width * (group.IsCollapsed ? 42 : group.Height));
 
         CollectionAssert.AreEqual(
-            new[] { "many-auto", "middle", "few-manual" },
+            new[] { "middle", "few-manual", "many-auto" },
             ordered.Select(group => group.Name).ToArray());
     }
 

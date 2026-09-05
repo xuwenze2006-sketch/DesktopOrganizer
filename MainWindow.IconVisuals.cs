@@ -140,6 +140,18 @@ namespace DesktopOrganizer
             return hitTarget;
         }
 
+        private double GetGroupedIconPanelWidth(GroupInfo group)
+        {
+            double availableWidth = Math.Max(120, group.Width - 20);
+            if (!group.UseUniformTrackWidth || group.IsSizeLocked)
+            {
+                return availableWidth;
+            }
+            double margins = _appLayout.CompactGroupLayout ? 3 : 4;
+            return Math.Min(availableWidth,
+                GetDesiredGroupColumnCount(group) * (GetGroupedIconTileWidth(group) + margins));
+        }
+
         private double GetGroupedIconTileWidth(GroupInfo group)
         {
             // 为内容边距、边框、ScrollViewer 的垂直滚动条预留空间。

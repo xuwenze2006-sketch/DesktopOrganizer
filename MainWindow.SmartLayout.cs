@@ -90,7 +90,7 @@ namespace DesktopOrganizer
                 : _appLayout.ReserveTemporaryWorkspace
                     ? "，因空间不足已使用完整工作区"
                     : string.Empty;
-            StatusText.Text = $"智能布局完成{workspaceNote}；已按内容数量优先排列，可点击“撤销布局”恢复";
+            StatusText.Text = $"智能布局完成{workspaceNote}；已统一自动卡片宽度，展开分组优先，可点击“撤销布局”恢复";
         }
 
         private Dictionary<string, GroupLayoutSnapshot> CaptureGroupLayoutSnapshot()
@@ -104,7 +104,8 @@ namespace DesktopOrganizer
                     group.Width,
                     group.Height,
                     group.IsCollapsed,
-                    group.IsSizeLocked);
+                    group.IsSizeLocked,
+                    group.UseUniformTrackWidth);
             }
 
             return snapshot;
@@ -127,6 +128,7 @@ namespace DesktopOrganizer
                 group.Height = snapshot.Height;
                 group.IsCollapsed = snapshot.IsCollapsed;
                 group.IsSizeLocked = snapshot.IsSizeLocked;
+                group.UseUniformTrackWidth = snapshot.UseUniformTrackWidth;
                 ClampGroupToCanvas(group);
             }
         }
@@ -149,7 +151,7 @@ namespace DesktopOrganizer
         }
 
         /// <summary>
-        /// 使用最多三轨的响应式瀑布流排列分类框。内容更多的分类优先占用顶部位置，
+        /// 使用最多三轨的响应式瀑布流排列分类框。展开分类优先占用顶部位置，
         /// 保持各分类当前展开/收起状态；保留区放不下时再使用完整桌面高度。
         /// </summary>
         private bool ArrangeGroupsSmartly()
@@ -159,6 +161,7 @@ namespace DesktopOrganizer
 
             foreach (GroupInfo group in _appLayout.Groups.Where(group => !group.IsSizeLocked))
             {
+                group.UseUniformTrackWidth = true;
                 AutoFitGroup(group, clampPosition: false);
             }
 
@@ -254,7 +257,7 @@ namespace DesktopOrganizer
             IReadOnlyList<Rect> workspaces,
             double gap)
         {
-            const double compactTrackWidth = 352;
+            const double compactTrackWidth = GroupUniformTrackWidth;
             const int maximumColumns = 3;
 
             List<Rect> obstacles = GetSmartLayoutObstacles();

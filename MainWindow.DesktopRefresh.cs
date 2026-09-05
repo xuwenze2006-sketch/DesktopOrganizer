@@ -568,6 +568,7 @@ namespace DesktopOrganizer
             builder.Append('|').Append(group.IsCollapsed ? '1' : '0');
             builder.Append('|').Append(group.IsAutoCategory ? '1' : '0');
             builder.Append('|').Append(group.IsSizeLocked ? '1' : '0');
+            builder.Append('|').Append(group.UseUniformTrackWidth ? '1' : '0');
             builder.Append('|').Append((int)group.SortMode);
             builder.Append('|').Append(_appLayout.IsEditMode ? '1' : '0');
             builder.Append('|').Append(_appLayout.CompactGroupLayout ? '1' : '0');

@@ -407,6 +407,7 @@ namespace DesktopOrganizer
                 AutoCategoryKey = group.AutoCategoryKey,
                 UserRuleId = group.UserRuleId,
                 IsSizeLocked = group.IsSizeLocked,
+                UseUniformTrackWidth = group.UseUniformTrackWidth,
                 SortMode = group.SortMode,
                 ItemNames = new List<string>(),
                 ManuallyAssignedItemNames = string.IsNullOrWhiteSpace(itemName)
@@ -738,7 +739,8 @@ namespace DesktopOrganizer
                                      group.Width != snapshot.Width ||
                                      group.Height != snapshot.Height ||
                                      group.IsCollapsed != snapshot.IsCollapsed ||
-                                     group.IsSizeLocked != snapshot.IsSizeLocked);
+                                     group.IsSizeLocked != snapshot.IsSizeLocked ||
+                                     group.UseUniformTrackWidth != snapshot.UseUniformTrackWidth);
             if (layoutChanged)
             {
                 _lastSmartLayoutSnapshot = null;
