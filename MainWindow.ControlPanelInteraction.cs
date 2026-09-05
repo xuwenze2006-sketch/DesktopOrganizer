@@ -370,6 +370,7 @@ namespace DesktopOrganizer
 
             ClearPhysicalFolderDropPreview();
             ClearGroupDropPreview();
+            ClearRecycleBinDropPreview();
             CancelPushPreview(restoreVisuals: restoreDraggedVisual);
             EndPushPreviewSession();
             _draggedElement = null;

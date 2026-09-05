@@ -82,6 +82,11 @@ namespace DesktopOrganizer
             Canvas.SetLeft(_draggedElement, left);
             Canvas.SetTop(_draggedElement, top);
 
+            if (UpdateRecycleBinDropPreview(canvasPosition, _draggedElement as FrameworkElement))
+            {
+                return;
+            }
+
             if (IsPointOverFolderPortal(canvasPosition) ||
                 IntersectsFolderPortal(new Rect(left, top, IconCellWidth, IconCellHeight)))
             {
@@ -687,6 +692,7 @@ namespace DesktopOrganizer
 
             ClearPhysicalFolderDropPreview();
             ClearGroupDropPreview();
+            ClearRecycleBinDropPreview();
             _draggedElement = null;
             _dragOriginalPosition = null;
             _dragAllowsLayoutMove = false;
@@ -731,6 +737,13 @@ namespace DesktopOrganizer
                 ClampIconCoordinates(ref finalLeft, ref finalTop);
                 Canvas.SetLeft(draggedFrameworkElement, finalLeft);
                 Canvas.SetTop(draggedFrameworkElement, finalTop);
+
+                // 松手时重新命中，快速跨过回收站也不能沿用上一帧预览。
+                if (TryCompleteRecycleBinIconDrop(finalCanvasPoint, draggedFrameworkElement))
+                {
+                    e.Handled = true;
+                    return;
+                }
 
                 CancelPushPreview(restoreVisuals: true);
                 folderPortalBlocked = IsPointOverFolderPortal(finalCanvasPoint) ||

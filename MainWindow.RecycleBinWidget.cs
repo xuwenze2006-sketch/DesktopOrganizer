@@ -341,6 +341,7 @@ namespace DesktopOrganizer
 
         private void UpdateRecycleBinWidgetVisibility()
         {
+            ClearRecycleBinDropPreview();
             RecycleBinWidget.Visibility =
                 !_organizerPaused && _appLayout.RecycleBinWidget.IsVisible
                     ? Visibility.Visible

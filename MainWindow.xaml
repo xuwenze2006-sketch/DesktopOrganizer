@@ -561,7 +561,7 @@
                 BorderBrush="{StaticResource PanelBorderBrush}"
                 BorderThickness="1.2"
                 PreviewMouseLeftButtonDown="RecycleBinWidget_PreviewMouseLeftButtonDown"
-                ToolTip="双击打开回收站；拖动标题区域移动组件">
+                ToolTip="拖入图标可移到回收站（需确认）；双击打开；拖动标题区域移动组件">
             <Border.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="打开回收站" Click="RecycleBinOpenButton_Click"/>

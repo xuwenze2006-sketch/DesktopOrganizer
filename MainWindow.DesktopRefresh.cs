@@ -250,6 +250,7 @@ namespace DesktopOrganizer
 
             ClearPhysicalFolderDropPreview();
             ClearGroupDropPreview();
+            ClearRecycleBinDropPreview();
             NormalizeLayout();
 
             var existing = new Dictionary<string, string>(_desktopItems, StringComparer.OrdinalIgnoreCase);

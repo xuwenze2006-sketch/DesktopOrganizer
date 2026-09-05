@@ -107,6 +107,11 @@ namespace DesktopOrganizer
             ClampIconCoordinates(ref left, ref top);
             Canvas.SetLeft(element, left);
             Canvas.SetTop(element, top);
+            if (UpdateRecycleBinDropPreview(canvasPosition, element))
+            {
+                e.Handled = true;
+                return;
+            }
             if (IsPointOverFolderPortal(canvasPosition) ||
                 IntersectsFolderPortal(new Rect(left, top, IconCellWidth, IconCellHeight)))
             {
@@ -228,6 +233,7 @@ namespace DesktopOrganizer
 
             ClearPhysicalFolderDropPreview();
             ClearGroupDropPreview();
+            ClearRecycleBinDropPreview();
             _draggedElement = null;
             _groupedIconDragSourceGroup = null;
             _dragOriginalPosition = null;
