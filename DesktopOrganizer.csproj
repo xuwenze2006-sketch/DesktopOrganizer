@@ -18,6 +18,10 @@
 
   <ItemGroup>
     <Resource Include="Assets\Pets\PixelPawsCat.png" />
+    <Resource Include="Assets\Pets\VPet\*.png" />
+    <Resource Include="Assets\Pets\VPet\manifest.json" />
+    <Resource Include="ThirdParty\VPet-ANIMATION-LICENSE.txt" />
+    <Content Include="ThirdParty\VPet-ANIMATION-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="ThirdParty\PixelPaws-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

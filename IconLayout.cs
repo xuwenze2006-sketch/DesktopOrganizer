@@ -132,6 +132,7 @@ namespace DesktopOrganizer
     /// <summary>全局桌面配件，不随工作区切换；首次需手动开启。</summary>
     internal sealed class DesktopPetLayoutInfo
     {
+        public string CharacterId { get; set; } = DesktopPetWidget.CatCharacterId;
         public double? X { get; set; }
         public double? Y { get; set; }
         public bool IsVisible { get; set; }

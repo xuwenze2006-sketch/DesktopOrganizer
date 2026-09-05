@@ -18,6 +18,17 @@
         PreviewKeyDown="MainWindow_PreviewKeyDown">
 
     <Window.Resources>
+        <ContextMenu x:Key="DesktopPetMenu" x:Shared="False" Opened="DesktopPetMenu_Opened">
+            <MenuItem Header="小黑猫 · PixelPaws" Tag="pixelpaws" IsCheckable="True" Click="DesktopPetCharacter_Click"/>
+            <MenuItem Header="萝莉斯 · VPet" Tag="vpet" IsCheckable="True" Click="DesktopPetCharacter_Click"/>
+            <Separator/>
+            <MenuItem Header="摸摸头" Tag="action" Click="DesktopPetTouch_Click"/>
+            <MenuItem Header="休息" Tag="action" Click="DesktopPetRest_Click"/>
+            <MenuItem Header="唤醒" Tag="action" Click="DesktopPetWake_Click"/>
+            <Separator/>
+            <MenuItem Header="VPet 素材来源与授权…" Click="DesktopPetSource_Click"/>
+            <MenuItem Header="隐藏宠物" Click="HideDesktopPet_Click"/>
+        </ContextMenu>
         <!-- 暖白纸面：较高不透明度保证文字不会随壁纸明暗失去对比。 -->
         <SolidColorBrush x:Key="PanelSurfaceBrush" Color="#FAFAF7F0"/>
         <SolidColorBrush x:Key="PanelBorderBrush" Color="#FFD8CFC2"/>
@@ -555,18 +566,13 @@
                                 VerticalAlignment="Top"
                                 Visibility="Collapsed"
                                 Cursor="Hand"
-                                ToolTip="小黑猫 · 轻点互动，拖动换位置，右键可隐藏"
-                                AutomationProperties.Name="桌面小猫"
+                                ToolTip="轻点互动，拖动换位置；右键切换小黑猫／萝莉斯或隐藏"
+                                ContextMenu="{StaticResource DesktopPetMenu}"
+                                AutomationProperties.Name="桌面宠物"
                                 PreviewMouseLeftButtonDown="DesktopPet_MouseDown"
                                 PreviewMouseMove="DesktopPet_MouseMove"
                                 PreviewMouseLeftButtonUp="DesktopPet_MouseUp"
-                                LostMouseCapture="DesktopPet_LostMouseCapture">
-            <local:DesktopPetWidget.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="隐藏小猫" Click="HideDesktopPet_Click"/>
-                </ContextMenu>
-            </local:DesktopPetWidget.ContextMenu>
-        </local:DesktopPetWidget>
+                                LostMouseCapture="DesktopPet_LostMouseCapture"/>
 
         <!-- 回收站不再参与普通图标、分类和挤压排列，而是独立的系统小组件。 -->
         <Border x:Name="RecycleBinWidget"
@@ -1055,12 +1061,13 @@
                                                 Click="HidePanelButton_Click"
                                                 ToolTip="隐藏控制条；可点击右上角“显示面板”、双击托盘图标或再次启动恢复"/>
                                         <ToggleButton x:Name="DesktopPetToggle"
-                                                      Content="桌面小猫"
+                                                      Content="桌面宠物"
                                                       Tag="猫"
                                                       AutomationProperties.AutomationId="desktop-pet"
                                                       Style="{StaticResource PanelCommandToggleStyle}"
                                                       Click="DesktopPetToggle_Click"
-                                                      ToolTip="显示会打盹、可拖动的小猫；关闭后停止动画"/>
+                                                      ContextMenu="{StaticResource DesktopPetMenu}"
+                                                      ToolTip="点击显示／隐藏；右键选择小黑猫或萝莉斯（VPet），也可安排休息或唤醒"/>
                                         <Button Content="退出"
                                                 Tag="×"
                                                 AutomationProperties.AutomationId="exit"

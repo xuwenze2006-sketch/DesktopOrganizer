@@ -1,0 +1,42 @@
+VPet 动画素材来源与授权
+
+角色：萝莉斯（虚拟主播模拟器默认人物形象）
+动画版权：虚拟主播模拟器制作组
+来源：https://github.com/LorisYounger/VPet
+固定来源提交：2e99a42ebeff71d792118f2e8de744b773042f8d
+原始素材目录：VPet-Simulator.Windows/mod/0000_core/pet/vup/
+本项目适配：选取普通状态的待机、摸头、提起与睡眠动作；将1000×1000透明全画布等比缩小为192×192，并按原始帧时值合成图集。没有裁切或调整逐帧原点。
+
+以下为该提交 README.md 中完整动画及图片授权声明（保留原文）：
+
+## 动画版权声明与授权
+
+在github中 [桌宠动画文件](https://github.com/LorisYounger/VPet/tree/main/VPet-Simulator.Windows/mod/0000_core/pet/vup) 动画版权归 [虚拟主播模拟器制作组](https://www.exlb.net/VUP-Simulator)所有, 当使用本类库时,您可能需要自行准备动画文件,或遵循以下协议
+
+> **注 **
+> 本动画声明仅限于桌宠自带的动画, 若有画师/开发者画自己的动画适配给桌宠,并不遵循用本声明
+
+### 非商用用途授权
+
+* 需要向用户告知动画文件来源并提供访问 [该页面](https://github.com/LorisYounger/VPet) 的链接
+* 当您完成以上要求后,您可以免费使用动画文件
+
+### 商用用途授权
+
+* 第一次使用时需弹窗并醒目的向用户告知动画文件来源并提供访问 [该页面](https://github.com/LorisYounger/VPet) 的链接
+* 在相应页面(用户可以快捷访问)向用户告知动画文件来源并提供访问 [该页面](https://github.com/LorisYounger/VPet) 的链接
+
+* 禁止通过出售动画文件进行盈利
+* 请[邮件联系](mailto:zoujin.dev@exlb.org)我
+* 当您完成以上要求后,您可以免费使用动画文件
+
+### 分发动画文件
+
+* 需要告知以上所有授权信息
+* 需要提供访问 [该页面](https://github.com/LorisYounger/VPet) 的链接
+* 分发动画文件时禁止任何付费/收费行为
+
+### 图片版权声明与授权
+
+* 程序内置图片 版权授权同上
+* Zip 照片图库禁止商用

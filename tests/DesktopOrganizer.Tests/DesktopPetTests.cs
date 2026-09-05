@@ -18,6 +18,8 @@ public sealed class DesktopPetTests
     {
         using var f = new Fixture();
         Assert.IsFalse(JsonSerializer.Deserialize<AppLayoutData>("{\"Version\":19}")!.DesktopPet.IsVisible);
+        Assert.AreEqual(DesktopPetWidget.CatCharacterId,
+            JsonSerializer.Deserialize<AppLayoutData>("{\"Version\":19}")!.DesktopPet.CharacterId);
         f.Layout.DesktopPet = null!;
         f.Invoke("NormalizeLayout");
         Assert.IsNotNull(f.Layout.DesktopPet);
@@ -32,6 +34,13 @@ public sealed class DesktopPetTests
         Assert.IsFalse(restored.DesktopPet.IsVisible);
         Assert.AreEqual(280.5, restored.DesktopPet.X);
         Assert.AreEqual(321.25, restored.DesktopPet.Y);
+        foreach (string? id in new string?[] { null, "", "future-character" })
+        {
+            f.Layout.DesktopPet.CharacterId = id!;
+            f.Invoke("NormalizeLayout");
+            Assert.AreEqual(DesktopPetWidget.CatCharacterId, f.Layout.DesktopPet.CharacterId);
+            Assert.AreEqual(280.5, f.Layout.DesktopPet.X);
+        }
     }
 
     [STATestMethod]
@@ -97,10 +106,12 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
-    public void Animation_HiddenPausedSafeOrClosing_StopsWithoutSavingLayout()
+    [DataRow("pixelpaws")]
+    [DataRow("vpet")]
+    public void Animation_HiddenPausedSafeOrClosing_StopsWithoutSavingLayout(string character)
     {
         using var f = new Fixture();
-        f.Enable();
+        f.Enable(character);
         Assert.IsTrue(f.Pet.AnimationRunning);
         long generation = f.Field<long>("_layoutSaveGeneration");
         bool dirty = f.Field<bool>("_layoutDirty");
@@ -143,10 +154,12 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
-    public void Drag_CommitOnce_OrRestoreOnPauseAndCaptureLoss()
+    [DataRow("pixelpaws")]
+    [DataRow("vpet")]
+    public void Drag_CommitOnce_OrRestoreOnPauseAndCaptureLoss(string character)
     {
         using var f = new Fixture();
-        f.Enable();
+        f.Enable(character);
         f.BeginFakeDrag(new Point(200, 220), new Point(350, 330));
         Assert.IsTrue((bool)f.Invoke("IsUserInteractionActive")!);
         f.Invoke("CompleteDesktopPetDrag", true);
@@ -172,10 +185,12 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
-    public void MonitorRemoval_ClampsPet_ButWorkspaceRemapDoesNotMoveIt()
+    [DataRow("pixelpaws")]
+    [DataRow("vpet")]
+    public void MonitorRemoval_ClampsPet_ButWorkspaceRemapDoesNotMoveIt(string character)
     {
         using var f = new Fixture();
-        f.Enable();
+        f.Enable(character);
         f.Invoke("SetDesktopPetPosition", 500.0, 250.0, true);
         WorkspaceLayoutState snapshot = WorkspaceLayoutManager.Capture(f.Layout);
         f.Layout.DesktopPet.IsVisible = false;
@@ -183,6 +198,7 @@ public sealed class DesktopPetTests
         WorkspaceLayoutManager.Apply(f.Layout, snapshot);
         Assert.AreEqual(700, f.Layout.DesktopPet.X);
         Assert.IsFalse(f.Layout.DesktopPet.IsVisible, "工作区不应重新打开全局配件。");
+        Assert.AreEqual(character, f.Layout.DesktopPet.CharacterId);
         DesktopGeometry dual = new([
             Monitor("PRIMARY", new Rect(0, 0, 1000, 700), true),
             Monitor("SECONDARY", new Rect(1000, 0, 800, 700), false)]);
@@ -192,8 +208,148 @@ public sealed class DesktopPetTests
         f.Layout.DesktopPet.Y = 620;
         Assert.IsTrue((bool)f.Invoke("RemapDesktopPet", dual, f.Geometry)!);
         f.Invoke("ApplyDesktopPetPosition");
-        Assert.IsTrue(f.Layout.DesktopPet.X >= 0 && f.Layout.DesktopPet.X <= 1000 - DesktopPetWidget.WidgetSize);
-        Assert.IsTrue(f.Layout.DesktopPet.Y >= 0 && f.Layout.DesktopPet.Y <= 700 - DesktopPetWidget.WidgetSize);
+        Assert.IsTrue(f.Layout.DesktopPet.X >= 0 && f.Layout.DesktopPet.X <= 1000 - f.Pet.Width);
+        Assert.IsTrue(f.Layout.DesktopPet.Y >= 0 && f.Layout.DesktopPet.Y <= 700 - f.Pet.Height);
+    }
+
+    [STATestMethod]
+    public void CharacterMenu_PreservesHiddenChoice_AndCancelsDragBeforeChangingSize()
+    {
+        using var f = new Fixture();
+        ContextMenu menu = f.Window.DesktopPetToggle.ContextMenu;
+        Assert.AreNotSame(menu, f.Pet.ContextMenu, "两个入口不能争用同一个菜单实例。");
+        MenuItem vpet = menu.Items.OfType<MenuItem>().Single(item => Equals(item.Tag, "vpet"));
+        vpet.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        f.Measure(1);
+        Assert.AreEqual("vpet", f.Layout.DesktopPet.CharacterId);
+        Assert.AreEqual("vpet", f.Pet.CharacterId);
+        Assert.AreEqual(168, f.Pet.Width);
+        Assert.AreEqual(Visibility.Collapsed, f.Pet.Visibility);
+        Assert.IsFalse(f.Layout.DesktopPet.IsVisible);
+        Assert.IsFalse(f.Pet.AnimationRunning);
+        AppLayoutData saved = LayoutJsonSerializer.Deserialize(JsonSerializer.Serialize(f.Layout)).Layout;
+        Assert.AreEqual("vpet", saved.DesktopPet.CharacterId);
+        Assert.IsFalse(saved.DesktopPet.IsVisible);
+        f.Invoke("DesktopPetMenu_Opened", menu, new RoutedEventArgs());
+        Assert.IsTrue(vpet.IsChecked);
+        Assert.IsTrue(menu.Items.OfType<MenuItem>().Where(item => Equals(item.Tag, "action")).All(item => !item.IsEnabled));
+
+        f.Enable("vpet");
+        Assert.AreEqual(168, f.Pet.ActualWidth);
+        f.BeginFakeDrag(new Point(300, 200), new Point(650, 400));
+        f.Invoke("SetDesktopPetCharacter", "pixelpaws");
+        Assert.IsFalse(f.Field<bool>("_isDesktopPetDragging"));
+        Assert.AreEqual(new Point(300, 200), f.Invoke("GetDesktopPetPosition"));
+        Assert.AreEqual(300, f.Layout.DesktopPet.X);
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        f.Invoke("SetDesktopPetPosition", 888.0, 588.0, true);
+        f.Invoke("SetDesktopPetCharacter", "vpet");
+        Assert.AreEqual(new Point(832, 532), f.Invoke("GetDesktopPetPosition"), "更大角色须重新夹入工作区。");
+    }
+
+    [STATestMethod]
+    public void VPetActions_CompleteTransitions_ReuseTimerAndCache_WithoutSaving()
+    {
+        using var f = new Fixture();
+        f.Enable("vpet");
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget).GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+        long generation = f.Field<long>("_layoutSaveGeneration");
+        bool dirty = f.Field<bool>("_layoutDirty");
+        AdvanceUntil(f.Pet, "sleepStart", 200);
+        AdvanceUntil(f.Pet, "sleepLoop");
+        for (int i = 0; i < 18; i++) f.Pet.AdvanceAnimation();
+        Assert.AreEqual("sleepLoop", f.Pet.CurrentClip);
+        f.Pet.ReactToTouch();
+        Assert.AreEqual("sleepEnd", f.Pet.CurrentClip, "睡眠中触摸应先唤醒。");
+        AdvanceUntil(f.Pet, "touchStart");
+        AdvanceUntil(f.Pet, "touchLoop");
+        AdvanceUntil(f.Pet, "touchEnd");
+        AdvanceUntil(f.Pet, "idle");
+        for (int iteration = 0; iteration < 100; iteration++)
+        {
+            f.Pet.SetDragging(true);
+            Assert.AreEqual("raisedStart", f.Pet.CurrentClip);
+            Assert.IsTrue(f.Pet.AnimationRunning, "可见时提起动画应继续播放。");
+            AdvanceUntil(f.Pet, "raisedLoop");
+            for (int i = 0; i < 15; i++) f.Pet.AdvanceAnimation();
+            Assert.AreEqual("raisedLoop", f.Pet.CurrentClip);
+            f.Pet.SetDragging(false);
+            Assert.AreEqual("raisedEnd", f.Pet.CurrentClip);
+            AdvanceUntil(f.Pet, "idle");
+            f.Pet.Rest();
+            AdvanceUntil(f.Pet, "sleepLoop");
+            f.Pet.WakeUp();
+            AdvanceUntil(f.Pet, "idle");
+            f.Pet.SetCharacter("pixelpaws");
+            f.Pet.SetCharacter("vpet");
+        }
+        Assert.AreSame(timer, typeof(DesktopPetWidget).GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet));
+        Assert.AreEqual(generation, f.Field<long>("_layoutSaveGeneration"));
+        Assert.AreEqual(dirty, f.Field<bool>("_layoutDirty"));
+        foreach (string clip in VPetAnimation.ClipNames) Assert.AreSame(VPetAnimation.GetClip(clip), VPetAnimation.GetClip(clip));
+        f.Pet.Rest();
+        f.Invoke("SetDesktopPetVisible", false);
+        Assert.IsFalse(timer.IsEnabled);
+        f.Pet.AdvanceAnimation();
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+    }
+
+    [STATestMethod]
+    [DataRow(1.0)]
+    [DataRow(1.25)]
+    [DataRow(1.5)]
+    [DataRow(2.0)]
+    public void VPetRendering_UsesPackagedActions_AndSharesNativeAndWpfHitGeometry(double scale)
+    {
+        using var f = new Fixture();
+        f.Enable("vpet");
+        f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true);
+        f.Measure(scale);
+        Assert.IsTrue(f.Hit(384, 284));
+        Assert.IsFalse(f.Hit(301, 201));
+        Assert.AreSame(f.Pet, f.Window.RootGrid.InputHitTest(new Point(384, 284)));
+        var icon = new Border { Width = 168, Height = 168, Background = Brushes.White };
+        Canvas.SetLeft(icon, 300);
+        Canvas.SetTop(icon, 200);
+        f.Window.IconCanvas.Children.Add(icon);
+        f.Measure(scale);
+        Assert.AreSame(icon, f.Window.RootGrid.InputHitTest(new Point(384, 284)));
+        f.Window.IconCanvas.Children.Remove(icon);
+
+        var actions = new Action[] { () => { }, f.Pet.ReactToTouch,
+            () => AdvanceUntil(f.Pet, "touchLoop"), () => AdvanceUntil(f.Pet, "touchEnd"),
+            () => f.Pet.SetDragging(true), () => AdvanceUntil(f.Pet, "raisedLoop"),
+            () => f.Pet.SetDragging(false), f.Pet.Rest, () => AdvanceUntil(f.Pet, "sleepLoop"), f.Pet.WakeUp };
+        foreach (Action action in actions)
+        {
+            action();
+            f.Measure(scale);
+            VPetAnimation.Frame frame = VPetAnimation.GetClip(f.Pet.CurrentClip).Frames[f.Pet.CurrentFrame];
+            Assert.IsTrue(frame.Image.IsFrozen);
+            Assert.IsTrue(frame.Alpha.Any(alpha => alpha > 32));
+            Assert.IsTrue(frame.Alpha.Any(alpha => alpha == 0));
+            for (int y = 4; y < 168; y += 8)
+            for (int x = 4; x < 168; x += 8)
+            {
+                bool expected = frame.Alpha[(int)(y * 192.0 / 168) * 192 + (int)(x * 192.0 / 168)] > 32;
+                Assert.AreEqual(expected, f.Hit(300 + x, 200 + y));
+                Assert.AreEqual(expected, f.Pet.InputHitTest(new Point(x, y)) != null);
+            }
+            f.RenderVPet(scale);
+        }
+        f.Invoke("SetDesktopPetPosition", 600.0, 200.0, true);
+        f.Measure(scale);
+        Assert.IsFalse(f.Hit(384, 284));
+        int frames = VPetAnimation.ClipNames.Sum(name => VPetAnimation.GetClip(name).Frames.Length);
+        Assert.AreEqual(72, frames);
+        using var license = new StreamReader(VPetAnimation.OpenResource("ThirdParty/VPet-ANIMATION-LICENSE.txt"));
+        StringAssert.Contains(license.ReadToEnd(), "https://github.com/LorisYounger/VPet");
+    }
+
+    private static void AdvanceUntil(DesktopPetWidget pet, string clip, int maximumFrames = 100)
+    {
+        for (int frame = 0; frame < maximumFrames && pet.CurrentClip != clip; frame++) pet.AdvanceAnimation();
+        Assert.AreEqual(clip, pet.CurrentClip, "动作应在有限帧内完成转换。");
     }
 
     private static DesktopMonitorRegion Monitor(string name, Rect area, bool primary) => new()
@@ -219,8 +375,9 @@ public sealed class DesktopPetTests
             Set("_desktopGeometry", Geometry);
         }
 
-        public void Enable()
+        public void Enable(string character = "pixelpaws")
         {
+            Layout.DesktopPet.CharacterId = character;
             Layout.DesktopPet.IsVisible = true;
             Invoke("InitializeDesktopPet");
             Measure(1);
@@ -264,6 +421,26 @@ public sealed class DesktopPetTests
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using var stream = File.Create(Path.Combine(directory, name));
+            encoder.Save(stream);
+        }
+
+        public void RenderVPet(double scale, [System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "")
+        {
+            Window.RootGrid.UpdateLayout();
+            var bitmap = new RenderTargetBitmap((int)(1000 * scale), (int)(700 * scale),
+                96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            bitmap.Render(Window.RootGrid);
+            var crop = new CroppedBitmap(bitmap, new Int32Rect((int)(300 * scale), (int)(200 * scale),
+                (int)(168 * scale), (int)(168 * scale)));
+            var pixels = new byte[crop.PixelWidth * crop.PixelHeight * 4];
+            crop.CopyPixels(pixels, crop.PixelWidth * 4, 0);
+            Assert.IsTrue(pixels.Where((value, index) => index % 4 == 0).Any(value => value < 80), "真实角色应绘制出深色轮廓。");
+            if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_PET_QA") != "1") return;
+            string directory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourcePath)!, "../../artifacts/vpet-adaptation/render"));
+            Directory.CreateDirectory(directory);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(crop));
+            using var stream = File.Create(Path.Combine(directory, $"vpet-{Pet.CurrentClip}-{scale}.png"));
             encoder.Save(stream);
         }
 
