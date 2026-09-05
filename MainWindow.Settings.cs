@@ -278,7 +278,7 @@ namespace DesktopOrganizer
                 NativeMethods.DesktopKeyboardCommand.UndoFileMove =>
                     _fileMoveHistory.First != null && !HasPendingFileOperations,
                 NativeMethods.DesktopKeyboardCommand.ClearSelection =>
-                    _selectedItemNames.Count > 0,
+                    _selectedItemNames.Count > 0 || _lightDesktopDrawerId != null,
                 NativeMethods.DesktopKeyboardCommand.SelectAllItems =>
                     _desktopItems.Count > 0,
                 NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch =>
@@ -300,7 +300,7 @@ namespace DesktopOrganizer
                 NativeMethods.DesktopKeyboardCommand.UndoFileMove =>
                     TryUndoLastFileMove(),
                 NativeMethods.DesktopKeyboardCommand.ClearSelection
-                    when _selectedItemNames.Count > 0 => ClearSelectionFromKeyboard(),
+                    when _selectedItemNames.Count > 0 || _lightDesktopDrawerId != null => ClearSelectionFromKeyboard(),
                 NativeMethods.DesktopKeyboardCommand.SelectAllItems
                     when _desktopItems.Count > 0 => SelectAllItemsFromKeyboard(),
                 NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch =>
@@ -376,6 +376,7 @@ namespace DesktopOrganizer
 
         private bool ClearSelectionFromKeyboard()
         {
+            StopGroupPeek();
             ClearItemSelection();
             return true;
         }
@@ -408,6 +409,7 @@ namespace DesktopOrganizer
                 UserRuleId = group.UserRuleId,
                 IsSizeLocked = group.IsSizeLocked,
                 UseUniformTrackWidth = group.UseUniformTrackWidth,
+                DesktopRole = group.DesktopRole,
                 SortMode = group.SortMode,
                 ItemNames = new List<string>(),
                 ManuallyAssignedItemNames = string.IsNullOrWhiteSpace(itemName)
@@ -740,7 +742,8 @@ namespace DesktopOrganizer
                                      group.Height != snapshot.Height ||
                                      group.IsCollapsed != snapshot.IsCollapsed ||
                                      group.IsSizeLocked != snapshot.IsSizeLocked ||
-                                     group.UseUniformTrackWidth != snapshot.UseUniformTrackWidth);
+                                     group.UseUniformTrackWidth != snapshot.UseUniformTrackWidth ||
+                                     group.DesktopRole != snapshot.DesktopRole);
             if (layoutChanged)
             {
                 _lastSmartLayoutSnapshot = null;

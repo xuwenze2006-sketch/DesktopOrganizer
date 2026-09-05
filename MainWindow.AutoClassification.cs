@@ -456,6 +456,7 @@ namespace DesktopOrganizer
                         IsCollapsed = previous.IsCollapsed,
                         IsSizeLocked = previous.IsSizeLocked,
                         UseUniformTrackWidth = previous.UseUniformTrackWidth,
+                        DesktopRole = previous.DesktopRole,
                         SortMode = previous.SortMode,
                         IsAutoCategory = true,
                         AutoCategoryKey = category.Key,

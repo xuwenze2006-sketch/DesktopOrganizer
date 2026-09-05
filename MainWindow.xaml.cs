@@ -18,8 +18,8 @@ namespace DesktopOrganizer
         private const double IconTileMinHeight = 84;
         private const double GroupedIconRowHeight = IconTileMinHeight + 6;
         private const int GroupMaxAutoRows = 3;
-        private const double RecycleBinWidgetWidth = 252;
-        private const double RecycleBinWidgetHeight = 122;
+        private const double RecycleBinWidgetWidth = 210;
+        private const double RecycleBinWidgetHeight = 76;
         private const int WM_NCHITTEST = 0x0084;
         private const int WM_MOUSEACTIVATE = 0x0021;
         private const int HTTRANSPARENT = -1;
@@ -235,7 +235,8 @@ namespace DesktopOrganizer
             double Height,
             bool IsCollapsed,
             bool IsSizeLocked,
-            bool UseUniformTrackWidth);
+            bool UseUniformTrackWidth,
+            DesktopZoneRole DesktopRole);
 
         private readonly record struct FreeIconVisualState(
             string VisualKind,

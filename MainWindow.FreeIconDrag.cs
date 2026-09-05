@@ -176,6 +176,7 @@ namespace DesktopOrganizer
             {
                 if (ReferenceEquals(visual, draggedElement) ||
                     !visual.IsVisible ||
+                    IsCoveredByLightDesktopDrawer(visual, canvasPoint) ||
                     draggedElement?.Tag is IconTag draggedTag &&
                     PhysicalPathsEqual(draggedTag.FullPath, folderPath))
                 {
@@ -285,18 +286,18 @@ namespace DesktopOrganizer
                 : null;
             FrameworkElement? nextVisual = null;
             GroupInfo? nextGroup = null;
+            int nextZIndex = int.MinValue;
             foreach (GroupInfo group in _appLayout.Groups)
             {
-                if (!_groupDropTargets.TryGetValue(group.Id, out FrameworkElement? visual) ||
-                    !visual.IsVisible)
+                _groupDropTargets.TryGetValue(group.Id, out FrameworkElement? visual);
+                _lightDesktopEntries.TryGetValue(group.Id, out Border? entry);
+                foreach (FrameworkElement? candidate in new[] { visual, entry })
                 {
-                    continue;
-                }
-
-                if (TryGetElementBoundsOnCanvas(visual, out Rect bounds) && bounds.Contains(canvasPoint))
-                {
-                    nextVisual = visual;
+                    if (candidate == null || !candidate.IsVisible || Panel.GetZIndex(candidate) < nextZIndex ||
+                        !TryGetElementBoundsOnCanvas(candidate, out Rect bounds) || !bounds.Contains(canvasPoint)) continue;
+                    nextVisual = candidate;
                     nextGroup = group;
+                    nextZIndex = Panel.GetZIndex(candidate);
                 }
             }
 
@@ -415,11 +416,11 @@ namespace DesktopOrganizer
             if (_activeGroupDropVisual is Border previousBorder &&
                 _activeGroupDropTarget is GroupInfo previousGroup)
             {
-                Color accent = GetGroupAccentColor(previousGroup);
                 byte alpha = GetGroupNormalBorderAlpha(previousGroup);
-                previousBorder.BorderBrush = CreateFrozenBrush(WithAlpha(accent, alpha));
-                previousBorder.BorderThickness = new Thickness(1.25);
-                previousBorder.Background = MediaBrushes.Transparent;
+                previousBorder.BorderBrush = CreateFrozenBrush(WithAlpha(WarmPaperTheme.BorderColor, alpha));
+                previousBorder.BorderThickness = new Thickness(1);
+                previousBorder.Background = _lightDesktopEntries.Values.Contains(previousBorder)
+                    ? MediaBrushes.Transparent : LightDesktopSurfaceBrush;
             }
 
             _activeGroupDropVisual = null;

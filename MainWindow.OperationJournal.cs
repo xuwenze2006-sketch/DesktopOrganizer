@@ -400,6 +400,7 @@ namespace DesktopOrganizer
                     UserRuleId = group.UserRuleId,
                     IsSizeLocked = group.IsSizeLocked,
                     UseUniformTrackWidth = group.UseUniformTrackWidth,
+                    DesktopRole = group.DesktopRole,
                     SortMode = group.SortMode.ToString(),
                     ManuallyAssignedItemNames = string.IsNullOrWhiteSpace(itemName)
                         ? group.ManuallyAssignedItemNames.ToList()
@@ -430,6 +431,7 @@ namespace DesktopOrganizer
                 UserRuleId = group.UserRuleId,
                 IsSizeLocked = group.IsSizeLocked,
                 UseUniformTrackWidth = group.UseUniformTrackWidth,
+                DesktopRole = group.DesktopRole,
                 SortMode = Enum.IsDefined(sortMode) ? sortMode : GroupSortMode.Custom,
                 ItemNames = new List<string>(),
                 ManuallyAssignedItemNames = (group.ManuallyAssignedItemNames ?? new List<string>())

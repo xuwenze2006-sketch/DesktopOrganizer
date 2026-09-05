@@ -38,7 +38,7 @@ namespace DesktopOrganizer
                     RecycleBinWidgetLocation,
                     "回收站",
                     parentGroup: null,
-                    iconSize: 56,
+                    iconSize: 42,
                     shellPlaceholder: "♻");
             }
         }
@@ -49,6 +49,14 @@ namespace DesktopOrganizer
             {
                 RequestRecycleBinStatusRefresh();
             }
+        }
+
+        private void RecycleBinMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            RecycleBinWidget.ContextMenu.PlacementTarget = (UIElement)sender;
+            RecycleBinWidget.ContextMenu.Placement = PlacementMode.Bottom;
+            RecycleBinWidget.ContextMenu.IsOpen = true;
+            e.Handled = true;
         }
 
         private void RequestRecycleBinStatusRefresh()

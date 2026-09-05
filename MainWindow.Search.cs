@@ -81,8 +81,9 @@ namespace DesktopOrganizer
 
             GroupInfo? group = _appLayout.Groups.FirstOrDefault(candidate =>
                 candidate.ItemNames.Contains(displayName, StringComparer.OrdinalIgnoreCase));
-            bool layoutChanged = group?.IsCollapsed == true;
-            if (group != null)
+            bool isEntry = group != null && IsLightDesktopEntry(group);
+            bool layoutChanged = group?.IsCollapsed == true && !isEntry;
+            if (group != null && !isEntry)
             {
                 group.IsCollapsed = false;
             }
@@ -93,6 +94,7 @@ namespace DesktopOrganizer
                 ? null
                 : new GroupRangeSelectionAnchor(group.Id, displayName);
             RebuildDesktopIcons();
+            if (isEntry) OpenLightDesktopDrawer(group!);
             if (layoutChanged)
             {
                 _lastSmartLayoutSnapshot = null;

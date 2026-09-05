@@ -165,7 +165,7 @@ public sealed class ControlPanelUiContractTests
         double width = double.Parse(widthAttribute.Value, CultureInfo.InvariantCulture);
 
         Assert.IsLessThanOrEqualTo(420, width);
-        Assert.AreEqual("306", compactHeader.Attribute("MinWidth")?.Value);
+        Assert.AreEqual("250", compactHeader.Attribute("MinWidth")?.Value);
         Assert.AreEqual("34", compactHeader.Attribute("Height")?.Value);
         Assert.AreEqual("Collapsed", expandedCommands.Attribute("Visibility")?.Value);
         Assert.AreEqual("0", tabs.Attribute("SelectedIndex")?.Value);
@@ -184,7 +184,7 @@ public sealed class ControlPanelUiContractTests
         window.ControlPanel.Visibility = Visibility.Visible;
         window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
 
-        Assert.AreEqual(324, GetPanelContentWidth(window.ControlPanel), 1);
+        Assert.AreEqual(268, GetPanelContentWidth(window.ControlPanel), 1);
 
         RaiseClick(window.PanelExpanderButton);
         window.ControlPanel.InvalidateMeasure();
@@ -218,7 +218,7 @@ public sealed class ControlPanelUiContractTests
         window.ControlPanel.InvalidateMeasure();
         window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         Assert.AreEqual(
-            324,
+            268,
             GetPanelContentWidth(window.ControlPanel),
             1);
     }

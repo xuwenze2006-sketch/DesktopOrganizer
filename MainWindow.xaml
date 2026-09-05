@@ -319,7 +319,7 @@
                         <Border x:Name="Chrome"
                                 CornerRadius="6"
                                 Background="{TemplateBinding Background}"
-                                BorderBrush="#55D8CFC2"
+                                BorderBrush="Transparent"
                                 BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
@@ -552,14 +552,14 @@
                 Panel.ZIndex="9000"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
-                Width="252"
-                Height="122"
+                Width="210"
+                Height="76"
                 Margin="0"
                 Visibility="Hidden"
-                CornerRadius="19"
-                Background="{StaticResource PanelSurfaceBrush}"
-                BorderBrush="{StaticResource PanelBorderBrush}"
-                BorderThickness="1.2"
+                CornerRadius="11"
+                Background="#E8F0F6F6"
+                BorderBrush="#20708088"
+                BorderThickness="1"
                 PreviewMouseLeftButtonDown="RecycleBinWidget_PreviewMouseLeftButtonDown"
                 ToolTip="拖入图标可移到回收站（需确认）；双击打开；拖动标题区域移动组件">
             <Border.ContextMenu>
@@ -570,32 +570,32 @@
                     <MenuItem Header="隐藏回收站组件" Click="HideRecycleBinWidgetMenuItem_Click"/>
                 </ContextMenu>
             </Border.ContextMenu>
-            <Grid Margin="11">
+            <Grid Margin="8">
                 <Border Margin="1"
                         CornerRadius="16"
-                        BorderBrush="#55D8CFC2"
+                        BorderBrush="Transparent"
                         BorderThickness="1"
                         IsHitTestVisible="False"/>
                 <Border Width="3"
                         Margin="0,12,0,12"
                         HorizontalAlignment="Left"
                         CornerRadius="2"
-                        Background="{StaticResource AccentBrush}"
+                        Background="Transparent"
                         IsHitTestVisible="False"/>
-                <Grid Margin="8,4,4,4">
+                <Grid Margin="2,0,2,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="66"/>
+                        <ColumnDefinition Width="50"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Border Grid.Column="0"
-                            Width="58"
-                            Height="58"
+                            Width="44"
+                            Height="54"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Top"
                             CornerRadius="17"
-                            Background="#FFEDE5D9"
-                            BorderBrush="#FFCEC1B1"
-                            BorderThickness="1">
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="0">
                         <ContentControl x:Name="RecycleBinWidgetIconHost"
                                         HorizontalContentAlignment="Center"
                                         VerticalContentAlignment="Center"
@@ -611,7 +611,7 @@
 
                         <Grid x:Name="RecycleBinWidgetDragHandle"
                               Grid.Row="0"
-                              Height="27"
+                              Height="24"
                               Background="Transparent"
                               Cursor="SizeAll"
                               PreviewMouseLeftButtonDown="RecycleBinWidgetDragHandle_PreviewMouseLeftButtonDown"
@@ -624,6 +624,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Border x:Name="RecycleBinWidgetStatusDot"
+                                    Visibility="Collapsed"
                                     Grid.Column="0"
                                     Width="8" Height="8"
                                     Margin="0,0,7,0"
@@ -633,22 +634,20 @@
                             <TextBlock Grid.Column="1"
                                        Text="回收站"
                                        Foreground="{StaticResource PrimaryTextBrush}"
-                                       FontSize="15"
+                                       FontSize="13"
                                        FontWeight="SemiBold"
                                        VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="⠿"
-                                       Foreground="{StaticResource MutedTextBrush}"
-                                       FontSize="16"
-                                       VerticalAlignment="Center"
-                                       ToolTip="拖动组件"/>
+                            <Button Grid.Column="2" Content="⋯"
+                                    Style="{StaticResource GroupHeaderIconButtonStyle}"
+                                    Width="24" Height="22" ToolTip="回收站菜单"
+                                    Click="RecycleBinMenuButton_Click"/>
                         </Grid>
 
                         <StackPanel Grid.Row="1" Margin="0,1,0,5">
                             <TextBlock x:Name="RecycleBinWidgetCountText"
                                        Text="正在读取状态"
                                        Foreground="{StaticResource PrimaryTextBrush}"
-                                       FontSize="12.5"
+                                       FontSize="11"
                                        TextTrimming="CharacterEllipsis"/>
                             <TextBlock x:Name="RecycleBinWidgetSizeText"
                                        Text="请稍候"
@@ -659,6 +658,7 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="2"
+                                    Visibility="Collapsed"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Bottom">
                             <Button Content="打开"
@@ -684,15 +684,15 @@
                 Visibility="Hidden"
                 Padding="8"
                 CornerRadius="12"
-                Background="{StaticResource PanelSurfaceBrush}"
-                BorderBrush="{StaticResource PanelBorderBrush}"
+                Background="#EEF0F6F6"
+                BorderBrush="#20708088"
                 BorderThickness="1"
                 PreviewMouseDown="ControlPanel_PreviewMouseDown"
                 MouseEnter="ControlPanel_MouseEnter"
                 MouseLeave="ControlPanel_MouseLeave">
             <StackPanel>
                 <Grid x:Name="CompactControlPanelHeader"
-                          MinWidth="306"
+                          MinWidth="250"
                           Height="34"
                           Background="Transparent">
                         <Grid.ColumnDefinitions>

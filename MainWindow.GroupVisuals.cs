@@ -5,6 +5,11 @@ namespace DesktopOrganizer
     {
         private int GetDesiredGroupColumnCount(GroupInfo group)
         {
+            if (group.DesktopRole != DesktopZoneRole.None && !group.IsSizeLocked)
+            {
+                int fitting = group.Width >= 330 ? 4 : group.Width >= 260 ? 3 : group.Width >= 215 ? 2 : 1;
+                return Math.Min(LightDesktopLayoutPolicy.Columns(group.DesktopRole), fitting);
+            }
             if (group.UseUniformTrackWidth && !group.IsSizeLocked)
             {
                 int contentColumns = group.ItemNames.Count switch
@@ -38,7 +43,7 @@ namespace DesktopOrganizer
         private byte GetGroupNormalBorderAlpha(GroupInfo group) =>
             _appLayout.IsEditMode
                 ? (group.IsAutoCategory ? (byte)176 : (byte)148)
-                : (byte)104;
+                : (byte)32;
 
         private bool AutoFitGroup(GroupInfo group, bool clampPosition = true)
         {
@@ -80,6 +85,11 @@ namespace DesktopOrganizer
                 (int)Math.Ceiling(itemCount / (double)columns),
                 1,
                 GroupMaxAutoRows);
+            if (group.DesktopRole != DesktopZoneRole.None)
+            {
+                desiredWidth = LightDesktopLayoutPolicy.ColumnWidth;
+                rows = LightDesktopLayoutPolicy.Rows(group.DesktopRole);
+            }
             double desiredHeight = Math.Max(
                 GroupMinHeight,
                 GroupHeaderHeight + 14 + rows * GetGroupedIconRowHeight());
@@ -228,22 +238,13 @@ namespace DesktopOrganizer
             double displayHeight = GetGroupDisplayHeight(group);
             Color accentColor = GetGroupAccentColor(group);
             Color paperSurface = WarmPaperTheme.PanelSurfaceColor;
-            Color headerStart = WithAlpha(BlendColor(accentColor, paperSurface, 0.84), 250);
-            Color headerEnd = WithAlpha(BlendColor(accentColor, paperSurface, 0.92), 250);
-            Color hoverHeaderStart = WithAlpha(BlendColor(accentColor, paperSurface, 0.76), 250);
-            Color hoverHeaderEnd = WithAlpha(BlendColor(accentColor, paperSurface, 0.86), 250);
-            Color bodyStart = WithAlpha(
-                BlendColor(accentColor, WarmPaperTheme.SoftSurfaceColor, 0.96),
-                248);
-            Color bodyEnd = WarmPaperTheme.SoftSurfaceColor;
-
             Brush accentBrush = CreateFrozenBrush(accentColor);
-            Brush headerBrush = CreateFrozenGradientBrush(headerStart, headerEnd);
-            Brush hoverHeaderBrush = CreateFrozenGradientBrush(hoverHeaderStart, hoverHeaderEnd);
-            Brush bodyBrush = CreateFrozenGradientBrush(bodyStart, bodyEnd);
+            Brush headerBrush = MediaBrushes.Transparent;
+            Brush hoverHeaderBrush = CreateFrozenBrush(Color.FromArgb(52, 255, 255, 255));
+            Brush bodyBrush = MediaBrushes.Transparent;
             byte normalBorderAlpha = GetGroupNormalBorderAlpha(group);
-            Brush normalBorderBrush = CreateFrozenBrush(WithAlpha(accentColor, normalBorderAlpha));
-            Brush hoverBorderBrush = CreateFrozenBrush(WithAlpha(accentColor, 220));
+            Brush normalBorderBrush = CreateFrozenBrush(WithAlpha(WarmPaperTheme.BorderColor, normalBorderAlpha));
+            Brush hoverBorderBrush = CreateFrozenBrush(WithAlpha(accentColor, 112));
             Style? headerButtonStyle = TryFindResource("GroupHeaderIconButtonStyle") as Style;
             string headerInteractionToolTip =
                 GetGroupHeaderInteractionToolTip(_appLayout.IsEditMode);
@@ -268,7 +269,7 @@ namespace DesktopOrganizer
                 Margin = new Thickness(0, 8, 0, 8),
                 CornerRadius = new CornerRadius(0, 2, 2, 0),
                 Background = accentBrush,
-                Opacity = 0.72,
+                Opacity = 0,
                 IsHitTestVisible = false
             });
             headerLayer.Children.Add(new Border
@@ -276,7 +277,7 @@ namespace DesktopOrganizer
                 Height = 1,
                 Margin = new Thickness(8, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Top,
-                Background = new SolidColorBrush(WithAlpha(WarmPaperTheme.BorderColor, 112)),
+                Background = MediaBrushes.Transparent,
                 IsHitTestVisible = false
             });
 
@@ -290,18 +291,18 @@ namespace DesktopOrganizer
 
             var collapseButton = new Button
             {
-                Content = group.IsCollapsed ? "▸" : "▾",
-                ToolTip = group.IsCollapsed ? "展开分组" : "收起分组",
+                Content = group.IsCollapsed && !IsLightDesktopEntry(group) ? "▸" : "▾",
+                ToolTip = IsLightDesktopEntry(group) ? "关闭内容，保留入口" : group.IsCollapsed ? "展开分组" : "收起分组",
                 Tag = group,
                 Style = headerButtonStyle
             };
             collapseButton.Click += (_, _) => ToggleGroupCollapsed(group);
-            Grid.SetColumn(collapseButton, 0);
+            Grid.SetColumn(collapseButton, 5);
 
             var titlePanel = new Grid
             {
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(5, 0, 6, 0)
+                Margin = new Thickness(12, 0, 6, 0)
             };
             titlePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             titlePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -337,17 +338,17 @@ namespace DesktopOrganizer
 
             var countBadge = new Border
             {
-                MinWidth = 34,
+                MinWidth = 20,
                 Height = 22,
-                Padding = new Thickness(7, 0, 7, 0),
+                Padding = new Thickness(4, 0, 4, 0),
                 Margin = new Thickness(2, 0, 3, 0),
                 CornerRadius = new CornerRadius(11),
-                Background = new SolidColorBrush(Color.FromArgb(214, 255, 253, 249)),
-                BorderBrush = new SolidColorBrush(WithAlpha(accentColor, 92)),
-                BorderThickness = new Thickness(1),
+                Background = MediaBrushes.Transparent,
+                BorderBrush = MediaBrushes.Transparent,
+                BorderThickness = new Thickness(0),
                 Child = new TextBlock
                 {
-                    Text = $"{group.ItemNames.Count} 项",
+                    Text = $"{group.ItemNames.Count}",
                     Foreground = WarmPaperTheme.SecondaryTextBrush,
                     FontSize = 11,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -399,7 +400,7 @@ namespace DesktopOrganizer
                 ToolTip = "分组菜单",
                 Tag = group,
                 Style = headerButtonStyle,
-                Visibility = _appLayout.IsEditMode ? Visibility.Visible : Visibility.Collapsed
+                Opacity = _appLayout.IsEditMode ? 1 : 0
             };
             var groupMenu = new ContextMenu();
             TrackGroupContextMenu(groupMenu);
@@ -409,8 +410,8 @@ namespace DesktopOrganizer
             collapseItem.Click += (_, _) => ToggleGroupCollapsed(group);
             var toggleAllGroupsItem = new MenuItem
             {
-                Header = GetToggleAllGroupsMenuHeader(
-                    ShouldCollapseAllGroups(_appLayout.Groups))
+                Header = GetVisibleGroupsToggleHeader(),
+                IsEnabled = _appLayout.Groups.Any(candidate => !IsLightDesktopEntry(candidate))
             };
             toggleAllGroupsItem.Click += (_, _) => ToggleAllGroupsCollapsed();
             var autoFitItem = new MenuItem
@@ -459,8 +460,7 @@ namespace DesktopOrganizer
             groupMenu.Items.Add(deleteItem);
             groupMenu.Opened += (_, _) =>
             {
-                toggleAllGroupsItem.Header = GetToggleAllGroupsMenuHeader(
-                    ShouldCollapseAllGroups(_appLayout.Groups));
+                toggleAllGroupsItem.Header = GetVisibleGroupsToggleHeader();
                 List<string> selectedNames = _selectedItemNames
                     .Where(_desktopItems.ContainsKey)
                     .ToList();
@@ -508,7 +508,7 @@ namespace DesktopOrganizer
                 Visibility = Visibility.Collapsed
             };
             closeButton.Click += DeleteGroup_Click;
-            Grid.SetColumn(closeButton, 5);
+            Grid.SetColumn(closeButton, 0);
 
             headerGrid.Children.Add(collapseButton);
             headerGrid.Children.Add(titlePanel);
@@ -581,7 +581,7 @@ namespace DesktopOrganizer
                 Margin = new Thickness(8, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Top,
                 Background = accentBrush,
-                Opacity = 0.30,
+                Opacity = 0,
                 IsHitTestVisible = false
             };
             bodyLayer.Children.Add(bodyDivider);
@@ -629,9 +629,9 @@ namespace DesktopOrganizer
             var container = new Border
             {
                 Child = outer,
-                Background = MediaBrushes.Transparent,
+                Background = LightDesktopSurfaceBrush,
                 BorderBrush = normalBorderBrush,
-                BorderThickness = new Thickness(1.25),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(11),
                 ClipToBounds = true,
                 Tag = group,
@@ -643,7 +643,7 @@ namespace DesktopOrganizer
             {
                 if (_appLayout.IsEditMode)
                 {
-                    menuButton.Visibility = Visibility.Visible;
+                    menuButton.Opacity = 1;
                     if (autoBadge != null)
                     {
                         autoBadge.Visibility = Visibility.Visible;
@@ -651,10 +651,11 @@ namespace DesktopOrganizer
                     return;
                 }
 
-                menuButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                menuButton.Opacity = visible ? 1 : 0;
+                resizeThumb.Opacity = visible ? 1 : 0;
                 if (autoBadge != null)
                 {
-                    autoBadge.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    autoBadge.Visibility = Visibility.Collapsed;
                 }
             }
 
@@ -683,6 +684,8 @@ namespace DesktopOrganizer
                     ScheduleGroupPeekClose(group.Id);
                 }
             };
+            container.IsKeyboardFocusWithinChanged += (_, _) =>
+                SetHoverActionsVisible(container.IsKeyboardFocusWithin || container.IsMouseOver || groupMenu.IsOpen);
             _groupItemPanels[group.Id] = itemsPanel;
             _groupDropTargets[group.Id] = container;
             RegisterGroupPeekVisual(

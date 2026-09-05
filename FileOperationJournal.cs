@@ -41,6 +41,7 @@ namespace DesktopOrganizer
         public string? UserRuleId { get; set; }
         public bool IsSizeLocked { get; set; }
         public bool UseUniformTrackWidth { get; set; }
+        public DesktopZoneRole DesktopRole { get; set; }
         public string SortMode { get; set; } = "Custom";
         public List<string> ManuallyAssignedItemNames { get; set; } = new();
     }

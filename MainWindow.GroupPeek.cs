@@ -15,6 +15,9 @@ namespace DesktopOrganizer
 
         private void RequestGroupPeek(string groupId)
         {
+            if (_lightDesktopDrawerId != null) return;
+            if (_groupPeekVisuals.TryGetValue(groupId, out GroupPeekVisualRegistration? entry) &&
+                IsLightDesktopEntry(entry.Group)) return;
             if (string.Equals(_activeGroupPeekId, groupId, StringComparison.OrdinalIgnoreCase))
             {
                 _groupPeekCloseTimer.Stop();
@@ -38,6 +41,7 @@ namespace DesktopOrganizer
 
         private void ScheduleGroupPeekClose(string groupId)
         {
+            if (_lightDesktopDrawerId == groupId) return;
             if (string.Equals(_pendingGroupPeekId, groupId, StringComparison.OrdinalIgnoreCase))
             {
                 _pendingGroupPeekId = null;
@@ -98,6 +102,7 @@ namespace DesktopOrganizer
         private void GroupPeekCloseTimer_Tick(object? sender, EventArgs e)
         {
             _groupPeekCloseTimer.Stop();
+            if (_lightDesktopDrawerId != null) return;
             string? groupId = _activeGroupPeekId;
             if (groupId == null ||
                 !_groupPeekVisuals.TryGetValue(groupId, out GroupPeekVisualRegistration? registration))
@@ -234,6 +239,8 @@ namespace DesktopOrganizer
 
         private void StopGroupPeek()
         {
+            _lightDesktopDrawerId = null;
+            _lightDesktopDrawerGeneration++;
             _pendingGroupPeekId = null;
             _groupPeekChildMenuGroupId = null;
             _groupPeekOpenTimer.Stop();
@@ -294,11 +301,17 @@ namespace DesktopOrganizer
                 monitor.WorkArea.Bottom - GroupPeekWorkAreaGap);
         }
 
-        private static void ApplyGroupPeekPresentation(
+        private void ApplyGroupPeekPresentation(
             GroupPeekVisualRegistration registration,
             GroupPeekPresentation presentation,
             bool isPeekActive)
         {
+            if (IsLightDesktopEntry(registration.Group))
+            {
+                ApplyLightDesktopDrawerPresentation(registration, isPeekActive);
+                return;
+            }
+            registration.Container.Visibility = Visibility.Visible;
             registration.Outer.Height = presentation.VisualHeight;
             registration.Body.Visibility = presentation.BodyVisible
                 ? Visibility.Visible

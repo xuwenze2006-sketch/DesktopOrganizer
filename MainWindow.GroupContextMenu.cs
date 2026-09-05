@@ -24,6 +24,7 @@ namespace DesktopOrganizer
 
         private void DismissGroupMenuFromNativePointer(IntPtr clickedWindow)
         {
+            DismissLightDesktopDrawerFromNativePointer(clickedWindow);
             // 现有低级鼠标钩子在安装它的 UI 线程回调。不能依赖透明桌面的
             // WPF MouseDown 或 Deactivated；也不能在原生钩子里同步拆除 Popup。
             ContextMenu? menu = _openGroupContextMenu;

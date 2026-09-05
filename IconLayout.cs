@@ -33,6 +33,8 @@ namespace DesktopOrganizer
         FoldersFirst
     }
 
+    internal enum DesktopZoneRole { None, Shortcuts, Research, Projects, Other }
+
     /// <summary>分组卡片信息：位置、大小以及包含的桌面项名称。</summary>
     internal sealed class GroupInfo
     {
@@ -67,6 +69,9 @@ namespace DesktopOrganizer
 
         /// <summary>智能布局使用统一轨道宽度；手动锁定尺寸时不干预用户选择。</summary>
         public bool UseUniformTrackWidth { get; set; }
+
+        /// <summary>显式应用轻量布局时确定的角色；项目增减或重命名不改变锚点与列数。</summary>
+        public DesktopZoneRole DesktopRole { get; set; }
 
         /// <summary>分类框内部项目排序；Custom 保留用户拖放顺序。</summary>
         public GroupSortMode SortMode { get; set; } = GroupSortMode.Custom;

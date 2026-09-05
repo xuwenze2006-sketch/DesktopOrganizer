@@ -52,6 +52,9 @@ namespace DesktopOrganizer
                 return;
             }
 
+            // 内容抽屉不是入口本身；只能通过入口上的编辑把手修改锚点。
+            if (IsLightDesktopEntry(group) && header.Name != "LightDesktopEntryDragHandle") return;
+
             if (e.ClickCount == 2)
             {
                 AutoFitGroupAndUnlock(group);
@@ -228,6 +231,7 @@ namespace DesktopOrganizer
 
             Panel.SetZIndex(draggedElement, 100);
             ResetGroupDragState();
+            if (draggedGroup != null && IsLightDesktopEntry(draggedGroup)) RefreshLightDesktopEntries();
 
             if (commit && moved && positionChanged)
             {

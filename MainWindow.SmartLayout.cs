@@ -5,16 +5,21 @@ namespace DesktopOrganizer
     {
         private double GetGroupDisplayHeight(GroupInfo group)
         {
-            return group.IsCollapsed ? GroupHeaderHeight : Math.Max(GroupMinHeight, group.Height);
+            return group.IsCollapsed || IsLightDesktopEntry(group) ? GroupHeaderHeight : Math.Max(GroupMinHeight, group.Height);
         }
 
         private Rect GetGroupBounds(GroupInfo group)
         {
-            return new Rect(group.X, group.Y, group.Width, GetGroupDisplayHeight(group));
+            return new Rect(group.X, group.Y, GetGroupDisplayWidth(group), GetGroupDisplayHeight(group));
         }
 
         private void ToggleGroupCollapsed(GroupInfo group)
         {
+            if (IsLightDesktopEntry(group))
+            {
+                ToggleLightDesktopDrawer(group);
+                return;
+            }
             group.IsCollapsed = !group.IsCollapsed;
             ClampGroupToCanvas(group);
             _lastSmartLayoutSnapshot = null;
@@ -31,14 +36,22 @@ namespace DesktopOrganizer
         internal static string GetToggleAllGroupsMenuHeader(bool collapse) =>
             collapse ? "收起全部分组" : "展开全部分组";
 
+        private string GetVisibleGroupsToggleHeader()
+        {
+            bool collapse = ShouldCollapseAllGroups(_appLayout.Groups.Where(group => !IsLightDesktopEntry(group)));
+            return _appLayout.Groups.Any(IsLightDesktopEntry)
+                ? collapse ? "收起主要分组" : "展开主要分组"
+                : GetToggleAllGroupsMenuHeader(collapse);
+        }
+
         private void CollapseGroupsButton_Click(object sender, RoutedEventArgs e) =>
             ToggleAllGroupsCollapsed();
 
         private void ToggleAllGroupsCollapsed()
         {
-            if (_appLayout.Groups.Count == 0)
+            if (!_appLayout.Groups.Any(group => !IsLightDesktopEntry(group)))
             {
-                StatusText.Text = "当前没有分组";
+                StatusText.Text = "当前分类均为紧凑入口，点击各入口可查看内容";
                 return;
             }
 
@@ -46,23 +59,23 @@ namespace DesktopOrganizer
             bool collapse = ShouldCollapseAllGroups(_appLayout.Groups);
             foreach (GroupInfo group in _appLayout.Groups)
             {
-                group.IsCollapsed = collapse;
+                group.IsCollapsed = collapse || IsLightDesktopEntry(group);
                 ClampGroupToCanvas(group);
             }
 
             _lastSmartLayoutSnapshot = null;
             UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();
-            StatusText.Text = collapse ? "已收起全部分组" : "已展开全部分组";
+            StatusText.Text = _appLayout.Groups.Any(IsLightDesktopEntry)
+                ? collapse ? "已收起主要分组；其他分类入口仍保留" : "已展开主要分组；其他分类可点击入口查看"
+                : collapse ? "已收起全部分组" : "已展开全部分组";
         }
 
         private void UpdateCollapseGroupsButton()
         {
-            bool hasGroups = _appLayout.Groups.Count > 0;
+            bool hasGroups = _appLayout.Groups.Any(group => !IsLightDesktopEntry(group));
             CollapseGroupsButton.IsEnabled = hasGroups;
-            CollapseGroupsButton.Content = hasGroups && !ShouldCollapseAllGroups(_appLayout.Groups)
-                ? "全部展开"
-                : "全部收起";
+            CollapseGroupsButton.Content = GetVisibleGroupsToggleHeader();
         }
 
         private void SmartArrangeGroupsButton_Click(object sender, RoutedEventArgs e)
@@ -90,7 +103,7 @@ namespace DesktopOrganizer
                 : _appLayout.ReserveTemporaryWorkspace
                     ? "，因空间不足已使用完整工作区"
                     : string.Empty;
-            StatusText.Text = $"智能布局完成{workspaceNote}；已统一自动卡片宽度，展开分组优先，可点击“撤销布局”恢复";
+            StatusText.Text = $"智能布局完成{workspaceNote}；已固定主要分组，其他分类按需展开，可点击“撤销布局”恢复";
         }
 
         private Dictionary<string, GroupLayoutSnapshot> CaptureGroupLayoutSnapshot()
@@ -105,7 +118,8 @@ namespace DesktopOrganizer
                     group.Height,
                     group.IsCollapsed,
                     group.IsSizeLocked,
-                    group.UseUniformTrackWidth);
+                    group.UseUniformTrackWidth,
+                    group.DesktopRole);
             }
 
             return snapshot;
@@ -129,6 +143,7 @@ namespace DesktopOrganizer
                 group.IsCollapsed = snapshot.IsCollapsed;
                 group.IsSizeLocked = snapshot.IsSizeLocked;
                 group.UseUniformTrackWidth = snapshot.UseUniformTrackWidth;
+                group.DesktopRole = snapshot.DesktopRole;
                 ClampGroupToCanvas(group);
             }
         }
@@ -158,6 +173,12 @@ namespace DesktopOrganizer
         {
             const double margin = 16;
             const double gap = 12;
+
+            StopGroupPeek();
+            if (TryArrangeLightDesktop())
+            {
+                return true;
+            }
 
             foreach (GroupInfo group in _appLayout.Groups.Where(group => !group.IsSizeLocked))
             {

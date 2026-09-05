@@ -289,6 +289,7 @@ namespace DesktopOrganizer
                     UserRuleId = group.UserRuleId,
                     IsSizeLocked = false,
                     UseUniformTrackWidth = group.UseUniformTrackWidth,
+                    DesktopRole = group.DesktopRole,
                     SortMode = group.SortMode
                 };
                 AutoFitGroup(plannedGroup, clampPosition: false);
@@ -413,7 +414,7 @@ namespace DesktopOrganizer
             Point clamped = ClampRectToUsableDesktop(
                 x,
                 y,
-                group.Width,
+                GetGroupDisplayWidth(group),
                 GetGroupDisplayHeight(group));
             x = clamped.X;
             y = clamped.Y;
