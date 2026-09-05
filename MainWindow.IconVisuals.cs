@@ -13,7 +13,7 @@ namespace DesktopOrganizer
                 out _);
             var content = new StackPanel
             {
-                VerticalAlignment = VerticalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
                 HorizontalAlignment = HorizontalAlignment.Stretch
             };
 
