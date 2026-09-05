@@ -13,6 +13,42 @@ namespace DesktopOrganizer.Tests;
 public sealed class IconLabelLayoutTests
 {
     [STATestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public void LabelBackground_GroupedIsClear_FreeKeepsContrast_InteractionStillHighlights(bool grouped)
+    {
+        var window = new MainWindow(startQuietly: false);
+        try
+        {
+            const string name = "两行文字.txt";
+            BitmapSource icon = BitmapSource.Create(1, 1, 96, 96, PixelFormats.Bgra32, null,
+                new byte[] { 210, 140, 60, 255 }, 4);
+            icon.Freeze();
+            Field<Dictionary<string, BitmapSource?>>(window, "_iconCache")["ext:.txt"] = icon;
+            var tile = (Border)Invoke(window, "CreateIconVisual", @"C:\Test\" + name, name,
+                grouped ? new GroupInfo() : null)!;
+            var content = (StackPanel)tile.Child;
+            var labelBackground = (Border)content.Children[1];
+            var label = (TextBlock)labelBackground.Child;
+            Assert.AreEqual(grouped, ((SolidColorBrush)labelBackground.Background).Color.A == 0);
+            Assert.AreEqual(0, ((SolidColorBrush)tile.Background).Color.A);
+            Assert.AreEqual(32, label.MaxHeight);
+            Assert.AreEqual(11, label.FontSize);
+
+            Invoke(window, "ApplyIconSelectionVisual", name, tile, true);
+            Assert.IsGreaterThan((byte)0, ((SolidColorBrush)tile.Background).Color.A);
+            Field<HashSet<string>>(window, "_selectedItemNames").Add(name);
+            Invoke(window, "ApplyIconSelectionVisual", name, tile, false);
+            Assert.IsGreaterThan((byte)0, ((SolidColorBrush)tile.Background).Color.A);
+            Assert.AreEqual(new Thickness(1.5), tile.BorderThickness);
+        }
+        finally
+        {
+            Field<DispatcherTimer>(window, "_layoutSaveTimer").Stop();
+        }
+    }
+
+    [STATestMethod]
     [DataRow(true, 352, 1.0)]
     [DataRow(true, 352, 1.25)]
     [DataRow(true, 352, 1.5)]

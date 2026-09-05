@@ -45,7 +45,7 @@ namespace DesktopOrganizer
             var labelBackground = new Border
             {
                 Background = isGroupedIcon
-                    ? WarmPaperTheme.GroupedLabelSurfaceBrush
+                    ? MediaBrushes.Transparent
                     : IconLabelBackgroundBrush,
                 CornerRadius = new CornerRadius(isGroupedIcon ? 4 : 3),
                 Padding = isGroupedIcon ? new Thickness(2, 1, 2, 1) : new Thickness(1),
