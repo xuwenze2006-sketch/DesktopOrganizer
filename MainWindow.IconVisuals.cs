@@ -21,7 +21,11 @@ namespace DesktopOrganizer
 
             var label = new TextBlock
             {
-                Text = displayName,
+                Text = !isShellNamespace &&
+                       displayName.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) &&
+                       !Directory.Exists(fullPath)
+                    ? displayName[..^4]
+                    : displayName,
                 Foreground = isGroupedIcon
                     ? WarmPaperTheme.PrimaryTextBrush
                     : MediaBrushes.White,
