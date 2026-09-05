@@ -200,6 +200,7 @@ namespace DesktopOrganizer
         private bool IsUserInteractionActive()
         {
             return _isControlPanelDragging ||
+                   _isDesktopPetDragging ||
                    _isRecycleBinWidgetDragging ||
                    _draggedFolderPortal != null ||
                    _folderPortalDragCaptureElement != null ||
@@ -222,6 +223,7 @@ namespace DesktopOrganizer
 
             IInputElement? captured = Mouse.Captured;
             bool hasExpectedCapture =
+                ReferenceEquals(captured, DesktopPet) ||
                 ReferenceEquals(captured, ControlPanelDragHandle) ||
                 ReferenceEquals(captured, RecycleBinWidgetDragHandle) ||
                 ReferenceEquals(captured, _folderPortalDragCaptureElement) ||
@@ -285,6 +287,7 @@ namespace DesktopOrganizer
 
         private void ResetAllInteractionState(bool restoreDraggedVisual)
         {
+            CompleteDesktopPetDrag(commit: !restoreDraggedVisual);
             UIElement? draggedElement = _draggedElement;
             GroupInfo? draggedGroup = _draggedGroup;
             bool draggedWasGroup = _draggedIsGroup;

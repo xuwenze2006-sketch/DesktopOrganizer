@@ -458,6 +458,9 @@ namespace DesktopOrganizer
             _appLayout.DesktopTopology ??= new List<DesktopMonitorLayoutInfo>();
             _appLayout.ItemIdentities ??= new Dictionary<string, DesktopItemIdentityInfo>();
             _appLayout.RecycleBinWidget ??= new RecycleBinWidgetLayoutInfo();
+            _appLayout.DesktopPet ??= new DesktopPetLayoutInfo();
+            if (_appLayout.DesktopPet.X is double petX && !double.IsFinite(petX)) _appLayout.DesktopPet.X = null;
+            if (_appLayout.DesktopPet.Y is double petY && !double.IsFinite(petY)) _appLayout.DesktopPet.Y = null;
             _appLayout.AutoClassificationOriginalPositions ??= new Dictionary<string, IconPosition>();
             _appLayout.InboxItems ??= new Dictionary<string, InboxItemInfo>();
             _appLayout.ItemTags ??= new Dictionary<string, List<string>>();

@@ -45,6 +45,7 @@ public sealed class ControlPanelUiContractTests
             ["diagnostics"] = "OpenDiagnosticsLogButton_Click",
             ["operation-center"] = "OperationCenterButton_Click",
             ["hide-panel"] = "HidePanelButton_Click",
+            ["desktop-pet"] = "DesktopPetToggle_Click",
             ["exit"] = "ExitButton_Click"
         };
 
@@ -103,7 +104,7 @@ public sealed class ControlPanelUiContractTests
             ["SystemCommandTab"] =
             [
                 "auto-start", "safe-mode", "refresh", "diagnostics",
-                "operation-center", "hide-panel", "exit"
+                "operation-center", "hide-panel", "desktop-pet", "exit"
             ]
         };
 

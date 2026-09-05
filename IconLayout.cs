@@ -129,6 +129,14 @@ namespace DesktopOrganizer
         public WorkspaceLayoutState Layout { get; set; } = new();
     }
 
+    /// <summary>全局桌面配件，不随工作区切换；首次需手动开启。</summary>
+    internal sealed class DesktopPetLayoutInfo
+    {
+        public double? X { get; set; }
+        public double? Y { get; set; }
+        public bool IsVisible { get; set; }
+    }
+
     /// <summary>布局持久化根对象。</summary>
     internal sealed class AppLayoutData
     {
@@ -158,6 +166,8 @@ namespace DesktopOrganizer
 
         /// <summary>v15 起回收站从普通桌面图标体系中独立出来。</summary>
         public RecycleBinWidgetLayoutInfo RecycleBinWidget { get; set; } = new();
+
+        public DesktopPetLayoutInfo DesktopPet { get; set; } = new();
 
         public Dictionary<string, IconPosition> FreeIcons { get; set; } = new();
         public List<GroupInfo> Groups { get; set; } = new();

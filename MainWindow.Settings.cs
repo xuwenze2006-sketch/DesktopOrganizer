@@ -149,6 +149,7 @@ namespace DesktopOrganizer
             }
 
             SafeModeToggle.IsChecked = _isSafeModeActive;
+            UpdateDesktopPetVisibility();
             PushReflowToggle.IsChecked = _appLayout.PushReflowEnabled;
             AutoClassifyNewItemsToggle.IsChecked = _appLayout.AutoClassifyNewItems;
             UpdatePushReflowAvailability();
@@ -475,6 +476,7 @@ namespace DesktopOrganizer
             }
 
             _organizerPaused = paused;
+            UpdateDesktopPetVisibility();
 
             if (_organizerPaused)
             {

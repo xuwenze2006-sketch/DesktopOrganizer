@@ -136,6 +136,7 @@ namespace DesktopOrganizer
             UpdateAutoClassificationControls();
             UpdateInboxButton();
             InitializeRecycleBinWidget();
+            InitializeDesktopPet();
             await RefreshDesktopSnapshotAsync(clearIconCache: false, statusMessage: null);
             if (_isClosing || _lifetimeCts.IsCancellationRequested || Dispatcher.HasShutdownStarted)
             {
@@ -708,6 +709,7 @@ namespace DesktopOrganizer
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             _isClosing = true;
+            UpdateDesktopPetVisibility();
             StopGroupPeek();
             CancelAllPortalReads();
             _folderPortalWatcherCoordinator.Dispose();
@@ -811,6 +813,7 @@ namespace DesktopOrganizer
 
                     ScheduleControlPanelClamp(DispatcherPriority.ContextIdle);
                     ClampRecycleBinWidgetToDesktop(updateLayout: true);
+                    ApplyDesktopPetPosition();
                 }, DispatcherPriority.Background, _lifetimeCts.Token);
             }
             catch (OperationCanceledException)
@@ -876,6 +879,10 @@ namespace DesktopOrganizer
 
         private bool IsInteractiveClientPoint(Point point)
         {
+            Point petPosition = GetDesktopPetPosition();
+            if (DesktopPet.ContainsOpaquePoint(new Point(point.X - petPosition.X, point.Y - petPosition.Y)))
+                return true;
+
             if (ControlPanelRestoreButton.Visibility == Visibility.Visible)
             {
                 double buttonWidth = GetRenderedLength(

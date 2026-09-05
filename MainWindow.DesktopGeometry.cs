@@ -158,6 +158,8 @@ namespace DesktopOrganizer
                 changed = savedGeometry != null &&
                           !savedGeometry.IsEquivalentTo(_desktopGeometry) &&
                           RemapLayoutBetweenGeometries(savedGeometry, _desktopGeometry);
+                if (savedGeometry != null && !savedGeometry.IsEquivalentTo(_desktopGeometry))
+                    changed |= RemapDesktopPet(savedGeometry, _desktopGeometry);
             }
 
             _appLayout.Version = 19;
@@ -227,6 +229,8 @@ namespace DesktopOrganizer
             }
 
             bool changed = RemapLayoutBetweenGeometries(previousGeometry, _desktopGeometry);
+            changed |= RemapDesktopPet(previousGeometry, _desktopGeometry);
+            ApplyDesktopPetPosition();
             CaptureCurrentDesktopTopology();
             _lastSmartLayoutSnapshot = null;
             UndoSmartLayoutButton.IsEnabled = false;

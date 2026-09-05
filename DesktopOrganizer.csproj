@@ -16,4 +16,9 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);tests\**</DefaultItemExcludes>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Resource Include="Assets\Pets\PixelPawsCat.png" />
+    <Content Include="ThirdParty\PixelPaws-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,6 +1,7 @@
 <Window x:Class="DesktopOrganizer.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:DesktopOrganizer"
         Title="DesktopOrganizer"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -547,6 +548,26 @@
         <!-- 不绘制全屏透明画刷；交互区域由 WM_NCHITTEST 的轻量矩形命中决定。 -->
         <Canvas x:Name="IconCanvas" SnapsToDevicePixels="True" />
 
+        <!-- 位于图标层下方，透明像素穿透，避免遮挡文件交互。 -->
+        <local:DesktopPetWidget x:Name="DesktopPet"
+                                Panel.ZIndex="-1"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                Visibility="Collapsed"
+                                Cursor="Hand"
+                                ToolTip="小黑猫 · 轻点互动，拖动换位置，右键可隐藏"
+                                AutomationProperties.Name="桌面小猫"
+                                PreviewMouseLeftButtonDown="DesktopPet_MouseDown"
+                                PreviewMouseMove="DesktopPet_MouseMove"
+                                PreviewMouseLeftButtonUp="DesktopPet_MouseUp"
+                                LostMouseCapture="DesktopPet_LostMouseCapture">
+            <local:DesktopPetWidget.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="隐藏小猫" Click="HideDesktopPet_Click"/>
+                </ContextMenu>
+            </local:DesktopPetWidget.ContextMenu>
+        </local:DesktopPetWidget>
+
         <!-- 回收站不再参与普通图标、分类和挤压排列，而是独立的系统小组件。 -->
         <Border x:Name="RecycleBinWidget"
                 Panel.ZIndex="9000"
@@ -773,7 +794,7 @@
                                 ToolTip="隐藏控制条；可点击右上角“显示面板”、双击托盘图标或再次启动恢复"/>
                 </Grid>
 
-                    <!-- 四个单页按需呈现 30 个命令；同一时刻最多显示八项。 -->
+                    <!-- 命令按页呈现，每页最多八项。 -->
                     <Border x:Name="ExpandedCommands"
                             Visibility="Collapsed"
                             Margin="0,8,0,0"
@@ -1033,6 +1054,13 @@
                                                 Style="{StaticResource PanelCommandButtonStyle}"
                                                 Click="HidePanelButton_Click"
                                                 ToolTip="隐藏控制条；可点击右上角“显示面板”、双击托盘图标或再次启动恢复"/>
+                                        <ToggleButton x:Name="DesktopPetToggle"
+                                                      Content="桌面小猫"
+                                                      Tag="猫"
+                                                      AutomationProperties.AutomationId="desktop-pet"
+                                                      Style="{StaticResource PanelCommandToggleStyle}"
+                                                      Click="DesktopPetToggle_Click"
+                                                      ToolTip="显示会打盹、可拖动的小猫；关闭后停止动画"/>
                                         <Button Content="退出"
                                                 Tag="×"
                                                 AutomationProperties.AutomationId="exit"
