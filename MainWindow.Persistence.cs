@@ -179,7 +179,8 @@ namespace DesktopOrganizer
 
             if (Interlocked.CompareExchange(ref _layoutWriterRunning, 1, 0) == 0)
             {
-                _ = RunLayoutWriterAsync();
+                // 空闲写锁的 WaitAsync 会同步完成，必须显式调度才能让磁盘 I/O 离开界面线程。
+                _ = Task.Run(RunLayoutWriterAsync);
             }
         }
 
@@ -204,7 +205,13 @@ namespace DesktopOrganizer
                     await _layoutWriteGate.WaitAsync(_lifetimeCts.Token).ConfigureAwait(false);
                     try
                     {
-                        WriteLayoutJsonAtomically(json);
+                        // 等锁期间可能已开始退出，旧快照不能覆盖 Closing 保存的最终布局。
+                        if (_isClosing)
+                        {
+                            return;
+                        }
+
+                        _backgroundLayoutWriter(json);
                     }
                     finally
                     {
@@ -240,7 +247,7 @@ namespace DesktopOrganizer
                 if (!_isClosing && hasPendingLayout &&
                     Interlocked.CompareExchange(ref _layoutWriterRunning, 1, 0) == 0)
                 {
-                    _ = RunLayoutWriterAsync();
+                    _ = Task.Run(RunLayoutWriterAsync);
                 }
             }
         }

@@ -83,6 +83,7 @@ namespace DesktopOrganizer
         private readonly HashSet<IntPtr> _pendingDesktopCompanionWindows = new();
         private readonly object _layoutWriteLock = new();
         private readonly SemaphoreSlim _layoutWriteGate = new(1, 1);
+        private readonly Action<string> _backgroundLayoutWriter;
         private volatile bool _preservePendingExitRecovery;
         private readonly List<FileSystemWatcher> _watchers = new();
         private readonly List<DesktopRenameOperation> _pendingDesktopRenames = new();
@@ -275,9 +276,10 @@ namespace DesktopOrganizer
         {
         }
 
-        internal MainWindow(bool startQuietly)
+        internal MainWindow(bool startQuietly, Action<string>? backgroundLayoutWriter = null)
         {
             _startQuietly = startQuietly;
+            _backgroundLayoutWriter = backgroundLayoutWriter ?? WriteLayoutJsonAtomically;
             InitializeComponent();
             _fileOperationService = new FileOperationService();
             _fileOperationJournalStore = new FileOperationJournalStore(
