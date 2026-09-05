@@ -383,6 +383,7 @@ namespace DesktopOrganizer
                 Visibility = _appLayout.IsEditMode ? Visibility.Visible : Visibility.Collapsed
             };
             var groupMenu = new ContextMenu();
+            TrackGroupContextMenu(groupMenu);
             var renameItem = new MenuItem { Header = "重命名", IsEnabled = _appLayout.IsEditMode };
             renameItem.Click += (_, _) => RenameGroup(group);
             var collapseItem = new MenuItem { Header = group.IsCollapsed ? "展开" : "收起" };

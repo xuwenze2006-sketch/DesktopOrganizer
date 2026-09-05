@@ -89,7 +89,8 @@ namespace DesktopOrganizer
             _desktopKeyboardMonitor = NativeMethods.WatchDesktopKeyboardCommands(
                 hwnd,
                 desktopHostProvider: () => _desktopHostHandle,
-                DesktopKeyboardCommandReceived);
+                DesktopKeyboardCommandReceived,
+                mouseButtonDown: DismissGroupMenuFromNativePointer);
             if (_desktopKeyboardMonitor == null)
             {
                 _diagnostics.Log("KEYBOARD_COMMAND monitor unavailable; buttons remain available");

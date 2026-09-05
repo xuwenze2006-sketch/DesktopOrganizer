@@ -21,7 +21,8 @@ namespace DesktopOrganizer
         public static IDisposable? WatchDesktopKeyboardCommands(
             IntPtr organizerWindow,
             Func<IntPtr> desktopHostProvider,
-            Func<DesktopKeyboardCommand, bool> callback)
+            Func<DesktopKeyboardCommand, bool> callback,
+            Action<IntPtr>? mouseButtonDown = null)
         {
             if (organizerWindow == IntPtr.Zero || !IsWindow(organizerWindow))
             {
@@ -34,7 +35,8 @@ namespace DesktopOrganizer
             var subscription = new DesktopInputSubscription(
                 organizerWindow,
                 desktopHostProvider,
-                callback);
+                callback,
+                mouseButtonDown);
             if (subscription.IsActive)
             {
                 return subscription;
@@ -119,6 +121,7 @@ namespace DesktopOrganizer
             private readonly IntPtr _organizerWindow;
             private readonly Func<IntPtr> _desktopHostProvider;
             private readonly Func<DesktopKeyboardCommand, bool> _callback;
+            private readonly Action<IntPtr>? _mouseButtonDown;
             private readonly HookProc _keyboardCallback;
             private readonly HookProc _mouseCallback;
             private readonly WinEventDelegate _foregroundCallback;
@@ -134,11 +137,13 @@ namespace DesktopOrganizer
             public DesktopInputSubscription(
                 IntPtr organizerWindow,
                 Func<IntPtr> desktopHostProvider,
-                Func<DesktopKeyboardCommand, bool> callback)
+                Func<DesktopKeyboardCommand, bool> callback,
+                Action<IntPtr>? mouseButtonDown)
             {
                 _organizerWindow = organizerWindow;
                 _desktopHostProvider = desktopHostProvider;
                 _callback = callback;
+                _mouseButtonDown = mouseButtonDown;
                 _keyboardCallback = OnKeyboardEvent;
                 _mouseCallback = OnMouseEvent;
                 _foregroundCallback = OnForegroundEvent;
@@ -297,6 +302,8 @@ namespace DesktopOrganizer
                         Volatile.Write(
                             ref _organizerPointerContext,
                             root == _organizerWindow ? 1 : 0);
+                        // 只通知，不消费点击；让透明空白区域仍由 Windows 桌面处理。
+                        _mouseButtonDown?.Invoke(root);
                     }
                 }
                 catch
