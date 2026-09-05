@@ -11,7 +11,11 @@ namespace DesktopOrganizer
         private const double GroupHeaderHeight = 38;
         private const double GroupPreferredWidth = 280;
         private const double GroupMaxAutoWidth = 360;
-        private const double GroupedIconRowHeight = 82;
+        private const double IconLabelLineHeight = 16;
+        private const double IconLabelHeight = IconLabelLineHeight * 2;
+        // 42 图标 + 32 双行文字 + 2 文字内边距 + 4 图标内边距 + 4 投放边框。
+        private const double IconTileMinHeight = 84;
+        private const double GroupedIconRowHeight = IconTileMinHeight + 6;
         private const int GroupMaxAutoRows = 3;
         private const double RecycleBinWidgetWidth = 252;
         private const double RecycleBinWidgetHeight = 122;

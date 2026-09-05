@@ -487,7 +487,7 @@ public sealed class SmartLayoutUndoTests
             GroupInfo group = PrepareAutoFitGroup(window);
             InvokeAutoFitGroup(window, group);
             Assert.AreEqual(190, group.Width);
-            Assert.AreEqual(134, group.Height);
+            Assert.AreEqual(142, group.Height);
             CaptureSmartLayoutSnapshot(window);
             window.UndoSmartLayoutButton.IsEnabled = true;
             window.CompactGroupLayoutToggle.IsChecked = true;
@@ -496,7 +496,7 @@ public sealed class SmartLayoutUndoTests
 
             Assert.IsTrue(GetField<AppLayoutData>(window, "_appLayout").CompactGroupLayout);
             Assert.AreEqual(180, group.Width);
-            Assert.AreEqual(130, group.Height);
+            Assert.AreEqual(140, group.Height);
             Assert.IsNull(GetRawField(window, "_lastSmartLayoutSnapshot"));
             Assert.IsFalse(window.UndoSmartLayoutButton.IsEnabled);
         }
@@ -526,7 +526,7 @@ public sealed class SmartLayoutUndoTests
             Assert.AreEqual(40, group.X);
             Assert.AreEqual(40, group.Y);
             Assert.AreEqual(190, group.Width);
-            Assert.AreEqual(134, group.Height);
+            Assert.AreEqual(142, group.Height);
             Assert.IsFalse(group.IsCollapsed);
             Assert.IsTrue(group.IsSizeLocked);
             Assert.HasCount(1, GetField<AppLayoutData>(window, "_appLayout").Groups);
@@ -1394,7 +1394,7 @@ public sealed class SmartLayoutUndoTests
             layout.FreeIcons.Clear();
             group.ItemNames = ["A.txt", "B.txt"];
             group.Width = 220;
-            group.Height = 134;
+            group.Height = 142;
             group.IsSizeLocked = false;
             Dictionary<string, string> desktopItems = GetField<Dictionary<string, string>>(
                 window,

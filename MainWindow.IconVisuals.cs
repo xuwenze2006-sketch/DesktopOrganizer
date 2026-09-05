@@ -32,7 +32,9 @@ namespace DesktopOrganizer
                 TextAlignment = TextAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                MaxHeight = 34,
+                MaxHeight = IconLabelHeight,
+                LineHeight = IconLabelLineHeight,
+                LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
                 FontSize = 11,
                 Margin = new Thickness(2, 0, 2, 0)
             };
@@ -57,8 +59,8 @@ namespace DesktopOrganizer
                 ? GetGroupedIconTileWidth(parentGroup!)
                 : IconCellWidth - 10;
             double tileHeight = isGroupedIcon
-                ? (_appLayout.CompactGroupLayout ? 74 : 78)
-                : IconCellHeight - 10;
+                ? (_appLayout.CompactGroupLayout ? IconTileMinHeight : IconTileMinHeight + 2)
+                : IconTileMinHeight;
             double tileMargin = isGroupedIcon
                 ? (_appLayout.CompactGroupLayout ? 1.5 : 2)
                 : 3;

@@ -8,8 +8,8 @@ namespace DesktopOrganizer.Tests;
 public sealed class DesktopSearchLocateTests
 {
     [STATestMethod]
-    [DataRow(true, 352d, 80, 1560d)]
-    [DataRow(false, 352d, 80, 2132d)]
+    [DataRow(true, 352d, 80, 1760d)]
+    [DataRow(false, 352d, 80, 2340d)]
     public void GroupSearchVerticalOffset_UsesCurrentLayoutRowHeight(
         bool compactLayout,
         double groupWidth,

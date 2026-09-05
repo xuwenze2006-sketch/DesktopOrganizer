@@ -19,7 +19,7 @@ namespace DesktopOrganizer
         }
 
         private double GetGroupedIconRowHeight() =>
-            _appLayout.CompactGroupLayout ? 78 : GroupedIconRowHeight;
+            _appLayout.CompactGroupLayout ? IconTileMinHeight + 4 : GroupedIconRowHeight;
 
         private byte GetGroupNormalBorderAlpha(GroupInfo group) =>
             _appLayout.IsEditMode
