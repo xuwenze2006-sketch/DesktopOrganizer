@@ -164,6 +164,8 @@ namespace DesktopOrganizer
 
             FrameworkElement? nextVisual = null;
             string? nextPath = null;
+            bool preferPhysicalFolder =
+                (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
 
             foreach ((string folderPath, FrameworkElement visual) in _physicalFolderDropTargets)
             {
@@ -175,30 +177,27 @@ namespace DesktopOrganizer
                     continue;
                 }
 
-                if (TryGetElementBoundsOnCanvas(visual, out Rect bounds) && bounds.Contains(canvasPoint))
+                if (TryGetElementBoundsOnCanvas(visual, out Rect bounds) &&
+                    IsPhysicalFolderDropHit(
+                        bounds, canvasPoint, _activeGroupDropTarget != null, preferPhysicalFolder) &&
+                    IsPointInsideClippedAncestors(visual, canvasPoint))
                 {
                     nextVisual = visual;
                     nextPath = folderPath;
                 }
             }
 
-            bool preferPhysicalFolder =
-                (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
-            if (_activeGroupDropTarget != null && !preferPhysicalFolder)
+            if (_activeGroupDropTarget != null && nextPath == null)
             {
                 ClearPhysicalFolderDropPreview();
                 GroupInfo? sourceGroup = draggedElement?.Tag is IconTag sourceTag
                     ? sourceTag.Group ?? _groupedIconDragSourceGroup
                     : null;
-                string groupStatus = GetGroupDropStatus(_activeGroupDropTarget, sourceGroup);
-                StatusText.Text = string.IsNullOrWhiteSpace(nextPath)
-                    ? groupStatus
-                    : $"{groupStatus}；按住 Shift 可移入真实文件夹“{Path.GetFileName(nextPath)}”";
+                StatusText.Text = GetGroupDropStatus(_activeGroupDropTarget, sourceGroup);
                 return;
             }
 
-            if (preferPhysicalFolder &&
-                nextVisual is Border &&
+            if (nextVisual is Border &&
                 !string.IsNullOrWhiteSpace(nextPath))
             {
                 // 每次事件都会先重算分类框目标；即使真实文件夹目标未变化，
@@ -229,6 +228,37 @@ namespace DesktopOrganizer
             targetBorder.BorderThickness = new Thickness(2);
             targetBorder.Background = FolderDropHighlightBrush;
             StatusText.Text = $"松开可移入真实文件夹“{Path.GetFileName(nextPath)}”";
+        }
+
+        internal static bool IsPhysicalFolderDropHit(
+            Rect bounds, Point point, bool insideGroup, bool preferPhysicalFolder)
+        {
+            if (!bounds.Contains(point))
+            {
+                return false;
+            }
+
+            // 分类内保留左右各四分之一用于插入排序；Shift 兼容整格投放。
+            return !insideGroup || preferPhysicalFolder ||
+                   point.X >= bounds.Left + bounds.Width * 0.25 &&
+                   point.X < bounds.Right - bounds.Width * 0.25;
+        }
+
+        private bool IsPointInsideClippedAncestors(FrameworkElement visual, Point canvasPoint)
+        {
+            for (DependencyObject? ancestor = VisualTreeHelper.GetParent(visual);
+                 ancestor != null && !ReferenceEquals(ancestor, IconCanvas);
+                 ancestor = VisualTreeHelper.GetParent(ancestor))
+            {
+                if (ancestor is FrameworkElement { ClipToBounds: true } clipped &&
+                    (!TryGetElementBoundsOnCanvas(clipped, out Rect bounds) ||
+                     !bounds.Contains(canvasPoint)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void ClearPhysicalFolderDropPreview()
@@ -760,7 +790,7 @@ namespace DesktopOrganizer
                 }
 
                 // 两类预览在 MouseUp 前已经互斥：分类框内默认执行虚拟归组，
-                // 分类框内只有按住 Shift 命中文件夹图标时才进入真实文件移动。
+                // 文件夹中央（或 Shift 整格投放）进入真实移动，两侧保留插入排序。
                 if (!string.IsNullOrWhiteSpace(physicalFolderTargetPath))
                 {
                     CancelPushPreview(restoreVisuals: true);

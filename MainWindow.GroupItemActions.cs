@@ -183,7 +183,7 @@ namespace DesktopOrganizer
                 return false;
             }
 
-            StatusText.Text = $"可拖入其它分类框或在当前框排序；拖到空白处可移出“{tag.Group.Name}”；按住 Shift 可移入真实文件夹";
+            StatusText.Text = $"可拖入其它分类框或在当前框排序；拖到空白处可移出“{tag.Group.Name}”；拖到文件夹中央可移入真实文件夹";
             return true;
         }
 

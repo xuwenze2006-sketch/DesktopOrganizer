@@ -88,7 +88,7 @@ namespace DesktopOrganizer
                     : Directory.Exists(fullPath)
                         ? parentGroup == null
                             ? $"真实文件夹：拖入此处会移动真实文件\n单击选择；双击打开；Ctrl+单击可多选\n{fullPath}"
-                            : $"真实文件夹：拖入此处会移动真实文件\n单击选择；双击打开；Ctrl+单击可多选；Shift+单击可连续选择\n{fullPath}"
+                            : $"真实文件夹：拖到中央会移入真实文件；左右边缘用于插入排序\n单击选择；双击打开；Ctrl+单击可多选；Shift+单击可连续选择\n{fullPath}"
                         : parentGroup == null
                             ? (_appLayout.IsEditMode
                                 ? $"单击选择；双击打开；拖动可调整位置或移入真实文件夹/虚拟分类\nCtrl+单击可多选\n{fullPath}"
