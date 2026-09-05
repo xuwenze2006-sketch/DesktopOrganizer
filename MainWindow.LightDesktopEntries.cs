@@ -110,6 +110,8 @@ namespace DesktopOrganizer
                 {
                     double sectionTop = top - 24;
                     double sectionWidth = right - left;
+                    Thickness sectionBorder = new(0);
+                    Brush? sectionBorderBrush = null;
                     bool draggingEntry = _groupDragMoved && _draggedGroup != null && entries.Contains(_draggedGroup);
                     GroupInfo? project = _appLayout.Groups.FirstOrDefault(group =>
                         group.DesktopRole == DesktopZoneRole.Projects && !group.IsCollapsed && !group.IsSizeLocked &&
@@ -124,16 +126,27 @@ namespace DesktopOrganizer
                         _joinedLightDesktopProject.CornerRadius = new CornerRadius(11, 11, 0, 0);
                         // Outer 的固定尺寸外还有边框；只调整底板，保持图标和入口坐标不变。
                         Thickness border = registration.Container.BorderThickness;
-                        sectionWidth = registration.Outer.Width + border.Left + border.Right;
+                        sectionBorder = new Thickness(border.Left, 0, border.Right, border.Bottom);
+                        sectionBorderBrush = registration.Container.BorderBrush;
                         // 底板略托入底部留白，避免缩放取整后透明边框透出壁纸。
                         sectionTop = project.Y + registration.Outer.Height;
                     }
                     var section = new Border { Width = sectionWidth, Height = bottom - sectionTop,
                         Background = LightDesktopSurfaceBrush,
+                        BorderThickness = sectionBorder, BorderBrush = sectionBorderBrush,
                         CornerRadius = joined ? new CornerRadius(0, 0, 11, 11) : new CornerRadius(11),
-                        IsHitTestVisible = false };
+                        IsHitTestVisible = false, SnapsToDevicePixels = true };
+                    if (joined)
+                    {
+                        // ActualWidth 包含 DPI 取整后的边框，不能用两个名义上的 1 DIP 推算。
+                        section.SetBinding(WidthProperty, new System.Windows.Data.Binding(nameof(ActualWidth))
+                            { Source = _joinedLightDesktopProject });
+                        section.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding(nameof(Border.BorderBrush))
+                            { Source = _joinedLightDesktopProject });
+                    }
                     var heading = new TextBlock { Text = "其他分类", FontSize = 10,
-                        Foreground = WarmPaperTheme.SecondaryTextBrush, Margin = new Thickness(11, 5, 0, 0) };
+                        Foreground = WarmPaperTheme.SecondaryTextBrush,
+                        Margin = new Thickness(11 - sectionBorder.Left, 5, 0, 0) };
                     section.Child = heading;
                     Canvas.SetLeft(section, left); Canvas.SetTop(section, sectionTop);
                     Panel.SetZIndex(section, GroupNormalZIndex - 1);

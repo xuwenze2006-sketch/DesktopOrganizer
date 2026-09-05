@@ -52,13 +52,16 @@ public sealed class LightDesktopLayoutTests
         }
         Border section = f.Field<List<FrameworkElement>>("_lightDesktopDecorations").OfType<Border>().Single();
         FrameworkElement projectVisual = f.Visual(projects);
+        Assert.AreEqual(scale, VisualTreeHelper.GetDpi(projectVisual).DpiScaleX);
+        Assert.AreEqual(scale, VisualTreeHelper.GetDpi(section).DpiScaleX);
         Assert.AreEqual(Canvas.GetLeft(projectVisual) + projectVisual.ActualWidth,
-            Canvas.GetLeft(section) + section.ActualWidth, 1 / scale,
+            Canvas.GetLeft(section) + section.ActualWidth, 0.01,
             "连接底板须对齐包含边框的实际右边缘。");
         Assert.AreEqual(projects.Y + projects.Height,
             Canvas.GetTop(section), 1 / scale, "底板只托入项目底部留白，不能移动入口或缩减正文高度。");
         RenderTargetBitmap frame = f.RenderFrame();
-        int seamY = (int)Math.Round((projects.Y + projects.Height) * scale);
+        Point projectOrigin = projectVisual.TranslatePoint(new Point(), f.Window.RootGrid);
+        int seamY = (int)Math.Round(section.TranslatePoint(new Point(), f.Window.RootGrid).Y * scale);
         var seamPixels = new byte[4 * 8];
         frame.CopyPixels(new Int32Rect((int)((projects.X + projects.Width / 2) * scale), seamY - 1, 1, 8),
             seamPixels, 4, 0);
@@ -66,6 +69,18 @@ public sealed class LightDesktopLayoutTests
         f.Render($"light-desktop-{scale}.png");
         Assert.IsTrue(red.Max() - red.Min() < 40,
             $"接缝只能是浅分隔线，不能透出深色壁纸形成裂缝。像素={string.Join(',', red)}");
+        foreach (double edge in new[] { projectOrigin.X, projectOrigin.X + projectVisual.ActualWidth })
+        {
+            int edgeX = (int)Math.Round(edge * scale) - 4;
+            var above = new byte[8 * 4];
+            var below = new byte[8 * 4];
+            frame.CopyPixels(new Int32Rect(edgeX, seamY - 8, 8, 1), above, above.Length, 0);
+            frame.CopyPixels(new Int32Rect(edgeX, seamY + 12, 8, 1), below, below.Length, 0);
+            int difference = Enumerable.Range(0, above.Length).Where(index => index % 4 != 3)
+                .Max(index => Math.Abs(above[index] - below[index]));
+            Assert.IsTrue(difference < 20,
+                $"接缝上下的实际着色边缘应一致。edge={edge}, delta={difference}, dpi={VisualTreeHelper.GetDpi(projectVisual).DpiScaleX}, widths={projectVisual.ActualWidth}/{section.ActualWidth}");
+        }
     }
 
     [STATestMethod]
@@ -246,7 +261,6 @@ public sealed class LightDesktopLayoutTests
             Window.RecycleBinWidget.Visibility = Visibility.Collapsed;
             Window.ControlPanelRestoreButton.Visibility = Visibility.Collapsed;
             _source = new OffscreenSource(Window.RootGrid);
-            VisualTreeHelper.SetRootDpi(Window.RootGrid, new DpiScale(scale, scale));
             Layout.Groups.Clear(); Layout.FolderPortals.Clear(); Layout.FreeIcons.Clear(); Layout.RecycleBinWidget.IsVisible = false;
             typeof(MainWindow).GetField("_desktopGeometry", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(Window,
                 new DesktopGeometry([new DesktopMonitorRegion { DeviceName = "TEST", IsPrimary = true,
@@ -280,6 +294,7 @@ public sealed class LightDesktopLayoutTests
         }
         public void Measure()
         {
+            VisualTreeHelper.SetRootDpi(Window.RootGrid, new DpiScale(_scale, _scale));
             Window.IconCanvas.InvalidateMeasure(); Window.RootGrid.InvalidateMeasure();
             Window.RootGrid.Measure(new Size(1600, 1200));
             Window.RootGrid.Arrange(new Rect(0, 0, 1600, 1200));
