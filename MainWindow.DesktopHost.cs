@@ -176,7 +176,7 @@ namespace DesktopOrganizer
 
             if (_isAttachedToDesktop)
             {
-                // 隐藏 SysListView32 或加载 Spotlight/桌面搜索组件，都可能让 Explorer
+                // 改变 Shell 图标显示状态或加载 Spotlight/桌面搜索组件，都可能让 Explorer
                 // 异步重排顶级 Z 序。无论用户原本是否显示系统图标，都要再次校正。
                 _isAttachedToDesktop = NativeMethods.EnsureWindowInDesktopLayer(
                     hwnd,

@@ -63,38 +63,23 @@ namespace DesktopOrganizer
                 : FindWindowEx(defView, IntPtr.Zero, "SysListView32", null);
         }
 
-        /// <summary>隐藏原生桌面图标，并返回调用前是否可见。</summary>
+        /// <summary>通过 Shell 隐藏原生图标；仅本次成功隐藏时返回 true。</summary>
         public static bool HideNativeDesktopIcons()
         {
-            IntPtr listView = FindDesktopListView();
-            if (listView == IntPtr.Zero)
-            {
-                return false;
-            }
-
-            bool wasVisible = IsWindowVisible(listView);
-            if (wasVisible)
-            {
-                _ = ShowWindow(listView, SW_HIDE);
-            }
-
-            return wasVisible;
+            return TrySetShellDesktopIconsVisible(visible: false, out bool changed) && changed;
         }
 
         public static bool EnsureNativeDesktopIconsHidden()
         {
-            IntPtr listView = FindDesktopListView();
-            if (listView == IntPtr.Zero || !IsWindowVisible(listView))
-            {
-                return false;
-            }
-
-            _ = ShowWindow(listView, SW_HIDE);
-            return true;
+            return HideNativeDesktopIcons();
         }
 
         public static void RestoreNativeDesktopIcons()
         {
+            if (!TrySetShellDesktopIconsVisible(visible: true, out _))
+                return;
+
+            // 兼容旧版本崩溃恢复：旧版只隐藏窗口，没有设置 Shell 的 NOICONS 标志。
             IntPtr listView = FindDesktopListView();
             if (listView != IntPtr.Zero && !IsWindowVisible(listView))
             {
