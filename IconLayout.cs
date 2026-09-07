@@ -133,6 +133,7 @@ namespace DesktopOrganizer
     internal sealed class DesktopPetLayoutInfo
     {
         public string CharacterId { get; set; } = DesktopPetWidget.CatCharacterId;
+        public bool ShowScene { get; set; }
         public double? X { get; set; }
         public double? Y { get; set; }
         public bool IsVisible { get; set; }

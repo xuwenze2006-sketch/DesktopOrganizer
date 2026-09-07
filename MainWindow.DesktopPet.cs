@@ -4,12 +4,14 @@ namespace DesktopOrganizer
     {
         private bool _isDesktopPetDragging;
         private bool _desktopPetDragMoved;
+        private bool _desktopPetDragCharacter;
         private Point _desktopPetDragStartMouse;
         private Point _desktopPetDragStartPosition;
 
         private void InitializeDesktopPet()
         {
             DesktopPet.SetCharacter(_appLayout.DesktopPet.CharacterId);
+            DesktopPet.SetSceneEnabled(_appLayout.DesktopPet.ShowScene);
             UpdateDesktopPetDescription();
             DesktopPetToggle.IsChecked = _appLayout.DesktopPet.IsVisible;
             ApplyDesktopPetPosition();
@@ -28,12 +30,34 @@ namespace DesktopOrganizer
             DesktopPet.ToolTip = DesktopPet.CharacterId == DesktopPetWidget.VPetCharacterId
                 ? "萝莉斯 · VPet／虚拟主播模拟器制作组；轻点摸头，拖动提起，右键切换角色或查看来源"
                 : "小黑猫 · 轻点互动，拖动换位置，右键切换角色或隐藏";
+            if (DesktopPet.SceneEnabled) DesktopPet.ToolTip += "；拖动树或草地移动整景";
             System.Windows.Automation.AutomationProperties.SetName(DesktopPet, "桌面宠物 · " + DesktopPetName);
         }
 
         private void DesktopPetCharacter_Click(object sender, RoutedEventArgs e)
         {
             if (sender is MenuItem { Tag: string id }) SetDesktopPetCharacter(id);
+        }
+
+        private void DesktopPetScene_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem item) SetDesktopPetScene(item.IsChecked);
+        }
+
+        private void SetDesktopPetScene(bool enabled)
+        {
+            if (_appLayout.DesktopPet.ShowScene == enabled) return;
+            CompleteDesktopPetDrag(commit: false);
+            Point characterPosition = GetDesktopPetPosition() +
+                DesktopPetWidget.GetCharacterOffset(DesktopPet.CharacterId, DesktopPet.SceneEnabled);
+            _appLayout.DesktopPet.ShowScene = enabled;
+            DesktopPet.SetSceneEnabled(enabled);
+            Vector offset = DesktopPetWidget.GetCharacterOffset(DesktopPet.CharacterId, enabled);
+            SetDesktopPetPosition(characterPosition.X - offset.X, characterPosition.Y - offset.Y, updateLayout: true);
+            UpdateDesktopPetDescription();
+            SaveLayout();
+            StatusText.Text = enabled ? "已开启树与草地；拖动场景换位置，轻点角色互动"
+                : "已关闭树与草地，保留独立桌面宠物";
         }
 
         private void SetDesktopPetCharacter(string id)
@@ -60,6 +84,7 @@ namespace DesktopOrganizer
                 if (item.Tag is string id && (id == DesktopPetWidget.CatCharacterId || id == DesktopPetWidget.VPetCharacterId))
                     item.IsChecked = id == _appLayout.DesktopPet.CharacterId;
                 if (item.Tag is "action") item.IsEnabled = DesktopPet.IsVisible && !_isDesktopPetDragging;
+                if (item.Tag is "scene") item.IsChecked = _appLayout.DesktopPet.ShowScene;
             }
         }
 
@@ -141,7 +166,7 @@ namespace DesktopOrganizer
         {
             DesktopPetLayoutInfo pet = _appLayout.DesktopPet;
             if (!pet.X.HasValue || !pet.Y.HasValue) return false;
-            double size = DesktopPetWidget.GetCharacterSize(pet.CharacterId);
+            double size = DesktopPetWidget.GetWidgetSize(pet.CharacterId, pet.ShowScene);
             Point mapped = MapItemPosition(pet.X.Value, pet.Y.Value,
                 size, size, source, target);
             bool changed = Math.Abs(pet.X.Value - mapped.X) > .01 || Math.Abs(pet.Y.Value - mapped.Y) > .01;
@@ -157,6 +182,7 @@ namespace DesktopOrganizer
             _desktopPetDragStartMouse = e.GetPosition(RootGrid);
             _desktopPetDragStartPosition = GetDesktopPetPosition();
             _desktopPetDragMoved = false;
+            _desktopPetDragCharacter = DesktopPet.ContainsCharacterPoint(e.GetPosition(DesktopPet));
             _isDesktopPetDragging = Mouse.Capture(DesktopPet, CaptureMode.Element);
             if (_isDesktopPetDragging)
             {
@@ -171,7 +197,7 @@ namespace DesktopOrganizer
             if (!_desktopPetDragMoved &&
                 Math.Abs(delta.X) < SystemParameters.MinimumHorizontalDragDistance &&
                 Math.Abs(delta.Y) < SystemParameters.MinimumVerticalDragDistance) return;
-            if (!_desktopPetDragMoved) DesktopPet.SetDragging(true);
+            if (!_desktopPetDragMoved && _desktopPetDragCharacter) DesktopPet.SetDragging(true);
             _desktopPetDragMoved = true;
             SetDesktopPetPosition(_desktopPetDragStartPosition.X + delta.X,
                 _desktopPetDragStartPosition.Y + delta.Y, updateLayout: false);
@@ -181,7 +207,7 @@ namespace DesktopOrganizer
         private void DesktopPet_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (!_isDesktopPetDragging) return;
-            bool tapped = !_desktopPetDragMoved;
+            bool tapped = !_desktopPetDragMoved && _desktopPetDragCharacter;
             CompleteDesktopPetDrag(commit: true);
             if (tapped) DesktopPet.ReactToTouch();
             e.Handled = true;
@@ -196,6 +222,7 @@ namespace DesktopOrganizer
             bool moved = _desktopPetDragMoved;
             _isDesktopPetDragging = false;
             _desktopPetDragMoved = false;
+            _desktopPetDragCharacter = false;
             if (!commit)
                 SetDesktopPetPosition(_desktopPetDragStartPosition.X, _desktopPetDragStartPosition.Y, updateLayout: false);
             if (ReferenceEquals(Mouse.Captured, DesktopPet)) Mouse.Capture(null);

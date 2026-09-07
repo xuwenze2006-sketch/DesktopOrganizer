@@ -31,15 +31,37 @@ namespace DesktopOrganizer
         private bool IsVPet => _characterId == VPetCharacterId;
         internal int CurrentFrame => IsVPet ? _step : _sequence[_step].Frame;
         internal bool AnimationRunning => _timer.IsEnabled;
+        internal bool SceneEnabled { get; private set; }
         internal static string NormalizeCharacterId(string? id) => id == VPetCharacterId ? VPetCharacterId : CatCharacterId;
         internal static double GetCharacterSize(string? id) => id == VPetCharacterId ? 168 : WidgetSize;
+        internal static double GetWidgetSize(string? id, bool scene) => scene ? DesktopPetScene.Size : GetCharacterSize(id);
+        internal static Vector GetCharacterOffset(string? id, bool scene) => !scene ? new Vector()
+            : id == VPetCharacterId ? new Vector(168, 137) : new Vector(196, 192);
+        internal Rect CharacterBounds
+        {
+            get
+            {
+                Vector offset = GetCharacterOffset(_characterId, SceneEnabled);
+                double size = GetCharacterSize(_characterId);
+                return new Rect(offset.X * RenderSize.Width / Width, offset.Y * RenderSize.Height / Height,
+                    size * RenderSize.Width / Width, size * RenderSize.Height / Height);
+            }
+        }
+
+        internal void SetSceneEnabled(bool enabled)
+        {
+            if (SceneEnabled == enabled) return;
+            SceneEnabled = enabled;
+            Width = Height = GetWidgetSize(_characterId, enabled);
+            InvalidateVisual();
+        }
 
         internal void SetCharacter(string? id)
         {
             string normalized = NormalizeCharacterId(id);
             if (_characterId == normalized) return;
             _characterId = normalized;
-            Width = Height = GetCharacterSize(normalized);
+            Width = Height = GetWidgetSize(normalized, SceneEnabled);
             _dragging = false;
             ResetIdle();
         }
@@ -185,21 +207,45 @@ namespace DesktopOrganizer
 
         protected override void OnRender(DrawingContext drawingContext)
         {
-            if (_active)
-                drawingContext.DrawImage(IsVPet ? VPetAnimation.GetClip(_clipName).Frames[_step].Image
-                    : Frames.Value[CurrentFrame].Image, new Rect(RenderSize));
+            if (!_active) return;
+            if (SceneEnabled)
+            {
+                drawingContext.DrawImage(DesktopPetScene.Background.Image, new Rect(RenderSize));
+                double xScale = RenderSize.Width / DesktopPetScene.Size;
+                double yScale = RenderSize.Height / DesktopPetScene.Size;
+                bool resting = CurrentClip.StartsWith("sleep", StringComparison.Ordinal) || CurrentClip == "raisedEnd";
+                drawingContext.DrawEllipse(SceneShadow, null, new Point(253.5 * xScale, 301 * yScale),
+                    (resting ? 72.5 : 33) * xScale, 5.5 * yScale);
+            }
+            drawingContext.DrawImage(IsVPet ? VPetAnimation.GetClip(_clipName).Frames[_step].Image
+                : Frames.Value[CurrentFrame].Image, CharacterBounds);
+            if (SceneEnabled) drawingContext.DrawImage(DesktopPetScene.Foreground.Image, new Rect(RenderSize));
         }
 
-        internal bool ContainsOpaquePoint(Point point)
+        private static readonly Brush SceneShadow = CreateSceneShadow();
+        private static Brush CreateSceneShadow()
+        {
+            var brush = new SolidColorBrush(Color.FromArgb(32, 53, 72, 59));
+            brush.Freeze();
+            return brush;
+        }
+
+        internal bool ContainsOpaquePoint(Point point) =>
+            ContainsCharacterPoint(point) || (_active && IsVisible && SceneEnabled &&
+                DesktopPetScene.ContainsOpaquePoint(point, RenderSize));
+
+        internal bool ContainsCharacterPoint(Point point)
         {
             if (!_active || !IsVisible || ActualWidth <= 0 || ActualHeight <= 0 ||
                 point.X < 0 || point.Y < 0 || point.X >= ActualWidth || point.Y >= ActualHeight)
                 return false;
 
+            Rect bounds = CharacterBounds;
+            if (point.X < bounds.Left || point.Y < bounds.Top || point.X >= bounds.Right || point.Y >= bounds.Bottom) return false;
             BitmapSource bitmap = IsVPet ? VPetAnimation.GetClip(_clipName).Frames[_step].Image : Frames.Value[CurrentFrame].Image;
             byte[] alpha = IsVPet ? VPetAnimation.GetClip(_clipName).Frames[_step].Alpha : Frames.Value[CurrentFrame].Alpha;
-            int x = (int)(point.X * bitmap.PixelWidth / ActualWidth);
-            int y = (int)(point.Y * bitmap.PixelHeight / ActualHeight);
+            int x = (int)((point.X - bounds.X) * bitmap.PixelWidth / bounds.Width);
+            int y = (int)((point.Y - bounds.Y) * bitmap.PixelHeight / bounds.Height);
             return alpha[y * bitmap.PixelWidth + x] > 32;
         }
 

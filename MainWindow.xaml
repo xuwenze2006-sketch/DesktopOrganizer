@@ -21,6 +21,7 @@
         <ContextMenu x:Key="DesktopPetMenu" x:Shared="False" Opened="DesktopPetMenu_Opened">
             <MenuItem Header="小黑猫 · PixelPaws" Tag="pixelpaws" IsCheckable="True" Click="DesktopPetCharacter_Click"/>
             <MenuItem Header="萝莉斯 · VPet" Tag="vpet" IsCheckable="True" Click="DesktopPetCharacter_Click"/>
+            <MenuItem Header="树与草地" Tag="scene" IsCheckable="True" Click="DesktopPetScene_Click"/>
             <Separator/>
             <MenuItem Header="摸摸头" Tag="action" Click="DesktopPetTouch_Click"/>
             <MenuItem Header="休息" Tag="action" Click="DesktopPetRest_Click"/>
