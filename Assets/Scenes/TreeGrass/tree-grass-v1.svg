@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+     width="720" height="720" viewBox="0 0 720 720" fill="none">
+  <title>树下小憩 · 树与草地第一版</title>
+  <desc>原创分层矢量场景；透明画布。图层从后至前：草地、接地阴影、树干、树冠、前景草。
+    本文件不含第三方角色。建议以 360×360 DIP 显示；角色画布为 168×168 DIP。
+    预览角色画布左上角为源坐标 (336,274)，画布大小 336×336；保留帧原始画布，不逐帧裁边或贴地。
+    树根锚点 (238,590)，角色地面参考线 y=604；树冠摆动参考点 (260,326)。
+    完整场景保持同一画布导出，各独立图层不得自动裁剪。前景草绘制于角色前，其他图层在角色后。
+  </desc>
+  <defs>
+    <linearGradient id="turf" x1="300" y1="519" x2="330" y2="655" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BDD28C"/><stop offset="1" stop-color="#8EAD70"/>
+    </linearGradient>
+    <linearGradient id="soil" x1="320" y1="590" x2="320" y2="675" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A5926E"/><stop offset="1" stop-color="#84765F"/>
+    </linearGradient>
+    <linearGradient id="bark" x1="204" y1="418" x2="278" y2="432" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C9AB82"/><stop offset=".48" stop-color="#B39170"/><stop offset="1" stop-color="#997D64"/>
+    </linearGradient>
+    <linearGradient id="leaf-base" x1="175" y1="130" x2="351" y2="373" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ABC88C"/><stop offset="1" stop-color="#6D9878"/>
+    </linearGradient>
+    <linearGradient id="leaf-light" x1="181" y1="97" x2="293" y2="256" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D7DDA1"/><stop offset="1" stop-color="#A9C88A"/>
+    </linearGradient>
+    <linearGradient id="leaf-mid" x1="279" y1="190" x2="404" y2="326" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B4CF98"/><stop offset="1" stop-color="#89AF80"/>
+    </linearGradient>
+    <linearGradient id="leaf-front" x1="119" y1="246" x2="236" y2="345" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B9CF92"/><stop offset="1" stop-color="#91B47E"/>
+    </linearGradient>
+  </defs>
+
+  <g id="ground" inkscape:groupmode="layer" inkscape:label="01 草地" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="361" cy="658" rx="295" ry="23" fill="#343E38" opacity=".08"/>
+    <ellipse cx="361" cy="657" rx="254" ry="15" fill="#343E38" opacity=".07"/>
+    <path d="M45 590 C71 548 188 520 333 525 C480 516 628 544 679 583
+      L678 609 C656 651 530 675 367 675 C201 677 75 654 44 612 Z"
+      fill="url(#soil)" stroke="#646655" stroke-width="4"/>
+    <path d="M49 607 C137 652 516 690 675 605 L674 620 C578 672 194 690 50 622 Z"
+      fill="#756E58" opacity=".3"/>
+    <path d="M43 586 C63 550 172 523 303 525 C440 516 584 533 650 563
+      C675 574 688 585 677 599 C647 634 513 655 354 653
+      C195 654 78 634 47 607 C39 600 37 594 43 586 Z"
+      fill="url(#turf)" stroke="#60785D" stroke-width="4"/>
+    <path d="M64 580 C128 540 288 528 404 536 C514 537 600 551 642 571"
+      stroke="#DEE4AE" stroke-width="5" opacity=".72"/>
+    <path d="M59 604 C87 623 118 626 143 631 L149 622 L161 635 L180 635
+      L187 626 L199 639 L232 643 L240 636 L252 645 L278 646 L288 638 L299 649
+      C442 661 599 640 660 615" stroke="#7E9F69" stroke-width="5"/>
+    <path d="M75 611 L76 625 M109 622 L111 639 M171 638 L174 651
+      M250 653 L253 665 M307 657 L308 670 M424 659 L423 670 M560 644 L558 655 M628 626 L624 641"
+      stroke="#C0AC82" stroke-width="3" opacity=".68"/>
+    <path d="M96 582 C147 560 191 561 225 569 C189 568 146 579 132 589 C111 593 100 590 96 582 Z"
+      fill="#D5DFA7" opacity=".55"/>
+    <path d="M323 573 C381 553 457 554 519 568 C462 564 405 576 379 589 C350 591 328 584 323 573 Z"
+      fill="#D6DFAB" opacity=".36"/>
+    <path d="M329 616 C379 600 432 604 455 614 C419 614 387 623 364 630 Z"
+      fill="#D9E0AD" opacity=".45"/>
+    <path d="M556 591 C585 578 620 578 640 586 C619 587 595 594 584 601 Z"
+      fill="#D9E0AD" opacity=".42"/>
+    <g fill="#729663" opacity=".55">
+      <ellipse cx="136" cy="611" rx="12" ry="3"/><ellipse cx="311" cy="633" rx="15" ry="3"/>
+      <ellipse cx="588" cy="616" rx="16" ry="3"/><ellipse cx="407" cy="547" rx="10" ry="2"/>
+    </g>
+  </g>
+
+  <g id="contact-shadow" inkscape:groupmode="layer" inkscape:label="02 接地阴影">
+    <path d="M158 583 C179 562 244 553 294 565 C317 569 356 572 389 585
+      C407 592 401 602 371 609 C310 625 205 615 170 602 C151 595 150 590 158 583 Z"
+      fill="#556F5D" opacity=".19"/>
+    <ellipse cx="238" cy="591" rx="66" ry="15" fill="#4C6455" opacity=".19"/>
+  </g>
+
+  <g id="trunk" inkscape:groupmode="layer" inkscape:label="03 树干与树根" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M202 586 C224 546 226 496 224 452 C222 407 207 384 184 363
+      C166 348 150 340 135 326 L146 310 C172 323 195 338 214 354
+      C219 328 213 292 218 266 L242 260 C250 296 247 336 252 363
+      C273 342 290 317 302 292 L325 300 C312 338 283 373 269 400
+      C256 432 259 486 264 526 C266 553 281 575 308 592
+      C292 601 269 595 253 589 C244 603 224 606 206 601 L176 607
+      C181 597 193 592 202 586 Z"
+      fill="url(#bark)" stroke="#695F55" stroke-width="4.5"/>
+    <path d="M236 310 C232 354 243 380 240 415 C236 454 244 512 232 551
+      C228 570 219 585 208 594 L193 598 C214 568 224 528 223 482
+      C230 423 211 389 203 378 C224 391 236 372 236 349 Z"
+      fill="#D9BB91" opacity=".67"/>
+    <path d="M254 412 C248 453 253 497 257 530 C260 564 276 581 294 591
+      L268 583 C248 559 246 534 245 502 C243 465 244 434 254 412 Z"
+      fill="#836F5B" opacity=".5"/>
+    <path d="M155 327 Q193 350 211 376 M238 284 Q242 322 238 346
+      M307 311 Q287 352 263 374 M249 390 Q238 405 241 434
+      M229 465 Q238 493 230 523 M224 549 Q220 575 210 587
+      M257 559 Q267 579 279 585"
+      stroke="#8F775F" stroke-width="3"/>
+    <path d="M225 408 Q216 426 226 439 Q238 437 234 422 Q232 410 225 408 Z"
+      fill="#A18467" stroke="#8B735E" stroke-width="2.5"/>
+    <path d="M230 419 Q224 420 227 432" stroke="#CEAE83" stroke-width="2"/>
+    <path d="M190 592 Q219 578 240 584 Q255 577 279 590 Q258 589 249 594 Q220 592 208 598 Z"
+      fill="#8FA471" opacity=".75"/>
+  </g>
+
+  <g id="canopy" inkscape:groupmode="layer" inkscape:label="04 树冠" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M104 272 C67 258 68 213 92 194 C77 161 103 130 136 127
+      C134 99 161 78 192 84 C204 49 250 43 277 65 C303 40 345 55 355 81
+      C389 69 427 92 427 124 C468 120 495 156 482 188
+      C516 202 515 244 490 263 C513 293 489 330 456 332
+      C455 366 414 385 389 366 C368 398 326 397 306 375
+      C277 405 235 393 220 371 C189 393 151 375 149 346
+      C110 349 82 310 104 272 Z"
+      fill="url(#leaf-base)" stroke="#566F5D" stroke-width="4.5"/>
+    <path d="M107 284 C126 312 153 312 174 298 C184 332 216 340 239 322
+      C249 354 280 359 307 341 C330 367 365 363 379 345
+      C409 358 437 345 439 323 C462 327 478 316 488 299
+      C485 326 468 333 456 332 C454 367 414 384 389 366
+      C368 398 326 397 306 375 C277 405 235 393 220 371
+      C189 393 151 375 149 346 C118 349 92 321 107 284 Z"
+      fill="#628C70" opacity=".65"/>
+    <path d="M106 198 C95 169 112 147 142 145 C140 120 162 100 191 110
+      C198 77 231 66 254 84 C276 63 309 72 320 96
+      C350 79 383 97 383 125 C406 127 422 146 414 169
+      C438 188 426 220 402 225 C388 252 355 252 337 233
+      C315 262 280 256 268 236 C240 260 209 249 200 229
+      C173 249 145 236 143 215 C127 222 111 214 106 198 Z"
+      fill="url(#leaf-light)" stroke="#91AE7C" stroke-width="3"/>
+    <path d="M119 172 C124 159 137 154 151 159 C151 132 174 119 194 130
+      C200 100 226 91 248 106 C268 89 293 95 304 115"
+      stroke="#EBE8B8" stroke-width="8" opacity=".75"/>
+    <path d="M280 239 C275 211 293 191 318 194 C326 162 360 153 384 173
+      C409 153 442 169 445 193 C475 194 489 220 475 242
+      C493 264 476 291 451 293 C444 322 412 329 391 311
+      C369 334 337 324 329 306 C306 320 282 306 284 285
+      C261 276 261 249 280 239 Z"
+      fill="url(#leaf-mid)" stroke="#7B9D74" stroke-width="3"/>
+    <path d="M321 212 C331 192 347 188 364 200 C380 186 399 190 409 204"
+      stroke="#D7DEAB" stroke-width="6" opacity=".66"/>
+    <path d="M104 256 C104 235 125 220 148 229 C159 204 191 201 208 221
+      C233 209 260 225 258 249 C285 253 294 279 277 298
+      C279 324 251 341 230 328 C210 351 180 342 172 323
+      C145 336 122 320 123 300 C99 298 89 272 104 256 Z"
+      fill="url(#leaf-front)" stroke="#7E9D72" stroke-width="3"/>
+    <path d="M124 250 Q140 238 154 248 Q175 225 196 242"
+      stroke="#DEE2AB" stroke-width="6" opacity=".76"/>
+    <g fill="#E2E4AF" opacity=".9">
+      <path d="M173 159 Q158 138 180 133 Q189 149 173 159 Z"/>
+      <path d="M179 162 Q179 142 198 147 Q197 163 179 162 Z"/>
+      <path d="M249 125 Q234 108 251 101 Q263 113 249 125 Z"/>
+      <path d="M256 126 Q259 110 274 116 Q268 131 256 126 Z"/>
+      <path d="M348 151 Q334 133 350 128 Q362 138 348 151 Z"/>
+      <path d="M154 281 Q139 264 156 258 Q166 271 154 281 Z"/>
+      <path d="M158 285 Q162 268 177 273 Q171 287 158 285 Z"/>
+      <path d="M408 244 Q396 225 412 220 Q424 234 408 244 Z"/>
+    </g>
+    <g fill="#5D8769" opacity=".6">
+      <path d="M212 293 Q207 276 219 271 Q230 286 212 293 Z"/>
+      <path d="M220 294 Q228 278 242 286 Q235 300 220 294 Z"/>
+      <path d="M345 283 Q331 266 346 260 Q358 273 345 283 Z"/>
+      <path d="M355 286 Q359 270 374 275 Q372 290 355 286 Z"/>
+      <path d="M297 359 Q287 344 300 337 Q311 352 297 359 Z"/>
+      <path d="M303 360 Q311 347 324 354 Q318 365 303 360 Z"/>
+    </g>
+    <g stroke="#6D946E" stroke-width="3" opacity=".75">
+      <path d="M213 174 Q226 184 237 173 M294 156 Q305 164 314 156
+        M368 238 Q379 247 389 238 M163 303 Q174 311 183 304"/>
+    </g>
+    <g fill="#E6D9A2">
+      <circle cx="128" cy="199" r="3"/><circle cx="284" cy="97" r="3"/>
+      <circle cx="391" cy="145" r="3"/><circle cx="235" cy="259" r="3"/>
+    </g>
+  </g>
+
+  <g id="foreground" inkscape:groupmode="layer" inkscape:label="05 前景草与小花" stroke-linecap="round" stroke-linejoin="round">
+    <g fill="#84A470" stroke="#64845E" stroke-width="2.5">
+      <path d="M92 599 Q87 587 79 582 Q91 583 96 590 Q97 576 103 570 Q102 586 107 591 Q114 579 124 577 Q114 589 112 600 Z"/>
+      <path d="M172 588 Q165 577 157 575 Q169 573 178 582 Q178 567 185 560 Q184 575 189 581 Q195 573 203 571 Q196 582 195 590 Z"/>
+      <path d="M281 610 Q275 599 266 595 Q281 595 286 603 Q288 588 295 584 Q292 598 297 604 Q306 592 315 593 Q305 602 305 612 Z"/>
+      <path d="M603 628 Q598 619 592 617 Q602 616 608 623 Q610 612 616 608 Q614 620 619 624 Q625 618 633 617 Q625 624 624 631 Z"/>
+      <path d="M542 634 Q536 626 530 624 Q540 623 547 630 Q548 619 554 616 L554 630 Q560 624 568 624 L562 635 Z"/>
+    </g>
+    <g stroke="#77925F" stroke-width="2.5">
+      <path d="M136 586 Q139 575 135 566 M150 590 Q150 579 155 575
+        M617 631 Q616 622 621 614"/>
+    </g>
+    <g fill="#F6EADB" stroke="#DDC5B1" stroke-width="1.2">
+      <path d="M135 561 C127 550 120 562 129 566 C117 570 127 580 135 572 C141 584 151 573 142 568 C154 562 143 552 138 562 Z"/>
+      <path d="M155 573 C150 564 143 572 149 577 C140 581 149 587 154 582 C160 590 167 582 161 578 C170 574 162 567 157 573 Z"/>
+      <path d="M620 610 C613 601 605 612 615 616 C604 622 614 629 620 622 C627 631 635 621 627 617 C637 610 626 603 623 611 Z"/>
+    </g>
+    <g fill="#D2AE68"><circle cx="136" cy="568" r="3.6"/><circle cx="155" cy="578" r="2.8"/><circle cx="621" cy="617" r="3.5"/></g>
+    <g fill="#E4AEB0" stroke="#B98F93" stroke-width="1.5">
+      <path d="M347 632 Q338 624 345 621 Q350 620 351 626 Q359 619 362 625 Q363 632 354 632 Q359 639 353 641 Q348 641 348 635 Q340 639 340 633 Z"/>
+    </g>
+    <circle cx="350" cy="631" r="2.8" fill="#F0DA99"/>
+    <path d="M207 624 Q215 612 232 618 L243 627 Q226 633 207 628 Z" fill="#B2B1A0" stroke="#858B78" stroke-width="2.5"/>
+    <path d="M211 623 Q223 618 232 623" stroke="#D4D0BB" stroke-width="3"/>
+  </g>
+</svg>
