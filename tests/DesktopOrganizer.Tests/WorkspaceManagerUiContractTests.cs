@@ -1,7 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Xml.Linq;
 
@@ -327,12 +326,9 @@ public sealed class WorkspaceManagerUiContractTests
         Assert.IsFalse(populatedWindow.DeleteWorkspaceButton.IsEnabled);
     }
 
-    private static XDocument LoadWorkspaceManagerXaml(
-        [CallerFilePath] string sourceFilePath = "")
+    private static XDocument LoadWorkspaceManagerXaml()
     {
-        string testDirectory = Path.GetDirectoryName(sourceFilePath)
-            ?? throw new InvalidOperationException("Cannot resolve the test source directory.");
-        string projectRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+        string projectRoot = TestProjectFiles.Root;
         return XDocument.Load(Path.Combine(projectRoot, "WorkspaceManagerWindow.xaml"));
     }
 }

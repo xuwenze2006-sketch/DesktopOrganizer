@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 
 namespace DesktopOrganizer.Tests;
@@ -29,12 +28,9 @@ public sealed class SimpleInputDialogUiContractTests
                 content,
                 StringComparison.Ordinal));
 
-    private static XDocument LoadSimpleInputDialogXaml(
-        [CallerFilePath] string sourceFilePath = "")
+    private static XDocument LoadSimpleInputDialogXaml()
     {
-        string testDirectory = Path.GetDirectoryName(sourceFilePath)
-            ?? throw new InvalidOperationException("Cannot resolve the test source directory.");
-        string projectRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+        string projectRoot = TestProjectFiles.Root;
         return XDocument.Load(Path.Combine(projectRoot, "SimpleInputDialog.xaml"));
     }
 }

@@ -1,7 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Xml.Linq;
@@ -733,12 +732,9 @@ public sealed class InboxWindowKeyboardTests
         (window.InboxList.SelectedItem as InboxListItemView)?.DisplayName
         ?? throw new AssertFailedException("收件箱刷新后没有选中项目。");
 
-    private static XDocument LoadInboxWindowXaml(
-        [CallerFilePath] string sourceFilePath = "")
+    private static XDocument LoadInboxWindowXaml()
     {
-        string testDirectory = Path.GetDirectoryName(sourceFilePath)
-            ?? throw new InvalidOperationException("Cannot resolve the test source directory.");
-        string projectRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+        string projectRoot = TestProjectFiles.Root;
         return XDocument.Load(Path.Combine(projectRoot, "InboxWindow.xaml"));
     }
 }

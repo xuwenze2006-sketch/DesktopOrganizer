@@ -300,10 +300,10 @@ public sealed class LightDesktopLayoutTests
             Window.RootGrid.Arrange(new Rect(0, 0, 1600, 1200));
             Window.RootGrid.UpdateLayout();
         }
-        public void Render(string name, [System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "")
+        public void Render(string name)
         {
             if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_LIGHT_QA") != "1") return;
-            string output = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourceFilePath)!, "../../artifacts/light-desktop"));
+            string output = Path.Combine(TestProjectFiles.Root, "artifacts/light-desktop");
             Directory.CreateDirectory(output);
             RenderTargetBitmap bitmap = RenderFrame();
             var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));

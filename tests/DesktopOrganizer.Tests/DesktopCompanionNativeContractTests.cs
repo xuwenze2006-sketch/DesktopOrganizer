@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
-using System.Runtime.CompilerServices;
 
 namespace DesktopOrganizer.Tests;
 
@@ -78,12 +77,9 @@ public sealed class DesktopCompanionNativeContractTests
     }
 
     private static string ReadProjectFile(
-        string fileName,
-        [CallerFilePath] string sourceFilePath = "")
+        string fileName)
     {
-        string testDirectory = Path.GetDirectoryName(sourceFilePath)
-            ?? throw new InvalidOperationException("Cannot resolve the test source directory.");
-        string projectRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+        string projectRoot = TestProjectFiles.Root;
         return File.ReadAllText(Path.Combine(projectRoot, fileName));
     }
 }

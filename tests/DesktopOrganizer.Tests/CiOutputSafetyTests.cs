@@ -1,7 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
 
 namespace DesktopOrganizer.Tests;
 
@@ -38,9 +37,9 @@ public sealed class CiOutputSafetyTests
         private readonly string _root = Path.Combine(Path.GetTempPath(), "DesktopOrganizer.Tests", Guid.NewGuid().ToString("N"));
         public string Output { get; private set; } = "";
 
-        public Fixture([CallerFilePath] string source = "")
+        public Fixture()
         {
-            string project = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(source)!, "..", ".."));
+            string project = TestProjectFiles.Root;
             Create("scripts/ci.ps1", File.ReadAllText(Path.Combine(project, "scripts", "ci.ps1")));
             Create("DesktopOrganizer.slnx", "");
             Create("DesktopOrganizer.csproj", "");
