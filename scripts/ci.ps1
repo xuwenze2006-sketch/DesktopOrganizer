@@ -3,6 +3,7 @@ param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
 
+    [ValidatePattern('^[a-z0-9]+(?:-[a-z0-9]+)+$')]
     [string]$RuntimeIdentifier = "win-x64",
 
     [switch]$SkipPublish
@@ -54,9 +55,40 @@ foreach ($requiredFile in @($solution, $appProject, $testProject)) {
     }
 }
 
+function Remove-CiOutput {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $artifactRoot = [IO.Path]::GetFullPath($artifacts)
+    if (-not $fullPath.StartsWith($artifactRoot + [IO.Path]::DirectorySeparatorChar,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        throw "CI output must be inside the artifacts directory: $fullPath"
+    }
+
+    # Never follow directory junctions or symbolic links outside the output area.
+    $ancestor = $fullPath
+    while ($ancestor.Length -ge $artifactRoot.Length) {
+        if (Test-Path -LiteralPath $ancestor) {
+            $item = Get-Item -LiteralPath $ancestor -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "CI output must not traverse a reparse point: $ancestor"
+            }
+        }
+        $ancestor = Split-Path -Parent $ancestor
+    }
+
+    if (Test-Path -LiteralPath $fullPath) {
+        Remove-Item -LiteralPath $fullPath -Recurse -Force
+    }
+}
+
 Set-Location $repositoryRoot
-if (Test-Path -LiteralPath $artifacts) {
-    Remove-Item -LiteralPath $artifacts -Recurse -Force
+# Preserve art sources and backups in artifacts; remove only CI-owned outputs.
+Remove-CiOutput -Path $testResults
+if (-not $SkipPublish) {
+    Remove-CiOutput -Path $publishDirectory
+    Remove-CiOutput -Path $archivePath
+    Remove-CiOutput -Path $hashPath
 }
 New-Item -ItemType Directory -Path $testResults -Force | Out-Null
 
