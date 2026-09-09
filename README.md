@@ -1,19 +1,56 @@
 # DesktopOrganizer
 
-面向 Windows 10/11 的 .NET 10 WPF 桌面整理软件。程序在桌面层绘制替代图标和分类框，通过 Windows Shell 接口临时隐藏原生图标，保留系统桌面右键菜单。
+[![Windows CI](https://github.com/xuwenze2006-sketch/DesktopOrganizer/actions/workflows/windows-ci.yml/badge.svg?branch=main)](https://github.com/xuwenze2006-sketch/DesktopOrganizer/actions/workflows/windows-ci.yml)
+
+面向 Windows 10/11 的本地桌面整理工具，支持虚拟分组、工作区、快速搜索与桌宠。使用 .NET 10 和 WPF 开发，通过 Windows Shell 接口临时隐藏原生图标，保留系统桌面右键菜单。
 
 所有布局、分类、标签和操作记录保存在本机，不需要账号或云服务。项目自身代码采用 MIT 许可；内置桌宠素材的独立许可见文末。
 
-## 快速开始
+[下载与运行](#下载与运行) · [功能概览](#功能概览) · [常用操作](#常用操作) · [开发与验证](#开发与验证) · [数据位置](#数据位置) · [兼容性](#桌面位置与兼容性) · [许可](#许可与素材来源) · [反馈](#反馈与参与)
 
-1. 从本仓库 GitHub Actions 中成功的 Windows CI 运行下载 `DesktopOrganizer-win-x64` 构建附件，解压其中的程序 ZIP。
-2. 保留 `DesktopOrganizer.exe`、`LICENSE` 和 `ThirdParty` 目录在一起，双击 EXE 运行；自包含构建无需另装 .NET Runtime。
-3. 先使用虚拟分类、布局和只读文件夹入口。拖入真实文件夹、删除、撤销和清空回收站会实际操作文件，执行前会走相应确认流程。
-4. 可用“暂停整理”恢复原生桌面，或从托盘退出程序。
+## 下载与运行
+
+**[下载 v1.12.16-preview.1 预览版](https://github.com/xuwenze2006-sketch/DesktopOrganizer/releases/tag/v1.12.16-preview.1)** · Windows x64
+
+预览版用于试用与反馈，实机兼容性仍在完善。自包含构建无需另装 .NET Runtime。
+
+1. 在发布页的 **Assets** 中下载 `DesktopOrganizer-win-x64.zip`。`Source code` 是源码，不是可直接运行的程序。
+2. 完整解压 ZIP，保留 `DesktopOrganizer.exe`、`LICENSE` 和 `ThirdParty` 目录在一起，双击 EXE 运行。
+3. 可先体验虚拟分类、布局和只读文件夹入口。拖入真实文件夹、删除、撤销和清空回收站会实际操作文件；操作边界见[安全说明](#安全说明)。
+4. 点击“暂停整理”恢复 Windows 原生桌面图标，或从托盘菜单退出程序。
+
+<details>
+<summary>下载最新开发构建（GitHub Actions）</summary>
+
+开发构建对应具体提交，需要登录 GitHub，附件保留 **14 天**：
+
+1. 打开 [Windows CI](https://github.com/xuwenze2006-sketch/DesktopOrganizer/actions/workflows/windows-ci.yml)，选择一次成功的 `main` 分支运行。
+2. 在运行页面的 **Artifacts** 中下载名称以 `DesktopOrganizer-win-x64-` 开头的附件。
+3. 先解压 GitHub 附件，再解压其中的 `DesktopOrganizer-win-x64.zip`，按照上面的步骤运行。另一份 `.sha256` 文件用于校验构建文件。
+
+</details>
 
 项目目前只提供 Windows x64 构建；多显示器、输入法、第三方 Shell 扩展等实机兼容检查见 [TEST_CHECKLIST.md](TEST_CHECKLIST.md)。自动测试不会启动桌面宿主，也不能代替这些实机检查。
 
-## 核心功能
+## 功能概览
+
+| 模块 | 可以做什么 |
+| --- | --- |
+| 桌面分组 | 虚拟分类、拖动排列、网格吸附、收起展开和本地自动分类；虚拟分组不移动真实文件。 |
+| 工作区 | 保存、复制和切换多套桌面布局，适合工作、学习或临时任务。 |
+| 待整理与搜索 | 审阅新项目，添加标签，预览分类规则；搜索当前已加载项目的名称、类型、分组和标签。 |
+| 文件夹入口 | 只读浏览指定目录，支持面包屑、键盘导航和自动刷新。 |
+| 文件操作 | 后台移动、回收站操作与独立账本；撤销移动前重新核验路径和文件身份。 |
+| 桌宠与场景 | 切换 PixelPaws 小猫或 VPet 萝莉斯，支持互动、拖动、关闭及树草场景。 |
+
+原生托盘、单实例、开机启动和 Explorer 重启恢复均已实现。天气系统和多角色同时显示尚未实现。
+
+![树草场景与 VPet 萝莉斯预览](docs/images/scene-preview.png)
+
+树草场景与桌宠的离屏预览。角色素材按 [VPet 独立授权](ThirdParty/VPet-ANIMATION-LICENSE.txt)使用。
+
+<details>
+<summary>展开详细功能与数据格式说明</summary>
 
 - 扫描当前用户桌面和公共桌面的真实项目；回收站作为独立系统小组件显示，不混入普通图标和分类。
 - 自由拖动、网格吸附、挤压排列和一键对齐。
@@ -39,13 +76,17 @@
 
 布局文件当前为 Version 18。Version 16 引入命名工作区，Version 17 引入收件箱、标签和用户规则，Version 18 引入只读文件夹入口；旧版 `layout.json` 会自动升级。工作区恢复不包含真实文件任务；显示器拓扑只保存设备名、工作区、DPI 和相对坐标；`ItemIdentities` 只保存真实桌面项目的路径与稳定身份；Portal 内容列表不写入布局。安全模式仍只在当前会话生效。
 
-## 开发环境
+</details>
+
+## 开发与验证
+
+### 开发环境
 
 - Windows 10 或 Windows 11
 - .NET 10 SDK
 - Visual Studio、JetBrains Rider 或 dotnet CLI
 
-## 运行源码
+### 运行源码
 
 双击 `run-source.cmd`，或执行：
 
@@ -53,7 +94,7 @@
 dotnet run --project DesktopOrganizer.csproj
 ```
 
-## 发布单文件 EXE
+### 发布单文件 EXE
 
 双击 `publish-win-x64.cmd`。成功后输出到：
 
@@ -64,7 +105,7 @@ release\win-x64\DesktopOrganizer.exe
 `build-and-start.cmd` 会先发布，再启动生成的 EXE。
 
 
-## 自动化验证
+### 自动化验证
 
 本地执行与 GitHub Actions 相同的编译、测试和发布流程：
 
@@ -90,6 +131,15 @@ artifacts\DesktopOrganizer-win-x64.sha256
 
 ## 常用操作
 
+- 双击打开项目；拖动到虚拟分组只改变桌面布局。
+- 桌面语境下按 `Ctrl+F` 搜索、`F5` 刷新、`Esc` 清除选择。
+- “工作区”切换视觉布局；“待整理”审阅新项目；自定义规则先预览再执行。
+- “文件夹入口”始终只读；“操作中心”查看真实文件任务和恢复核验结果。
+- 托盘菜单提供暂停/继续、刷新、开机启动和退出。“隐藏面板”只隐藏控制栏。
+
+<details>
+<summary>展开详细鼠标操作与快捷键</summary>
+
 - 双击图标：打开文件、文件夹或回收站。
 - 拖动自由图标：移动位置；开启网格吸附时自动对齐。
 - 拖到另一图标位置：在启用挤压排列时预览后续图标移动。
@@ -105,6 +155,8 @@ artifacts\DesktopOrganizer-win-x64.sha256
 - “暂停整理”：恢复 Windows 原生桌面图标。
 - “隐藏面板”：只隐藏控制栏，整理层继续运行。
 - 托盘菜单：显示/隐藏、暂停/继续、刷新、开机启动和退出。
+
+</details>
 
 ## 数据位置
 
@@ -154,7 +206,15 @@ artifacts\DesktopOrganizer-win-x64.sha256
 
 若系统桌面图标没有恢复，可重新启动程序，或在桌面右键“查看”中勾选“显示桌面图标”，必要时重新启动 Windows 资源管理器。
 
-## 当前限制
+## 桌面位置与兼容性
+
+桌面位置按 Windows 返回的当前用户桌面和公共桌面位置探测，不假设它们位于用户目录下的 `Desktop`。刷新时会重新读取位置；位置读取或扫描失败时保留原布局，不把失败结果当成空桌面清空。
+
+悬停控制栏的状态文字可查看识别到的两个路径。按 `F5` 可立即重新检查；后台也会低频检测位置变化并更新监听。用户桌面或公共桌面不可访问时，整份桌面快照暂不替换，位置恢复后重试；程序不会自行创建缺失目录。
+
+OneDrive 桌面重定向及多品牌电脑的真实环境仍待验证。自动测试覆盖的是程序逻辑与模拟边界，不代表这些环境已经通过实机认证。
+
+### 当前限制
 
 - 分类框已按可视行虚拟化，但自由桌面图标仍全部常驻视觉树；若桌面本身存在上千个未分组项目，仍会产生较多 WPF 控件。
 - 单个 WPF 桌面宿主使用统一的客户区 DPI；不同缩放显示器的物理边界与工作区能够正确映射，但图标视觉大小在所有屏幕上保持一致。
@@ -163,6 +223,14 @@ artifacts\DesktopOrganizer-win-x64.sha256
 - 搜索不建立全盘或正文索引；没有任意目录监控、OCR 或云端 AI 分类。
 - Portal 只枚举当前目录直属项目，单次最多显示 500 项；非递归 watcher 只刷新正在查看的当前目录，不监控子目录内部变化，不自动重试读取失败，也没有任何写操作菜单。
 - 已经进入 Windows 原生文件 API 的单次移动或回收站操作不能安全强制终止；退出程序会取消尚未开始的后台项，但它们的 `Queued` 账本仍会保留并在下次启动标为中断。活动操作可能由系统继续完成，随后只读核验；跨磁盘拖入仍要求使用资源管理器。
+
+## 反馈与参与
+
+- [报告问题](https://github.com/xuwenze2006-sketch/DesktopOrganizer/issues/new?template=bug_report.yml)：提供版本或提交、Windows 环境、复现步骤，以及实际和预期结果。
+- [提出建议](https://github.com/xuwenze2006-sketch/DesktopOrganizer/issues/new?template=feature_request.yml)：说明使用场景、遇到的困难和期望行为。
+- 提交 PR 时说明改动原因和实际验证结果；涉及桌面交互时，区分自动测试与已经完成的实机验证。
+
+Issue 和附件公开可见。请隐藏截图与日志片段中的用户名、私人路径、邮箱和文件内容，无需上传完整布局或个人日志。
 
 ## 项目文档
 
