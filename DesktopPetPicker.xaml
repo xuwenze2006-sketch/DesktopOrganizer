@@ -43,7 +43,7 @@
   <Grid Grid.Row="1">
    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="PreviewColumn" Width="374"/></Grid.ColumnDefinitions>
    <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-    <WrapPanel Margin="4,0,0,8"><Button Content="＋ 添加素材" Click="Import_Click"/><Button Content="移除所选" Click="Remove_Click"/><Button Content="恢复素材" Click="Restore_Click"/></WrapPanel>
+    <WrapPanel x:Name="LibraryActions" Margin="4,0,0,8"><Button Content="＋ 添加素材" Click="Import_Click"/><Button Content="移除所选" Click="Remove_Click"/><Button Content="恢复素材" Click="Restore_Click"/></WrapPanel>
     <TabControl x:Name="LibraryTabs" Grid.Row="1" Background="Transparent" BorderThickness="0">
      <TabItem Header="  角色  "><ListBox x:Name="Characters" Background="Transparent" BorderThickness="0" ItemTemplate="{StaticResource CardTemplate}"
       ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="Characters_SelectionChanged" AutomationProperties.Name="角色素材库">

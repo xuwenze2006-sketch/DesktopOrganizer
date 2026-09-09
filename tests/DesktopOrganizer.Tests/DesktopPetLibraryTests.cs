@@ -11,6 +11,141 @@ namespace DesktopOrganizer.Tests;
 public sealed class DesktopPetLibraryTests
 {
     [STATestMethod]
+    public void ImportFailure_RollsBackFilesAndSnapshot_WhenLicenseCopyFails()
+    {
+        using var f = new Files();
+        f.Image("actions.png", 64, 32);
+        string manifest = f.Manifest("actions.png", 1, 120);
+        string license = Path.Combine(f.Source, "LICENSE.txt");
+        File.WriteAllText(license, "keep this license");
+        var library = new DesktopPetLibrary(f.Library);
+        var before = library.Assets;
+        using (var locked = new FileStream(license, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            Assert.Throws<IOException>(() => library.Import(manifest, "character"));
+        Assert.AreSame(before, library.Assets);
+        Assert.IsEmpty(Directory.GetFileSystemEntries(f.Library), "失败不得遗留暂存目录、索引或目标素材。");
+        Assert.IsTrue(File.Exists(manifest));
+        Assert.AreEqual("keep this license", File.ReadAllText(license));
+        var successful = library.Import(manifest, "character");
+        Assert.AreEqual(successful.Id, library.Assets.Single().Id, "失败后应能再次导入。");
+    }
+
+    [STATestMethod]
+    public void IndexWriteFailure_PreservesOldSnapshotAndFiles_WithoutPublishingNewAsset()
+    {
+        using var f = new Files();
+        string source = f.Image("first.png", 64, 32);
+        var library = new DesktopPetLibrary(f.Library);
+        var original = library.Import(source, "scene");
+        var before = library.Assets;
+        string indexPath = Path.Combine(f.Library, "library.json");
+        string previous = File.ReadAllText(indexPath);
+        using (var locked = new FileStream(indexPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            try { library.Import(source, "character"); Assert.Fail("索引锁定时不应成功提交。"); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            Assert.AreSame(before, library.Assets);
+            CollectionAssert.AreEquivalent(new[] { original.Id, "library.json" },
+                Directory.GetFileSystemEntries(f.Library).Select(Path.GetFileName).ToArray());
+        }
+        Assert.AreEqual(previous, File.ReadAllText(indexPath));
+        Assert.IsFalse(library.IsRemoved(original.Id));
+    }
+
+    [STATestMethod]
+    public void EmptyStemName_RemainsValidAfterRestart()
+    {
+        using var f = new Files();
+        var library = new DesktopPetLibrary(f.Library);
+        var asset = library.Import(f.Image(".png", 32, 32), "character");
+        Assert.IsFalse(string.IsNullOrWhiteSpace(asset.Name));
+        var restarted = new DesktopPetLibrary(f.Library);
+        Assert.IsNull(restarted.LoadWarning);
+        Assert.AreEqual(asset, restarted.Assets.Single());
+    }
+
+    [STATestMethod]
+    public void InvalidMetadata_IsReportedWithoutOverwritingTheIndex()
+    {
+        using var f = new Files();
+        Directory.CreateDirectory(f.Library);
+        string path = Path.Combine(f.Library, "library.json");
+        string invalid = "{\"Assets\":[{\"Id\":\"../outside\",\"Name\":\"bad\",\"Kind\":\"scene\",\"Animated\":false}],\"Removed\":[]}";
+        File.WriteAllText(path, invalid);
+        var library = new DesktopPetLibrary(f.Library);
+        Assert.IsNotNull(library.LoadWarning);
+        Assert.IsTrue(DesktopPetLibrary.IsAssetError(new InvalidDataException()));
+        Assert.Throws<IOException>(() => library.RestoreAll());
+        Assert.AreEqual(invalid, File.ReadAllText(path));
+    }
+
+    [STATestMethod]
+    public void AsyncImport_ReturnsFrozenImages_AndPreCancelledImportDoesNotTouchLibrary()
+    {
+        using var f = new Files();
+        string path = f.Image("async.png", 64, 128);
+        var library = new DesktopPetLibrary(f.Library);
+        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+        Assert.Throws<OperationCanceledException>(() => library.ImportAsync(path, "character", cancelled.Token).GetAwaiter().GetResult());
+        Assert.IsFalse(Directory.Exists(f.Library));
+        var snapshot = library.Assets;
+        var first = library.ImportAsync(path, "character").GetAwaiter().GetResult();
+        var image = library.GetClip(first.Id, "idle").Frames[0].Image;
+        Assert.IsTrue(image.IsFrozen, "后台解码的位图必须能安全跨线程使用。");
+        Assert.AreEqual(512, image.PixelWidth);
+        Assert.IsEmpty(snapshot, "原快照不得随着后续导入变化。");
+        Assert.AreEqual(first, library.FindAsset(first.Id));
+    }
+
+    [STATestMethod]
+    public void ConcurrentImportsAndReaders_SeeOnlyCompleteImmutableSnapshots()
+    {
+        using var f = new Files();
+        string path = f.Image("parallel.png", 32, 64);
+        var library = new DesktopPetLibrary(f.Library);
+        var pending = Enumerable.Range(0, 3).Select(_ => library.ImportAsync(path, "character")).ToArray();
+        var snapshots = new List<IReadOnlyList<DesktopPetLibrary.Asset>>();
+        var read = Task.Run(() =>
+        {
+            while (!pending.All(t => t.IsCompleted))
+            {
+                var current = library.Assets;
+                foreach (var asset in current)
+                    Assert.IsTrue(library.GetClip(asset.Id, "idle").Frames[0].Image.IsFrozen);
+                if (snapshots.Count == 0 || !ReferenceEquals(snapshots[^1], current)) snapshots.Add(current);
+                Thread.Yield();
+            }
+        });
+        Task.WhenAll(pending).WaitAsync(TimeSpan.FromSeconds(20)).GetAwaiter().GetResult();
+        read.WaitAsync(TimeSpan.FromSeconds(20)).GetAwaiter().GetResult();
+        Assert.HasCount(3, library.Assets);
+        Assert.HasCount(3, new DesktopPetLibrary(f.Library).Assets);
+        Assert.AreEqual(3, library.Assets.Select(a => a.Id).Distinct().Count());
+    }
+
+    [STATestMethod]
+    public void RepeatedCatalogQueries_ReuseSnapshotsWithoutPerFrameListAllocations()
+    {
+        var characters = DesktopPetCatalog.Characters;
+        var scenes = DesktopPetScene.Scenes;
+        for (int i = 0; i < 100; i++)
+        { _ = DesktopPetCatalog.Find("vpet"); _ = DesktopPetScene.ResolveId("tiananmen", "vpet"); }
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 10000; i++)
+        {
+            _ = DesktopPetCatalog.Find("vpet");
+            _ = DesktopPetCatalog.Contains("pink-haired");
+            _ = DesktopPetScene.ResolveId("tiananmen", "vpet");
+            _ = DesktopPetCatalog.Characters;
+            _ = DesktopPetScene.Scenes;
+        }
+        long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.IsLessThan(65536L, bytes, $"重复查询分配了 {bytes} 字节，不应每帧重建目录。");
+        Assert.AreSame(characters, DesktopPetCatalog.Characters);
+        Assert.AreSame(scenes, DesktopPetScene.Scenes);
+    }
+
+    [STATestMethod]
     public void ImportImage_CopiesAndFitsWithoutStretching_RemovalIsRecoverableAcrossRestart()
     {
         using var f = new Files();

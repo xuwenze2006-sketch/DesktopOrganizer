@@ -40,6 +40,7 @@ namespace DesktopOrganizer
                 dialog.Close();
             };
             picker.CancelRequested += () => dialog.Close();
+            dialog.Closing += (_, _) => picker.CancelImport();
             dialog.ShowDialog();
         }
 

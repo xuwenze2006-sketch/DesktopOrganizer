@@ -16,13 +16,27 @@ namespace DesktopOrganizer
         internal static Layer SunsetPreview => SunsetCard.Value;
         internal static Layer PinkPreview => PinkCard.Value;
         internal sealed record Scene(string Id, string Name);
-        internal static IReadOnlyList<Scene> Scenes => new[] { new Scene("tree-grass", "树与草地"),
-            new Scene("tiananmen", "透明夕阳城楼"), new Scene("sunset", "夕阳城楼") }.Concat(
-                DesktopPetLibrary.Shared.Assets.Where(a => a.Kind == "scene").Select(a => new Scene(a.Id, a.Name))).ToArray();
+        private static readonly Scene[] BuiltInScenes = [new("tree-grass", "树与草地"), new("tiananmen", "透明夕阳城楼"), new("sunset", "夕阳城楼")];
+        private sealed record SceneSnapshot(IReadOnlyList<DesktopPetLibrary.Asset> Source, IReadOnlyList<Scene> Scenes);
+        private static SceneSnapshot? _sceneSnapshot;
+        internal static IReadOnlyList<Scene> Scenes
+        {
+            get
+            {
+                var source = DesktopPetLibrary.Shared.Assets;
+                var cached = Volatile.Read(ref _sceneSnapshot);
+                if (cached is not null && ReferenceEquals(cached.Source, source)) return cached.Scenes;
+                var next = new SceneSnapshot(source, Array.AsReadOnly(BuiltInScenes.Concat(
+                    source.Where(a => a.Kind == "scene").Select(a => new Scene(a.Id, a.Name))).ToArray()));
+                Volatile.Write(ref _sceneSnapshot, next);
+                return next.Scenes;
+            }
+        }
         internal static string DefaultId(string characterId) => characterId switch
         { "pink-haired" => "tiananmen", DesktopPetCatalog.SunsetDuoId => "sunset", _ => "tree-grass" };
-        internal static string ResolveId(string? sceneId, string characterId) =>
-            Scenes.Any(s => s.Id == sceneId) ? sceneId! : DefaultId(characterId);
+        internal static string ResolveId(string? sceneId, string characterId) => sceneId is "tree-grass" or "tiananmen" or "sunset"
+            ? sceneId : sceneId is not null && DesktopPetLibrary.Shared.FindAsset(sceneId)?.Kind == "scene"
+                ? sceneId : DefaultId(characterId);
         internal static Layer GetBackground(string sceneId) => sceneId switch
         { "tree-grass" => Background, "tiananmen" => Tiananmen.Value, "sunset" => Sunset.Value,
             _ => DesktopPetLibrary.Shared.GetImage(sceneId) };

@@ -13,6 +13,8 @@ namespace DesktopOrganizer
         private bool _ready;
         private bool _sceneChosen;
         private bool _refreshing;
+        private CancellationTokenSource? _importCancellation;
+        internal void CancelImport() => _importCancellation?.Cancel();
 
         internal DesktopPetPicker(string characterId, bool visible, bool scene, DesktopPetLayoutInfo? composition = null)
         {
@@ -31,7 +33,7 @@ namespace DesktopOrganizer
             PreviewStage.Children.Add(_preview);
             _ready = true;
             Loaded += (_, _) => { _preview.SetActive(true); UpdatePreview(); };
-            Unloaded += (_, _) => _preview.SetActive(false);
+            Unloaded += (_, _) => { _preview.SetActive(false); CancelImport(); };
             UpdatePreview();
             if (DesktopPetLibrary.Shared.LoadWarning is string warning) SelectedDescription.Text = warning;
         }
@@ -60,7 +62,7 @@ namespace DesktopOrganizer
         {
             if (SelectedDescription is null || _refreshing) return;
             bool selected = Characters.SelectedItem is Card;
-            ApplyButton.IsEnabled = selected || Characters.Items.Count == 0;
+            ApplyButton.IsEnabled = _importCancellation is null && (selected || Characters.Items.Count == 0);
             PreviewButton.IsEnabled = selected;
             SelectedDescription.Text = Characters.SelectedItem is Card card
                 ? "已选择：" + card.Name + (card.Id == DesktopPetCatalog.SunsetDuoId
@@ -87,7 +89,7 @@ namespace DesktopOrganizer
         {
             if (!_ready || _refreshing) return;
             bool selected = Characters.SelectedItem is Card;
-            ApplyButton.IsEnabled = selected || Characters.Items.Count == 0;
+            ApplyButton.IsEnabled = _importCancellation is null && (selected || Characters.Items.Count == 0);
             PreviewButton.IsEnabled = selected;
             _preview.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
             ShowPet.IsEnabled = Characters.Items.Count > 0;
@@ -124,8 +126,9 @@ namespace DesktopOrganizer
             CompositionPanel.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
             PreviewColumn.Width = new GridLength(wide ? 374 : 0);
         }
-        private void Import_Click(object sender, RoutedEventArgs e)
+        private async void Import_Click(object sender, RoutedEventArgs e)
         {
+            if (_importCancellation is not null) return;
             bool scene = LibraryTabs.SelectedIndex == 1;
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
@@ -133,19 +136,33 @@ namespace DesktopOrganizer
                 Filter = scene ? "PNG 背景|*.png" : "角色素材（PNG 或动画清单）|*.png;*.json|PNG 静态角色|*.png|动画清单|*.json"
             };
             if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
+            using var cancellation = new CancellationTokenSource();
+            _importCancellation = cancellation;
+            LibraryActions.IsEnabled = LibraryTabs.IsEnabled = ApplyButton.IsEnabled = false;
+            SelectedDescription.Text = "正在导入素材…关闭窗口可取消尚未完成的导入。";
+            string? resultMessage = null;
             try
             {
-                var asset = DesktopPetLibrary.Shared.Import(dialog.FileName, scene ? "scene" : "character");
+                var asset = await DesktopPetLibrary.Shared.ImportAsync(dialog.FileName, scene ? "scene" : "character", cancellation.Token);
+                if (!IsLoaded) return;
                 ReloadLibrary(scene ? SelectedCharacterId : asset.Id, scene ? asset.Id : SelectedSceneId);
                 if (scene) { _sceneChosen = true; ShowScene.IsChecked = true; }
                 UpdatePreview();
-                SelectedDescription.Text = "已添加“" + asset.Name + "”。素材库已保存；点击应用更新桌面搭配。";
+                resultMessage = "已添加“" + asset.Name + "”。素材库已保存；点击应用更新桌面搭配。";
             }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { resultMessage = "已取消导入。"; }
             catch (Exception ex) when (DesktopPetLibrary.IsAssetError(ex))
-            { MessageBox.Show(Window.GetWindow(this), "无法添加素材：" + ex.Message, "添加素材"); }
+            { if (IsLoaded) MessageBox.Show(Window.GetWindow(this), "无法添加素材：" + ex.Message, "添加素材"); }
+            finally
+            {
+                _importCancellation = null;
+                LibraryActions.IsEnabled = LibraryTabs.IsEnabled = true;
+                if (IsLoaded) { UpdatePreview(); if (resultMessage is not null) SelectedDescription.Text = resultMessage; }
+            }
         }
         private void Remove_Click(object sender, RoutedEventArgs e)
         {
+            if (_importCancellation is not null) return;
             Card? card = (LibraryTabs.SelectedIndex == 1 ? Scenes.SelectedItem : Characters.SelectedItem) as Card;
             if (card is null) return;
             try
@@ -159,6 +176,7 @@ namespace DesktopOrganizer
         }
         private void Restore_Click(object sender, RoutedEventArgs e)
         {
+            if (_importCancellation is not null) return;
             try { DesktopPetLibrary.Shared.RestoreAll(); ReloadLibrary(SelectedCharacterId, SelectedSceneId); }
             catch (Exception ex) when (DesktopPetLibrary.IsAssetError(ex))
             { MessageBox.Show(Window.GetWindow(this), "无法恢复素材：" + ex.Message, "恢复素材"); }
@@ -166,7 +184,7 @@ namespace DesktopOrganizer
 
         private void Apply_Click(object sender, RoutedEventArgs e)
         {
-            if (Characters.SelectedItem is Card || Characters.Items.Count == 0) ApplyRequested?.Invoke();
+            if (_importCancellation is null && (Characters.SelectedItem is Card || Characters.Items.Count == 0)) ApplyRequested?.Invoke();
         }
         private void Cancel_Click(object sender, RoutedEventArgs e) => CancelRequested?.Invoke();
 
