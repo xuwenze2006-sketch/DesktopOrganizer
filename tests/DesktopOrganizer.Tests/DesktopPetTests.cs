@@ -295,6 +295,123 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
+    public void VPetLanding_PlaysContinuousFallThenRecoveryFrames_WithTheirOriginalDurations()
+    {
+        using var f = new Fixture();
+        f.Enable("vpet");
+        f.Pet.SetDragging(true);
+        f.Pet.SetDragging(false);
+        VPetAnimation.Clip landing = VPetAnimation.GetClip("raisedEnd");
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget)
+            .GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+
+        // 原图集中的 FLA 与 FLB 是交错存储的。播放必须先连续走完 FLA 000–006，
+        // 再走 FLB 000–013；不能只按两个前缀各自从零开始的数字排序。
+        int[] expectedCells = [0, 2, 4, 6, 8, 10, 12, 1, 3, 5, 7, 9, 11, 13, 14, 15, 16, 17, 18, 19, 20];
+        Assert.HasCount(expectedCells.Length, landing.Frames);
+        Assert.HasCount(expectedCells.Length, landing.Milliseconds);
+        Assert.AreEqual(3000, landing.Milliseconds.Sum());
+        using Stream stream = VPetAnimation.OpenResource("Assets/Pets/VPet/RaisedEnd.png");
+        var sheet = new BitmapImage();
+        sheet.BeginInit();
+        sheet.CacheOption = BitmapCacheOption.OnLoad;
+        sheet.StreamSource = stream;
+        sheet.EndInit();
+        sheet.Freeze();
+
+        for (int step = 0; step < expectedCells.Length; step++)
+        {
+            Assert.AreEqual("raisedEnd", f.Pet.CurrentClip);
+            Assert.AreEqual(step, f.Pet.CurrentFrame);
+            int cell = expectedCells[step];
+            var expected = new CroppedBitmap(sheet, new Int32Rect(cell % 8 * 192, cell / 8 * 192, 192, 192));
+            byte[] expectedPixels = BgraPixels(expected);
+            VPetAnimation.Frame current = landing.Frames[f.Pet.CurrentFrame];
+            CollectionAssert.AreEqual(expectedPixels, BgraPixels(current.Image),
+                $"落地第 {step} 帧应使用原图集第 {cell} 格，不能交错回退到前一段姿势。");
+            byte[] expectedAlpha = Enumerable.Range(0, 192 * 192)
+                .Select(pixel => expectedPixels[pixel * 4 + 3]).ToArray();
+            CollectionAssert.AreEqual(expectedAlpha, current.Alpha,
+                "透明命中缓存也必须跟随实际播放图像。");
+
+            int expectedMilliseconds = step == 6 ? 500 : 125;
+            Assert.AreEqual(expectedMilliseconds, landing.Milliseconds[step],
+                "500 毫秒停留须跟随 FLA 006，而非留在重排前的数组位置。");
+            Assert.AreEqual(TimeSpan.FromMilliseconds(expectedMilliseconds), timer.Interval);
+            f.Pet.AdvanceAnimation();
+        }
+        Assert.AreEqual("idle", f.Pet.CurrentClip, "完整恢复站立后才回到待机。");
+    }
+
+    [STATestMethod]
+    public void VPetIdleBlink_PreservesOriginalFramesAndHitGeometry_AndChangesOnlyTheEyes()
+    {
+        using var f = new Fixture();
+        f.Enable("vpet");
+        VPetAnimation.Clip idle = VPetAnimation.GetClip("idle");
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget)
+            .GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+        Assert.HasCount(10, idle.Frames);
+        Assert.HasCount(10, idle.Milliseconds);
+        Assert.AreEqual(3000, idle.Milliseconds.Sum());
+        using Stream stream = VPetAnimation.OpenResource("Assets/Pets/VPet/Idle.png");
+        var originalSheet = new BitmapImage();
+        originalSheet.BeginInit();
+        originalSheet.CacheOption = BitmapCacheOption.OnLoad;
+        originalSheet.StreamSource = stream;
+        originalSheet.EndInit();
+        originalSheet.Freeze();
+
+        for (int step = 0; step < 8; step++)
+        {
+            Assert.AreEqual("idle", f.Pet.CurrentClip);
+            Assert.AreEqual(step, f.Pet.CurrentFrame);
+            var original = new CroppedBitmap(originalSheet, new Int32Rect(step * 192, 0, 192, 192));
+            CollectionAssert.AreEqual(BgraPixels(original), BgraPixels(idle.Frames[step].Image),
+                $"待机原第 {step} 帧的像素必须完整保留。");
+            f.Pet.AdvanceAnimation();
+        }
+
+        Assert.AreEqual(8, f.Pet.CurrentFrame);
+        Assert.AreEqual(110, idle.Milliseconds[8]);
+        Assert.AreEqual(TimeSpan.FromMilliseconds(110), timer.Interval);
+        byte[] originalPixels = BgraPixels(new CroppedBitmap(originalSheet, new Int32Rect(0, 0, 192, 192)));
+        VPetAnimation.Frame closedEyes = idle.Frames[8];
+        byte[] closedPixels = BgraPixels(closedEyes.Image);
+        byte[] originalAlpha = Enumerable.Range(0, 192 * 192)
+            .Select(pixel => originalPixels[pixel * 4 + 3]).ToArray();
+        CollectionAssert.AreEqual(originalAlpha, closedEyes.Alpha,
+            "生成闭眼帧不能改变原人物的透明命中边界。");
+
+        Int32Rect[] eyeRegions = [new(77, 49, 15, 15), new(99, 46, 13, 16)];
+        int changedPixels = 0;
+        for (int pixel = 0; pixel < 192 * 192; pixel++)
+        {
+            int offset = pixel * 4;
+            if (originalPixels.AsSpan(offset, 4).SequenceEqual(closedPixels.AsSpan(offset, 4)))
+                continue;
+            changedPixels++;
+            int x = pixel % 192;
+            int y = pixel / 192;
+            Assert.IsTrue(eyeRegions.Any(region => x >= region.X && x < region.X + region.Width &&
+                y >= region.Y && y < region.Y + region.Height),
+                $"闭眼修改不能影响眼部范围外的像素 ({x}, {y})。");
+        }
+        Assert.IsTrue(changedPixels > 0, "闭眼帧必须包含实际变化，不能重复原睁眼图片。");
+
+        f.Pet.AdvanceAnimation();
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        Assert.AreEqual(9, f.Pet.CurrentFrame);
+        CollectionAssert.AreEqual(originalPixels, BgraPixels(idle.Frames[9].Image),
+            "眨眼后必须恢复原第零帧，避免人物身体或画布跳动。");
+        Assert.AreEqual(1390, idle.Milliseconds[9]);
+        Assert.AreEqual(TimeSpan.FromMilliseconds(1390), timer.Interval);
+        f.Pet.AdvanceAnimation();
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        Assert.AreEqual(0, f.Pet.CurrentFrame);
+    }
+
+    [STATestMethod]
     [DataRow(1.0)]
     [DataRow(1.25)]
     [DataRow(1.5)]
@@ -341,7 +458,7 @@ public sealed class DesktopPetTests
         f.Measure(scale);
         Assert.IsFalse(f.Hit(384, 284));
         int frames = VPetAnimation.ClipNames.Sum(name => VPetAnimation.GetClip(name).Frames.Length);
-        Assert.AreEqual(72, frames);
+        Assert.AreEqual(74, frames);
         using var license = new StreamReader(VPetAnimation.OpenResource("ThirdParty/VPet-ANIMATION-LICENSE.txt"));
         StringAssert.Contains(license.ReadToEnd(), "https://github.com/LorisYounger/VPet");
     }
@@ -484,6 +601,14 @@ public sealed class DesktopPetTests
         f.Invoke("DesktopPet_MouseUp", f.Pet, e);
         Assert.AreEqual("sleepEnd", f.Pet.CurrentClip);
         AdvanceUntil(f.Pet, "touchStart");
+    }
+
+    private static byte[] BgraPixels(BitmapSource image)
+    {
+        var converted = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+        var pixels = new byte[image.PixelWidth * image.PixelHeight * 4];
+        converted.CopyPixels(pixels, image.PixelWidth * 4, 0);
+        return pixels;
     }
 
     private static void AdvanceUntil(DesktopPetWidget pet, string clip, int maximumFrames = 100)
