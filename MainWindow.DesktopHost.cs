@@ -168,7 +168,8 @@ namespace DesktopOrganizer
                 }
             }
 
-            _nativeIconsWereVisible = _isAttachedToDesktop && NativeMethods.HideNativeDesktopIcons();
+            _nativeIconsWereVisible = _desktopSnapshotInitialized &&
+                _isAttachedToDesktop && NativeMethods.HideNativeDesktopIcons();
             if (_nativeIconsWereVisible)
             {
                 WriteSessionMarker();

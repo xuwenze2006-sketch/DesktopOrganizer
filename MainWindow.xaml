@@ -751,7 +751,7 @@
                                 Padding="2,0"
                                 Background="Transparent"
                                 Cursor="SizeAll"
-                                ToolTip="{Binding Text, ElementName=StatusText}"
+                                ToolTip="{Binding ToolTip, ElementName=StatusText}"
                                 ToolTipService.InitialShowDelay="350"
                                 PreviewMouseLeftButtonDown="ControlPanelDragHandle_PreviewMouseLeftButtonDown"
                                 PreviewMouseLeftButtonUp="ControlPanelDragHandle_PreviewMouseLeftButtonUp"

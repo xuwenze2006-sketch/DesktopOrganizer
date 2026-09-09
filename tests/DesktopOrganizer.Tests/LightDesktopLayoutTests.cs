@@ -254,6 +254,7 @@ public sealed class LightDesktopLayoutTests
         private readonly double _scale;
         public Fixture(double scale = 1, bool arrange = true)
         {
+            SetField("_desktopSnapshotInitialized", true);
             _scale = scale;
             Window.Content = null;
             Window.RootGrid.Background = new LinearGradientBrush(Color.FromRgb(106, 167, 186), Color.FromRgb(35, 85, 104), 90);

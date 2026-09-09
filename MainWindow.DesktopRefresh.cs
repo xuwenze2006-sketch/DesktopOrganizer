@@ -5,7 +5,10 @@ namespace DesktopOrganizer
     {
         private DesktopScanSnapshot ScanDesktopSnapshot(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            DesktopPathSnapshot paths = _desktopPathResolver.Refresh();
             Dictionary<string, string> items = ScanDesktopItems(
+                paths,
                 cancellationToken,
                 out bool physicalScanComplete,
                 out bool shellScanComplete);
@@ -42,7 +45,8 @@ namespace DesktopOrganizer
                 reliableCategoryNames,
                 identities,
                 physicalScanComplete,
-                shellScanComplete);
+                shellScanComplete,
+                paths);
         }
 
         private static bool DesktopSnapshotMatches(
@@ -108,7 +112,7 @@ namespace DesktopOrganizer
         {
             if (string.IsNullOrWhiteSpace(desktopPath))
             {
-                return true;
+                return false;
             }
 
             if (!Directory.Exists(desktopPath))
@@ -244,6 +248,12 @@ namespace DesktopOrganizer
             bool saveLayoutWhenChanged)
         {
             if (_isClosing)
+            {
+                return;
+            }
+
+            // 首次扫描失败时，尚未建立真实项目快照，不能清理从磁盘读入的布局。
+            if (!_desktopSnapshotInitialized)
             {
                 return;
             }
@@ -536,8 +546,7 @@ namespace DesktopOrganizer
                 (gridOverflowCount > 0
                     ? $"网格已满，{gridOverflowCount} 个新增项目使用未持久化的临时位置；"
                     : string.Empty) +
-                $"本次增量刷新复用 {reusedFreeIcons} 个自由图标和 {reusedGroups} 个分组，" +
-                $"新建 {createdFreeIcons} 个自由图标和 {createdGroups} 个分组，移除 {removedVisuals} 个旧视觉";
+                Environment.NewLine + GetDesktopPathDescription();
             UpdateAutoClassificationControls();
             UpdateCollapseGroupsButton();
 
@@ -747,9 +756,7 @@ namespace DesktopOrganizer
                 return;
             }
 
-            foreach (string path in new[] { _commonDesktopPath, _userDesktopPath }
-                         .Where(p => !string.IsNullOrWhiteSpace(p) && Directory.Exists(p))
-                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (string path in GetDesktopWatcherPaths())
             {
                 try
                 {
@@ -1050,6 +1057,9 @@ namespace DesktopOrganizer
 
         private void RejectIncompleteDesktopSnapshot(DesktopScanSnapshot snapshot)
         {
+            _desktopScanUnavailable = true;
+            StatusText.Text = "桌面暂时无法完整读取，已保留原布局；悬停查看位置";
+            StatusText.ToolTip = GetDesktopPathDescription();
             int failureCount = Interlocked.Increment(ref _consecutiveIncompleteScans);
             _diagnostics.Log(
                 $"SCAN incomplete physical={snapshot.PhysicalScanComplete}, " +
@@ -1120,26 +1130,37 @@ namespace DesktopOrganizer
                 scanStopwatch.Stop();
                 _diagnostics.LogSlowOperation("desktop-scan", scanStopwatch.Elapsed, snapshot.Items.Count);
 
-                if (!snapshot.PhysicalScanComplete)
-                {
-                    RejectIncompleteDesktopSnapshot(snapshot);
-                    return;
-                }
-
-                if (!snapshot.ShellScanComplete)
-                {
-                    RejectIncompleteDesktopSnapshot(snapshot);
-                }
-                else
-                {
-                    Interlocked.Exchange(ref _consecutiveIncompleteScans, 0);
-                }
-
                 await Dispatcher.InvokeAsync(() =>
                 {
                     if (_isClosing)
                     {
                         return;
+                    }
+
+                    if (!ApplyDesktopPaths(snapshot.Paths))
+                    {
+                        RequestDesktopRefresh(clearIconCache: false, statusMessage: null);
+                        return;
+                    }
+                    if (!snapshot.PhysicalScanComplete)
+                    {
+                        RejectIncompleteDesktopSnapshot(snapshot);
+                        return;
+                    }
+                    bool recovered = _desktopScanUnavailable;
+                    _desktopScanUnavailable = false;
+                    if (recovered)
+                    {
+                        StatusText.Text = "桌面读取已恢复";
+                        StatusText.ToolTip = GetDesktopPathDescription();
+                    }
+                    if (!snapshot.ShellScanComplete)
+                    {
+                        RejectIncompleteDesktopSnapshot(snapshot);
+                    }
+                    else
+                    {
+                        Interlocked.Exchange(ref _consecutiveIncompleteScans, 0);
                     }
 
                     PreserveKnownShellItemsForIncompleteScan(snapshot);
@@ -1277,6 +1298,10 @@ namespace DesktopOrganizer
 
         private void NativeIconGuardTimer_Tick(object? sender, EventArgs e)
         {
+            if (!_isSafeModeActive && !_isClosing)
+            {
+                _ = CheckDesktopPathChangesAsync();
+            }
             RecoverStaleInteractionState();
             if (Volatile.Read(ref _desktopShellMenuActive) != 0 || IsUserInteractionActive())
             {
@@ -1320,7 +1345,7 @@ namespace DesktopOrganizer
 
             Interlocked.Exchange(ref _desktopLayerGuardFailures, 0);
 
-            if (_organizerPaused)
+            if (_organizerPaused || !_desktopSnapshotInitialized)
             {
                 return;
             }

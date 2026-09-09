@@ -454,6 +454,7 @@ public sealed class SmartLayoutUndoTests
     public void AutoFitGroupAndUnlock_RebuildSizeChangeInvalidatesSmartLayoutUndo()
     {
         var window = new MainWindow(startQuietly: false);
+        SetField(window, "_desktopSnapshotInitialized", true);
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {
@@ -747,6 +748,7 @@ public sealed class SmartLayoutUndoTests
     public void RemoveFromGroup_InvalidatesUndoAfterAutoFitChangesGroupSize()
     {
         var window = new MainWindow(startQuietly: false);
+        SetField(window, "_desktopSnapshotInitialized", true);
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {
@@ -925,6 +927,7 @@ public sealed class SmartLayoutUndoTests
     public void MoveSelectedItemsToGroup_InvalidatesUndoAfterTargetAutoFitChangesSize()
     {
         var window = new MainWindow(startQuietly: false);
+        SetField(window, "_desktopSnapshotInitialized", true);
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {
@@ -1013,6 +1016,7 @@ public sealed class SmartLayoutUndoTests
     public void ApplyVirtualGroupDrop_FromFreeIconInvalidatesUndoBeforeGroupsCanOverlap()
     {
         var window = new MainWindow(startQuietly: false);
+        SetField(window, "_desktopSnapshotInitialized", true);
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {
@@ -1341,6 +1345,7 @@ public sealed class SmartLayoutUndoTests
     public void RebuildDesktopIcons_MissingGroupItemInvalidatesStaleLockedUndoSize()
     {
         var window = new MainWindow(startQuietly: false);
+        SetField(window, "_desktopSnapshotInitialized", true);
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {
@@ -1496,6 +1501,7 @@ public sealed class SmartLayoutUndoTests
     public void ApplyRulePlan_MoveBetweenGroupsInvalidatesBeforeDeferredSourceAutoFit()
     {
         var window = new MainWindow(startQuietly: false);
+        SetField(window, "_desktopSnapshotInitialized", true);
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {

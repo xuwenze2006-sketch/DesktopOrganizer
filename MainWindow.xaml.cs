@@ -38,11 +38,10 @@ namespace DesktopOrganizer
         private static readonly Brush RecycleBinEmptyBrush = CreateFrozenBrush(Color.FromRgb(111, 150, 116));
         private static readonly Brush RecycleBinOccupiedBrush = CreateFrozenBrush(Color.FromRgb(190, 142, 55));
 
-        private readonly string _userDesktopPath =
-            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-
-        private readonly string _commonDesktopPath =
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory);
+        private readonly DesktopPathResolver _desktopPathResolver;
+        private DesktopPathSnapshot? _desktopPaths;
+        private int _desktopPathCheckRunning;
+        private bool _desktopScanUnavailable;
 
         private readonly string _layoutFilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -223,7 +222,8 @@ namespace DesktopOrganizer
             HashSet<string> ReliableCategoryNames,
             Dictionary<string, DesktopItemIdentityInfo> Identities,
             bool PhysicalScanComplete,
-            bool ShellScanComplete);
+            bool ShellScanComplete,
+            DesktopPathSnapshot Paths);
 
         private sealed record DesktopRenameOperation(
             string OldFullPath,
@@ -276,9 +276,11 @@ namespace DesktopOrganizer
         {
         }
 
-        internal MainWindow(bool startQuietly, Action<string>? backgroundLayoutWriter = null)
+        internal MainWindow(bool startQuietly, Action<string>? backgroundLayoutWriter = null,
+            DesktopPathResolver? desktopPathResolver = null)
         {
             _startQuietly = startQuietly;
+            _desktopPathResolver = desktopPathResolver ?? new DesktopPathResolver();
             _backgroundLayoutWriter = backgroundLayoutWriter ?? WriteLayoutJsonAtomically;
             InitializeComponent();
             _fileOperationService = new FileOperationService();
