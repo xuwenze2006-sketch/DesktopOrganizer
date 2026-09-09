@@ -13,7 +13,7 @@
     <RootNamespace>DesktopOrganizer</RootNamespace>
     <Version>1.12.16-preview.1</Version>
     <FileVersion>1.12.16.0</FileVersion>
-    <DefaultItemExcludes>$(DefaultItemExcludes);tests\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests\**;artifacts\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +25,9 @@
     <Resource Include="Assets\Pets\BlackHaired\manifest.json" />
     <Resource Include="Assets\Pets\PinkHaired\*.png" />
     <Resource Include="Assets\Pets\PinkHaired\manifest.json" />
+    <Resource Include="Assets\Pets\SunsetDuo\*.png" />
+    <Resource Include="Assets\Pets\SunsetDuo\manifest.json" />
+    <Resource Include="Assets\Scenes\SunsetDuo\background.png" />
     <Content Include="Assets\Pets\CHARACTER-SOURCES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Resource Include="Assets\Scenes\TreeGrass\background.png" />
     <Resource Include="Assets\Scenes\TreeGrass\foreground.png" />

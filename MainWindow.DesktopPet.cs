@@ -59,7 +59,7 @@ namespace DesktopOrganizer
             UpdateDesktopPetVisibility();
             SaveLayout();
             StatusText.Text = "已选择" + DesktopPetName + (!visible ? "；当前隐藏，可在“选择桌宠”中开启"
-                : _organizerPaused ? "；继续整理后显示" : _isSafeModeActive ? "；关闭安全模式后显示" : "；轻点互动，拖动提起");
+                : _organizerPaused ? "；继续整理后显示" : _isSafeModeActive ? "；关闭安全模式后显示" : "；轻点互动，拖动换位置");
         }
 
         private void HideDesktopPet_Click(object sender, RoutedEventArgs e) => SetDesktopPetVisible(false);
@@ -71,7 +71,7 @@ namespace DesktopOrganizer
             DesktopPet.ToolTip = DesktopPet.CharacterId == DesktopPetWidget.VPetCharacterId
                 ? "萝莉斯 · VPet／虚拟主播模拟器制作组；轻点摸头，拖动提起，右键切换角色或查看来源"
                 : DesktopPetName + " · 轻点互动，拖动换位置，右键选择桌宠、动作或隐藏";
-            if (DesktopPet.SceneEnabled) DesktopPet.ToolTip += "；拖动树或草地移动整景";
+            if (DesktopPet.SceneEnabled) DesktopPet.ToolTip += "；拖动背景移动整景";
             System.Windows.Automation.AutomationProperties.SetName(DesktopPet, "桌面宠物 · " + DesktopPetName);
         }
 
@@ -97,8 +97,8 @@ namespace DesktopOrganizer
             SetDesktopPetPosition(characterPosition.X - offset.X, characterPosition.Y - offset.Y, updateLayout: true);
             UpdateDesktopPetDescription();
             SaveLayout();
-            StatusText.Text = enabled ? "已开启树与草地；拖动场景换位置，轻点角色互动"
-                : "已关闭树与草地，保留独立桌面宠物";
+            StatusText.Text = enabled ? "已开启" + DesktopPetScene.NameFor(DesktopPet.CharacterId) + "；拖动场景换位置，轻点角色互动"
+                : "已关闭配套背景，保留桌面伙伴";
         }
 
         private void SetDesktopPetCharacter(string id)
@@ -108,6 +108,11 @@ namespace DesktopOrganizer
             CompleteDesktopPetDrag(commit: false);
             _appLayout.DesktopPet.CharacterId = normalized;
             DesktopPet.SetCharacter(normalized);
+            if (normalized == DesktopPetCatalog.SunsetDuoId)
+            {
+                _appLayout.DesktopPet.ShowScene = true;
+                DesktopPet.SetSceneEnabled(true);
+            }
             ApplyDesktopPetPosition();
             UpdateDesktopPetDescription();
             UpdateDesktopPetVisibility();
@@ -125,7 +130,13 @@ namespace DesktopOrganizer
                 if (item.Tag is string id && DesktopPetCatalog.Contains(id))
                     item.IsChecked = id == _appLayout.DesktopPet.CharacterId;
                 if (item.Tag is "action") item.IsEnabled = DesktopPet.IsVisible && !_isDesktopPetDragging;
-                if (item.Tag is "scene") item.IsChecked = _appLayout.DesktopPet.ShowScene;
+                if (item.Tag is "scene")
+                {
+                    item.IsChecked = _appLayout.DesktopPet.ShowScene;
+                    item.Header = DesktopPetScene.NameFor(DesktopPet.CharacterId);
+                }
+                if (item.Header is "摸摸头" or "轻点回应")
+                    item.Header = DesktopPet.CharacterId == DesktopPetCatalog.SunsetDuoId ? "轻点回应" : "摸摸头";
             }
         }
 

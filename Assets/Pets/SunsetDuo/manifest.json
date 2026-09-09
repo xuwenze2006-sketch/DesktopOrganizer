@@ -1,0 +1,241 @@
+{
+  "cellSize": 512,
+  "columns": 4,
+  "clips": {
+    "idle": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 360
+        },
+        {
+          "index": 1,
+          "milliseconds": 360
+        },
+        {
+          "index": 2,
+          "milliseconds": 180
+        },
+        {
+          "index": 8,
+          "milliseconds": 120
+        },
+        {
+          "index": 2,
+          "milliseconds": 180
+        },
+        {
+          "index": 3,
+          "milliseconds": 360
+        },
+        {
+          "index": 4,
+          "milliseconds": 360
+        },
+        {
+          "index": 5,
+          "milliseconds": 360
+        },
+        {
+          "index": 6,
+          "milliseconds": 180
+        },
+        {
+          "index": 9,
+          "milliseconds": 120
+        },
+        {
+          "index": 6,
+          "milliseconds": 180
+        },
+        {
+          "index": 7,
+          "milliseconds": 360
+        }
+      ]
+    },
+    "touchStart": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 90
+        },
+        {
+          "index": 18,
+          "milliseconds": 110
+        }
+      ]
+    },
+    "touchLoop": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 19,
+          "milliseconds": 180
+        },
+        {
+          "index": 20,
+          "milliseconds": 120
+        }
+      ]
+    },
+    "touchEnd": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 18,
+          "milliseconds": 100
+        },
+        {
+          "index": 0,
+          "milliseconds": 160
+        }
+      ]
+    },
+    "wave": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 100
+        },
+        {
+          "index": 18,
+          "milliseconds": 130
+        },
+        {
+          "index": 19,
+          "milliseconds": 170
+        },
+        {
+          "index": 20,
+          "milliseconds": 130
+        },
+        {
+          "index": 0,
+          "milliseconds": 240
+        }
+      ]
+    },
+    "raisedStart": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 120
+        }
+      ]
+    },
+    "raisedLoop": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 320
+        },
+        {
+          "index": 1,
+          "milliseconds": 320
+        },
+        {
+          "index": 2,
+          "milliseconds": 320
+        },
+        {
+          "index": 3,
+          "milliseconds": 320
+        },
+        {
+          "index": 4,
+          "milliseconds": 320
+        },
+        {
+          "index": 5,
+          "milliseconds": 320
+        },
+        {
+          "index": 6,
+          "milliseconds": 320
+        },
+        {
+          "index": 7,
+          "milliseconds": 320
+        }
+      ]
+    },
+    "raisedEnd": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 160
+        }
+      ]
+    },
+    "sleepStart": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 160
+        },
+        {
+          "index": 10,
+          "milliseconds": 250
+        }
+      ]
+    },
+    "sleepLoop": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 10,
+          "milliseconds": 650
+        },
+        {
+          "index": 11,
+          "milliseconds": 650
+        },
+        {
+          "index": 12,
+          "milliseconds": 650
+        },
+        {
+          "index": 13,
+          "milliseconds": 650
+        },
+        {
+          "index": 14,
+          "milliseconds": 650
+        },
+        {
+          "index": 15,
+          "milliseconds": 650
+        },
+        {
+          "index": 16,
+          "milliseconds": 650
+        },
+        {
+          "index": 17,
+          "milliseconds": 650
+        }
+      ]
+    },
+    "sleepEnd": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 10,
+          "milliseconds": 180
+        },
+        {
+          "index": 0,
+          "milliseconds": 220
+        }
+      ]
+    }
+  }
+}

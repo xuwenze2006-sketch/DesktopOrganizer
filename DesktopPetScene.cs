@@ -1,29 +1,36 @@
 namespace DesktopOrganizer
 {
-    /// <summary>树草静态图层；只加载打包素材，冻结位图和命中缓存跨控件复用。</summary>
+    /// <summary>角色配套静态图层；冻结位图和命中缓存跨控件复用。</summary>
     internal static class DesktopPetScene
     {
         internal const double Size = 360;
         internal sealed record Layer(BitmapSource Image, byte[] Alpha);
         private static readonly Lazy<Layer> Back = new(() => Load("background.png"));
         private static readonly Lazy<Layer> Front = new(() => Load("foreground.png"));
+        private static readonly Lazy<Layer> Sunset = new(() => Load("Assets/Scenes/SunsetDuo/background.png", fullPath: true));
+        private static readonly Lazy<Layer> SunsetCard = new(() => Load("Assets/Pets/SunsetDuo/preview.png", fullPath: true));
         internal static Layer Background => Back.Value;
         internal static Layer Foreground => Front.Value;
+        internal static Layer SunsetPreview => SunsetCard.Value;
+        internal static Layer BackgroundFor(string characterId) => characterId == DesktopPetCatalog.SunsetDuoId ? Sunset.Value : Background;
+        internal static string NameFor(string characterId) => characterId == DesktopPetCatalog.SunsetDuoId ? "夕阳城楼" : "树与草地";
 
-        internal static bool ContainsOpaquePoint(Point point, Size size)
+        internal static bool ContainsOpaquePoint(Point point, Size size, string characterId = DesktopPetWidget.CatCharacterId)
         {
             if (size.Width <= 0 || size.Height <= 0 || point.X < 0 || point.Y < 0 ||
                 point.X >= size.Width || point.Y >= size.Height) return false;
-            int x = (int)(point.X * Background.Image.PixelWidth / size.Width);
-            int y = (int)(point.Y * Background.Image.PixelHeight / size.Height);
-            int index = y * Background.Image.PixelWidth + x;
-            int back = Background.Alpha[index];
+            Layer background = BackgroundFor(characterId);
+            int x = (int)(point.X * background.Image.PixelWidth / size.Width);
+            int y = (int)(point.Y * background.Image.PixelHeight / size.Height);
+            int index = y * background.Image.PixelWidth + x;
+            int back = background.Alpha[index];
+            if (characterId == DesktopPetCatalog.SunsetDuoId) return back > 32;
             return back + Foreground.Alpha[index] * (255 - back) / 255 > 32;
         }
 
-        private static Layer Load(string name)
+        private static Layer Load(string name, bool fullPath = false)
         {
-            using Stream stream = VPetAnimation.OpenResource("Assets/Scenes/TreeGrass/" + name);
+            using Stream stream = VPetAnimation.OpenResource(fullPath ? name : "Assets/Scenes/TreeGrass/" + name);
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.CacheOption = BitmapCacheOption.OnLoad;

@@ -25,6 +25,7 @@
             <MenuItem Header="萝莉斯 · VPet" Tag="vpet" IsCheckable="True" Click="DesktopPetCharacter_Click"/>
             <MenuItem Header="黑发伙伴" Tag="black-haired" IsCheckable="True" Click="DesktopPetCharacter_Click"/>
             <MenuItem Header="粉发伙伴" Tag="pink-haired" IsCheckable="True" Click="DesktopPetCharacter_Click"/>
+            <MenuItem Header="夕阳双人 · 牵手组合" Tag="sunset-duo" IsCheckable="True" Click="DesktopPetCharacter_Click"/>
             <MenuItem Header="树与草地" Tag="scene" IsCheckable="True" Click="DesktopPetScene_Click"/>
             <Separator/>
             <MenuItem Header="摸摸头" Tag="action" Click="DesktopPetTouch_Click"/>

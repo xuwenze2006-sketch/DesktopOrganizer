@@ -32,6 +32,7 @@ namespace DesktopOrganizer
         internal string CurrentClip => UsesClips ? _clipName : ReferenceEquals(_sequence, Sleep) ? "sleepLoop"
             : ReferenceEquals(_sequence, React) ? "touchLoop" : "idle";
         private bool UsesClips => _characterId != CatCharacterId;
+        private bool IsSunsetDuo => _characterId == DesktopPetCatalog.SunsetDuoId;
         internal int CurrentFrame => UsesClips ? _step : _sequence[_step].Frame;
         internal bool AnimationRunning => _timer.IsEnabled;
         internal bool SceneEnabled { get; private set; }
@@ -52,9 +53,10 @@ namespace DesktopOrganizer
             }
         }
         internal static string NormalizeCharacterId(string? id) => DesktopPetCatalog.Find(id).Id;
-        internal static double GetCharacterSize(string? id) => NormalizeCharacterId(id) != CatCharacterId ? 168 : WidgetSize;
+        internal static double GetCharacterSize(string? id) => NormalizeCharacterId(id) == DesktopPetCatalog.SunsetDuoId
+            ? DesktopPetScene.Size : NormalizeCharacterId(id) != CatCharacterId ? 168 : WidgetSize;
         internal static double GetWidgetSize(string? id, bool scene) => scene ? DesktopPetScene.Size : GetCharacterSize(id);
-        internal static Vector GetCharacterOffset(string? id, bool scene) => !scene ? new Vector()
+        internal static Vector GetCharacterOffset(string? id, bool scene) => !scene || NormalizeCharacterId(id) == DesktopPetCatalog.SunsetDuoId ? new Vector()
             : NormalizeCharacterId(id) != CatCharacterId ? new Vector(168, 137) : new Vector(196, 192);
         internal Rect CharacterBounds
         {
@@ -120,7 +122,9 @@ namespace DesktopOrganizer
             _dragging = dragging;
             if (UsesClips && _active)
             {
-                if (dragging) StartClip("raisedStart");
+                // 双人作为一个整体移动，不套用单人悬挂和摔落动作，保持牵手与脚底衔接。
+                if (IsSunsetDuo) StartClip(dragging ? "raisedStart" : "raisedEnd");
+                else if (dragging) StartClip("raisedStart");
                 else
                 {
                     // 从松手时真正显示的悬挂帧开始，避免直接瞬移成趴地姿势。
@@ -266,18 +270,21 @@ namespace DesktopOrganizer
             if (!_active) return;
             if (SceneEnabled)
             {
-                drawingContext.DrawImage(DesktopPetScene.Background.Image, new Rect(RenderSize));
-                double xScale = RenderSize.Width / DesktopPetScene.Size;
-                double yScale = RenderSize.Height / DesktopPetScene.Size;
-                bool resting = CurrentClip.StartsWith("sleep", StringComparison.Ordinal) || CurrentClip == "raisedEnd";
-                drawingContext.DrawEllipse(SceneShadow, null, new Point(253.5 * xScale, 301 * yScale),
-                    (resting ? 72.5 : 33) * xScale, 5.5 * yScale);
+                drawingContext.DrawImage(DesktopPetScene.BackgroundFor(_characterId).Image, new Rect(RenderSize));
+                if (!IsSunsetDuo)
+                {
+                    double xScale = RenderSize.Width / DesktopPetScene.Size;
+                    double yScale = RenderSize.Height / DesktopPetScene.Size;
+                    bool resting = CurrentClip.StartsWith("sleep", StringComparison.Ordinal) || CurrentClip == "raisedEnd";
+                    drawingContext.DrawEllipse(SceneShadow, null, new Point(253.5 * xScale, 301 * yScale),
+                        (resting ? 72.5 : 33) * xScale, 5.5 * yScale);
+                }
             }
             if (_fallFrame is not null) drawingContext.PushTransform(new MatrixTransform(CharacterMotionTransform));
             drawingContext.DrawImage(UsesClips ? CurrentVPetFrame.Image
                 : Frames.Value[CurrentFrame].Image, CharacterBounds);
             if (_fallFrame is not null) drawingContext.Pop();
-            if (SceneEnabled) drawingContext.DrawImage(DesktopPetScene.Foreground.Image, new Rect(RenderSize));
+            if (SceneEnabled && !IsSunsetDuo) drawingContext.DrawImage(DesktopPetScene.Foreground.Image, new Rect(RenderSize));
         }
 
         private static readonly Brush SceneShadow = CreateSceneShadow();
@@ -290,7 +297,7 @@ namespace DesktopOrganizer
 
         internal bool ContainsOpaquePoint(Point point) =>
             ContainsCharacterPoint(point) || (_active && IsVisible && SceneEnabled &&
-                DesktopPetScene.ContainsOpaquePoint(point, RenderSize));
+                DesktopPetScene.ContainsOpaquePoint(point, RenderSize, _characterId));
 
         internal bool ContainsCharacterPoint(Point point)
         {

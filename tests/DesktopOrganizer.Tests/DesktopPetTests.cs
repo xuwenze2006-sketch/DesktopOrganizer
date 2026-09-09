@@ -895,7 +895,7 @@ public sealed class DesktopPetTests
         picker.Measure(new Size(600, 620));
         picker.Arrange(new Rect(0, 0, 600, 620));
         picker.UpdateLayout();
-        Assert.AreEqual(4, picker.Characters.Items.Count);
+        Assert.AreEqual(5, picker.Characters.Items.Count);
         foreach (DesktopPetPicker.Card card in picker.Characters.Items)
         {
             Assert.IsNotNull(card.Preview);
@@ -1000,6 +1000,170 @@ public sealed class DesktopPetTests
         Assert.AreEqual("sleepLoop", f.Pet.CurrentClip);
         Capture(1000); f.Pet.WakeUp(); PlayUntilIdle();
         if (preview.Count > 0) SaveFallPreview(preview, id+"-rest", "artifacts/two-character-actions-v2");
+    }
+
+    [STATestMethod]
+    [DataRow(false, 1.0)]
+    [DataRow(true, 1.5)]
+    [DataRow(true, 2.0)]
+    public void SunsetDuo_UsesAlignedTransparentFrames_WholePairMovesAndStopsWithoutFalling(bool scene, double scale)
+    {
+        const string id = DesktopPetCatalog.SunsetDuoId;
+        using var f = new Fixture();
+        f.Enable(id);
+        f.Invoke("SetDesktopPetScene", scene);
+        f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true);
+        f.Measure(scale);
+        Assert.AreEqual(360, f.Pet.Width);
+        Assert.AreEqual(new Rect(0, 0, 360, 360), f.Pet.CharacterBounds);
+        var idle = VPetAnimation.GetClip(id, "idle");
+        Assert.AreSame(idle.Frames[0], VPetAnimation.GetClip(id, "touchEnd").Frames[^1]);
+        // Blink inserts alter eye color only, while breathing retains its own contour.
+        CollectionAssert.AreEqual(idle.Frames[2].Alpha, idle.Frames[3].Alpha);
+        CollectionAssert.AreEqual(idle.Frames[8].Alpha, idle.Frames[9].Alpha);
+        Assert.IsFalse(BgraPixels(idle.Frames[2].Image).SequenceEqual(BgraPixels(idle.Frames[3].Image)));
+        string[] names = ["idle", "wave", "touchStart", "touchLoop", "touchEnd", "raisedStart", "raisedLoop", "raisedEnd", "sleepStart", "sleepLoop", "sleepEnd"];
+        foreach (string name in names)
+        {
+            var clip = VPetAnimation.GetClip(id, name);
+            Assert.AreSame(clip, VPetAnimation.GetClip(id, name));
+            Assert.AreEqual(clip.Frames.Length, clip.Milliseconds.Length);
+            Assert.IsTrue(clip.Milliseconds.All(ms => ms >= 80 && ms <= 1000));
+            foreach (var frame in clip.Frames)
+            {
+                Assert.IsTrue(frame.Image.IsFrozen);
+                Assert.AreEqual(512, frame.Image.PixelWidth);
+                Assert.AreEqual(512, frame.Image.PixelHeight);
+                Assert.IsTrue(frame.Alpha.Count(a => a == 0) > frame.Alpha.Length * .5);
+                Assert.IsTrue(frame.Alpha.Count(a => a > 230) > 25000);
+                Assert.IsTrue(frame.Alpha.Take(512).All(a => a == 0) && frame.Alpha.TakeLast(512).All(a => a == 0));
+                Assert.IsTrue(frame.Alpha.Skip(465 * 512).SequenceEqual(idle.Frames[0].Alpha.Skip(465 * 512)), "脚底在所有动作中保持原位。");
+            }
+        }
+        long generation = f.Field<long>("_layoutSaveGeneration");
+        f.Pet.ReactToTouch(); AdvanceUntil(f.Pet, "touchLoop"); AdvanceUntil(f.Pet, "idle");
+        f.Pet.SetDragging(true); AdvanceUntil(f.Pet, "raisedLoop");
+        for (int i = 0; i < 12; i++) { f.Pet.AdvanceAnimation(); Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity); }
+        f.Pet.SetDragging(false);
+        Assert.AreEqual("raisedEnd", f.Pet.CurrentClip, "组合停止移动时不能出现单人下落变换。");
+        AdvanceUntil(f.Pet, "idle");
+        f.Pet.Rest(); AdvanceUntil(f.Pet, "sleepLoop");
+        f.Pet.Wave(); Assert.AreEqual("sleepEnd", f.Pet.CurrentClip);
+        AdvanceUntil(f.Pet, "wave"); AdvanceUntil(f.Pet, "idle");
+        f.Pet.Rest(); AdvanceUntil(f.Pet, "sleepLoop"); f.Pet.WakeUp(); AdvanceUntil(f.Pet, "idle");
+        Assert.AreEqual(generation, f.Field<long>("_layoutSaveGeneration"), "动画不能触发布局磁盘保存。");
+        for (int y = 0; y < 360; y += 7)
+        for (int x = 0; x < 360; x += 7)
+        {
+            Point point = new(x, y);
+            bool character = f.Pet.CurrentVPetFrame.Alpha[(int)(y * 512.0 / 360) * 512 + (int)(x * 512.0 / 360)] > 32;
+            bool background = scene && DesktopPetScene.ContainsOpaquePoint(point, new Size(360, 360), id);
+            Assert.AreEqual(character, f.Pet.ContainsCharacterPoint(point));
+            Assert.AreEqual(character || background, f.Pet.ContainsOpaquePoint(point));
+        }
+        Assert.IsFalse(f.Pet.ContainsOpaquePoint(new Point(5, 180)), "肖像左右透明区域应穿透鼠标。");
+        Assert.AreEqual(scene, f.Pet.ContainsOpaquePoint(new Point(70, 35)), "背景只能在开启时接收拖动。");
+        f.Invoke("SetDesktopPetVisible", false);
+        Assert.IsFalse(f.Pet.AnimationRunning);
+        Assert.IsFalse(f.Pet.ContainsOpaquePoint(new Point(180, 180)));
+    }
+
+    [STATestMethod]
+    public void SunsetDuo_PickerStagesSelectionAndPersistsOptionalBackground_QuickMenuKeepsLegacyCharacters()
+    {
+        using var f = new Fixture();
+        f.Enable("vpet");
+        var picker = new DesktopPetPicker("vpet", true, false);
+        picker.Characters.SelectedValue = DesktopPetCatalog.SunsetDuoId;
+        Assert.IsTrue(picker.SceneSelected, "首次选择双人组合默认搭配夕阳背景。");
+        StringAssert.Contains(picker.ShowScene.Content.ToString()!, "夕阳城楼");
+        Assert.AreEqual("vpet", f.Pet.CharacterId);
+        picker.ApplyRequested += () => f.Invoke("ApplyDesktopPetSelection", picker.SelectedCharacterId, picker.ShowOnDesktop, picker.SceneSelected);
+        picker.ApplyButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        f.Invoke("NormalizeLayout");
+        var saved = LayoutJsonSerializer.Deserialize(JsonSerializer.Serialize(f.Layout)).Layout.DesktopPet;
+        Assert.AreEqual(DesktopPetCatalog.SunsetDuoId, saved.CharacterId);
+        Assert.IsTrue(saved.ShowScene && saved.IsVisible);
+        var reopened = new DesktopPetPicker(saved.CharacterId, saved.IsVisible, saved.ShowScene);
+        Assert.AreEqual(saved.CharacterId, reopened.SelectedCharacterId);
+        Assert.IsTrue(reopened.SceneSelected);
+        using (var source = new OffscreenSource(reopened))
+        {
+            reopened.Measure(new Size(600, 620)); reopened.Arrange(new Rect(0, 0, 600, 620)); reopened.UpdateLayout();
+            reopened.Characters.ScrollIntoView(reopened.Characters.SelectedItem); reopened.UpdateLayout();
+            var card = (ListBoxItem)reopened.Characters.ItemContainerGenerator.ContainerFromItem(reopened.Characters.SelectedItem);
+            Assert.IsTrue(card.ActualHeight > 150);
+            if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_SUNSET_QA") == "1")
+            {
+                var image = new RenderTargetBitmap(600, 620, 96, 96, PixelFormats.Pbgra32); image.Render(reopened);
+                var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+                string path = Path.Combine(TestProjectFiles.Root, "artifacts/sunset-duo-animation/picker-preview.png");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                using var output = File.Create(path); encoder.Save(output);
+            }
+        }
+        picker.ShowScene.IsChecked = false;
+        picker.ApplyButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        Assert.IsFalse(f.Pet.SceneEnabled);
+        var withoutScene = new DesktopPetPicker(f.Pet.CharacterId, true, false);
+        Assert.IsFalse(withoutScene.SceneSelected, "重新打开选择器要保留用户关闭背景的决定。");
+        f.Invoke("SetDesktopPetCharacter", "vpet");
+        Assert.AreEqual(168, f.Pet.Width);
+        Assert.AreSame(DesktopPetScene.Background, DesktopPetScene.BackgroundFor("vpet"));
+        f.Invoke("SetDesktopPetCharacter", DesktopPetCatalog.SunsetDuoId);
+        Assert.IsTrue(f.Pet.SceneEnabled);
+        var menu = f.Pet.ContextMenu;
+        f.Invoke("DesktopPetMenu_Opened", menu, new RoutedEventArgs());
+        Assert.IsTrue(menu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, DesktopPetCatalog.SunsetDuoId)).IsChecked);
+        Assert.AreEqual("夕阳城楼", menu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "scene")).Header);
+        f.Invoke("SetDesktopPetCharacter", "pink-haired");
+        f.Invoke("DesktopPetMenu_Opened", menu, new RoutedEventArgs());
+        Assert.AreEqual("树与草地", menu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "scene")).Header);
+    }
+
+    [STATestMethod]
+    public void SunsetDuo_ActualControlRendersBackgroundAndExportsTimedAnimation()
+    {
+        using var f = new Fixture();
+        f.Enable(DesktopPetCatalog.SunsetDuoId);
+        f.Invoke("SetDesktopPetScene", true);
+        f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true);
+        f.Measure(1.5);
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget).GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+        bool export = Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_SUNSET_QA") == "1";
+        var preview = new List<(BitmapSource Image, int Milliseconds)>();
+        BitmapSource Capture(int milliseconds)
+        {
+            f.Window.RootGrid.UpdateLayout();
+            var image = new RenderTargetBitmap(1500, 1050, 144, 144, PixelFormats.Pbgra32);
+            image.Render(f.Window.RootGrid);
+            var crop = new CroppedBitmap(image, new Int32Rect(450, 300, 540, 540));
+            if (export) preview.Add((crop, milliseconds));
+            return crop;
+        }
+        byte[] first = BgraPixels(Capture((int)timer.Interval.TotalMilliseconds));
+        for (int i = 1; i < VPetAnimation.GetClip(DesktopPetCatalog.SunsetDuoId, "idle").Frames.Length; i++)
+        { f.Pet.AdvanceAnimation(); Capture((int)timer.Interval.TotalMilliseconds); }
+        f.Pet.Wave();
+        for (int i = 0; i < 30 && f.Pet.CurrentClip != "idle"; i++)
+        { Capture((int)timer.Interval.TotalMilliseconds); f.Pet.AdvanceAnimation(); }
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        if (export) { SaveFallPreview(preview, "desktop-idle-and-greeting", "artifacts/sunset-duo-animation"); preview.Clear(); }
+        f.Pet.Rest();
+        AdvanceUntil(f.Pet, "sleepLoop");
+        byte[] resting = BgraPixels(Capture((int)timer.Interval.TotalMilliseconds));
+        Assert.IsFalse(first.SequenceEqual(resting), "真实控件必须呈现闭眼变化。");
+        // Bottom shoes and the sunset sky are static even when the expression changes.
+        Assert.IsTrue(first.Skip(500 * 540 * 4).SequenceEqual(resting.Skip(500 * 540 * 4)));
+        for (int i = 1; i < 8; i++) { f.Pet.AdvanceAnimation(); Capture((int)timer.Interval.TotalMilliseconds); }
+        f.Pet.WakeUp();
+        for (int i = 0; i < 30 && f.Pet.CurrentClip != "idle"; i++)
+        { Capture((int)timer.Interval.TotalMilliseconds); f.Pet.AdvanceAnimation(); }
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        Capture(500);
+        if (export) SaveFallPreview(preview, "desktop-rest-and-wake", "artifacts/sunset-duo-animation");
+        f.Invoke("SetDesktopPetScene", false); f.Measure(1.5);
+        Assert.IsFalse(first.SequenceEqual(BgraPixels(Capture(300))), "关闭背景应实际改变绘制结果。");
     }
 
     private static void AdvanceUntil(DesktopPetWidget pet, string clip, int maximumFrames = 100)

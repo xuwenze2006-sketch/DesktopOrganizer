@@ -54,7 +54,7 @@
         </Grid.RowDefinitions>
         <StackPanel Margin="5,0,5,10">
             <TextBlock Text="选择你的桌面伙伴" FontSize="23" FontWeight="SemiBold"/>
-            <TextBlock Text="已导入的角色 · 每次显示一位伙伴" Foreground="#625F57" Margin="0,5,0,0"/>
+            <TextBlock Text="已导入的角色与组合 · 选择后可预览动作" Foreground="#625F57" Margin="0,5,0,0"/>
         </StackPanel>
         <ListBox x:Name="Characters" Grid.Row="1" Background="Transparent" BorderThickness="0"
                  SelectionMode="Single" ItemTemplate="{StaticResource CharacterCard}"
