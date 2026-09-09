@@ -15,6 +15,27 @@ namespace DesktopOrganizer
         internal static Layer Foreground => Front.Value;
         internal static Layer SunsetPreview => SunsetCard.Value;
         internal static Layer PinkPreview => PinkCard.Value;
+        internal sealed record Scene(string Id, string Name);
+        internal static IReadOnlyList<Scene> Scenes => new[] { new Scene("tree-grass", "树与草地"),
+            new Scene("tiananmen", "透明夕阳城楼"), new Scene("sunset", "夕阳城楼") }.Concat(
+                DesktopPetLibrary.Shared.Assets.Where(a => a.Kind == "scene").Select(a => new Scene(a.Id, a.Name))).ToArray();
+        internal static string DefaultId(string characterId) => characterId switch
+        { "pink-haired" => "tiananmen", DesktopPetCatalog.SunsetDuoId => "sunset", _ => "tree-grass" };
+        internal static string ResolveId(string? sceneId, string characterId) =>
+            Scenes.Any(s => s.Id == sceneId) ? sceneId! : DefaultId(characterId);
+        internal static Layer GetBackground(string sceneId) => sceneId switch
+        { "tree-grass" => Background, "tiananmen" => Tiananmen.Value, "sunset" => Sunset.Value,
+            _ => DesktopPetLibrary.Shared.GetImage(sceneId) };
+        internal static bool ContainsScenePoint(Point point, Size size, string sceneId)
+        {
+            if (size.Width <= 0 || size.Height <= 0 || point.X < 0 || point.Y < 0 || point.X >= size.Width || point.Y >= size.Height) return false;
+            Layer back = GetBackground(sceneId);
+            int x = (int)(point.X * back.Image.PixelWidth / size.Width), y = (int)(point.Y * back.Image.PixelHeight / size.Height);
+            int alpha = back.Alpha[y * back.Image.PixelWidth + x];
+            if (sceneId != "tree-grass") return alpha > 32;
+            int fx = (int)(point.X * Foreground.Image.PixelWidth / size.Width), fy = (int)(point.Y * Foreground.Image.PixelHeight / size.Height);
+            return alpha + Foreground.Alpha[fy * Foreground.Image.PixelWidth + fx] * (255 - alpha) / 255 > 32;
+        }
         internal static bool HasForeground(string characterId) => characterId is not ("pink-haired" or DesktopPetCatalog.SunsetDuoId);
         internal static Layer BackgroundFor(string characterId) => characterId switch
         {

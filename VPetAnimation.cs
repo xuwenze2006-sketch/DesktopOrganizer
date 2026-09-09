@@ -27,13 +27,14 @@ namespace DesktopOrganizer
 
         private static readonly Lazy<Dictionary<string, Lazy<Clip>>> Clips = new(() => LoadManifest("VPet"));
         private static readonly Dictionary<string, Lazy<Dictionary<string, Lazy<Clip>>>> ImportedClips =
-            DesktopPetCatalog.Characters.Where(character => DesktopPetCatalog.IsImported(character.Id))
+            DesktopPetCatalog.BuiltInCharacters.Where(character => DesktopPetCatalog.IsImported(character.Id))
                 .ToDictionary(character => character.Id,
                     character => new Lazy<Dictionary<string, Lazy<Clip>>>(() => LoadManifest(character.AssetFolder!)));
 
         internal static IEnumerable<string> ClipNames => Clips.Value.Keys;
         internal static Clip GetClip(string name) => Clips.Value[name].Value;
-        internal static Clip GetClip(string characterId, string name) => characterId == "vpet"
+        internal static Clip GetClip(string characterId, string name) => characterId.StartsWith("user-", StringComparison.Ordinal)
+            ? DesktopPetLibrary.Shared.GetClip(characterId, name) : characterId == "vpet"
             ? GetClip(name) : ImportedClips[characterId].Value[name].Value;
 
         internal static Stream OpenResource(string path) => Application.GetResourceStream(new Uri(

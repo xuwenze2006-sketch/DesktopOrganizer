@@ -134,6 +134,10 @@ namespace DesktopOrganizer
     {
         public string CharacterId { get; set; } = DesktopPetWidget.CatCharacterId;
         public bool ShowScene { get; set; }
+        public string? SceneId { get; set; }
+        public double CharacterScale { get; set; } = 1;
+        public double CharacterShiftX { get; set; }
+        public double CharacterShiftY { get; set; }
         public double? X { get; set; }
         public double? Y { get; set; }
         public bool IsVisible { get; set; }

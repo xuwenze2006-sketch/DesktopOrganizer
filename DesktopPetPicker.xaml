@@ -1,79 +1,84 @@
 <UserControl x:Class="DesktopOrganizer.DesktopPetPicker"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="#FAF8F3" Foreground="#302F2B"
-             UseLayoutRounding="True" MinWidth="360">
-    <UserControl.Resources>
-        <Style TargetType="ListBoxItem">
-            <Setter Property="AutomationProperties.Name" Value="{Binding Name}"/>
-            <Setter Property="Margin" Value="5"/>
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#DEDCD5"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Card" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="12" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Card" Property="BorderBrush" Value="#91AC92"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Card" Property="Background" Value="#EAF1E7"/>
-                                <Setter TargetName="Card" Property="BorderBrush" Value="#587F5F"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="Card" Property="BorderBrush" Value="#34593B"/>
-                                <Setter TargetName="Card" Property="BorderThickness" Value="3"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <DataTemplate x:Key="CharacterCard">
-            <StackPanel>
-                <Image Source="{Binding Preview}" Height="128" Stretch="Uniform" Margin="0,0,0,6"/>
-                <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" TextAlignment="Center"/>
-                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#625F57"
-                           TextWrapping="Wrap" TextAlignment="Center" Margin="0,5,0,0"/>
-            </StackPanel>
-        </DataTemplate>
-    </UserControl.Resources>
-    <Grid Margin="20,16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <StackPanel Margin="5,0,5,10">
-            <TextBlock Text="选择你的桌面伙伴" FontSize="23" FontWeight="SemiBold"/>
-            <TextBlock Text="已导入的角色与组合 · 选择后可预览动作" Foreground="#625F57" Margin="0,5,0,0"/>
-        </StackPanel>
-        <ListBox x:Name="Characters" Grid.Row="1" Background="Transparent" BorderThickness="0"
-                 SelectionMode="Single" ItemTemplate="{StaticResource CharacterCard}"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
-                 SelectionChanged="Characters_SelectionChanged" AutomationProperties.Name="已导入的桌宠">
-            <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ListBox.ItemsPanel>
-        </ListBox>
-        <StackPanel Grid.Row="2" Margin="5,12,5,0">
-            <WrapPanel>
-                <CheckBox x:Name="ShowPet" Content="显示在桌面" Margin="0,0,22,8"/>
-                <CheckBox x:Name="ShowScene" Content="搭配树与草地" Margin="0,0,0,8"/>
-            </WrapPanel>
-            <TextBlock x:Name="SelectedDescription" TextWrapping="Wrap" Foreground="#4B6750" Margin="0,0,0,12"/>
-            <DockPanel LastChildFill="False">
-                <Button x:Name="PreviewButton" DockPanel.Dock="Left" Content="预览动作" Padding="12,7" Click="Preview_Click"/>
-                <Button x:Name="ApplyButton" DockPanel.Dock="Right" Content="应用选择" Padding="20,7"
-                        Background="#E0EBDE" IsDefault="True" Click="Apply_Click"/>
-                <Button DockPanel.Dock="Right" Content="取消" Padding="12,7" Margin="0,0,8,0" IsCancel="True" Click="Cancel_Click"/>
-            </DockPanel>
-        </StackPanel>
-    </Grid>
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Background="#F6F5F1" Foreground="#302F2B" UseLayoutRounding="True" MinWidth="360" SizeChanged="Picker_SizeChanged">
+ <UserControl.Resources>
+  <Style TargetType="Button">
+   <Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="0,0,6,0"/>
+   <Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#CDD4C8"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="ButtonSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+    </Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonSurface" Property="Background" Value="#EDF2E9"/></Trigger>
+     <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonSurface" Property="Background" Value="#DDE8D7"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ButtonSurface" Property="BorderBrush" Value="#375D3E"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonSurface" Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style TargetType="ListBoxItem">
+   <Setter Property="AutomationProperties.Name" Value="{Binding Name}"/>
+   <Setter Property="Margin" Value="4"/><Setter Property="Padding" Value="10"/>
+   <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+    <Border x:Name="Card" Background="White" BorderBrush="#DFE2D9" BorderThickness="2" CornerRadius="12" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Card" Property="BorderBrush" Value="#9BAC96"/></Trigger>
+     <Trigger Property="IsSelected" Value="True"><Setter TargetName="Card" Property="Background" Value="#E7EFE3"/><Setter TargetName="Card" Property="BorderBrush" Value="#587F5F"/></Trigger>
+     <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Card" Property="BorderBrush" Value="#304C35"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <DataTemplate x:Key="CardTemplate"><StackPanel MinHeight="156">
+   <Image Source="{Binding Preview}" Height="105" Stretch="Uniform" Margin="0,0,0,7"/>
+   <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" TextAlignment="Center" TextTrimming="CharacterEllipsis"/>
+   <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#666D62" TextWrapping="Wrap" TextAlignment="Center" Margin="0,4,0,0"/>
+  </StackPanel></DataTemplate>
+ </UserControl.Resources>
+ <Grid Margin="18,14">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <StackPanel Margin="4,0,0,12"><TextBlock Text="搭配你的桌面伙伴" FontSize="24" FontWeight="SemiBold"/>
+   <TextBlock Text="选择角色和背景，让喜欢的素材一起出现在桌面" Foreground="#666D62" Margin="0,5,0,0"/></StackPanel>
+  <Grid Grid.Row="1">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="PreviewColumn" Width="374"/></Grid.ColumnDefinitions>
+   <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <WrapPanel Margin="4,0,0,8"><Button Content="＋ 添加素材" Click="Import_Click"/><Button Content="移除所选" Click="Remove_Click"/><Button Content="恢复素材" Click="Restore_Click"/></WrapPanel>
+    <TabControl x:Name="LibraryTabs" Grid.Row="1" Background="Transparent" BorderThickness="0">
+     <TabItem Header="  角色  "><ListBox x:Name="Characters" Background="Transparent" BorderThickness="0" ItemTemplate="{StaticResource CardTemplate}"
+      ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="Characters_SelectionChanged" AutomationProperties.Name="角色素材库">
+      <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+     </ListBox></TabItem>
+     <TabItem Header="  背景  "><ListBox x:Name="Scenes" Background="Transparent" BorderThickness="0" ItemTemplate="{StaticResource CardTemplate}"
+      ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="Scenes_SelectionChanged" AutomationProperties.Name="背景素材库">
+      <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ListBox.ItemsPanel>
+     </ListBox></TabItem>
+    </TabControl>
+   </Grid>
+   <Border x:Name="CompositionPanel" Grid.Column="1" Margin="14,0,0,0" Background="White" CornerRadius="14" BorderBrush="#E2E4DD" BorderThickness="1">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="12">
+     <TextBlock Text="组合预览" FontWeight="SemiBold" FontSize="16"/>
+     <Border Background="#DDE7E5" CornerRadius="10" Margin="0,10,0,8"><Viewbox Height="275" Stretch="Uniform"><Grid x:Name="PreviewStage" Width="360" Height="360"/></Viewbox></Border>
+     <WrapPanel HorizontalAlignment="Center"><Button Content="挥手" Click="Wave_Click"/><Button Content="摸头" Click="Touch_Click"/><Button Content="休息" Click="Rest_Click"/><Button Content="唤醒" Click="Wake_Click"/></WrapPanel>
+     <StackPanel x:Name="PlacementControls" Margin="0,14,0,0">
+      <TextBlock Text="人物大小"/><Slider x:Name="CharacterScale" Minimum="0.5" Maximum="1.6" Value="1" ValueChanged="Placement_Changed" AutomationProperties.Name="人物大小"/>
+      <TextBlock Text="左右位置" Margin="0,5,0,0"/><Slider x:Name="CharacterX" Minimum="-240" Maximum="240" ValueChanged="Placement_Changed" AutomationProperties.Name="人物左右位置"/>
+      <TextBlock Text="上下位置" Margin="0,5,0,0"/><Slider x:Name="CharacterY" Minimum="-240" Maximum="240" ValueChanged="Placement_Changed" AutomationProperties.Name="人物上下位置"/>
+      <Button Content="重置人物位置" HorizontalAlignment="Left" Margin="0,8,0,0" Click="ResetPlacement_Click"/>
+     </StackPanel>
+     <TextBlock Text="支持 PNG 图片，或现有桌宠格式的 manifest.json（同目录含动作 PNG）。静态图片不会自动生成动作。" TextWrapping="Wrap" Foreground="#74796F" FontSize="11" Margin="0,12,0,0"/>
+     <TextBlock Text="素材库的添加、移除即时保存；取消搭配只取消桌面上的组合更改。移除后可恢复，原文件与授权信息保留。" TextWrapping="Wrap" Foreground="#74796F" FontSize="11" Margin="0,7,0,0"/>
+    </StackPanel></ScrollViewer>
+   </Border>
+  </Grid>
+  <StackPanel Grid.Row="2" Margin="4,12,0,0">
+   <WrapPanel><CheckBox x:Name="ShowPet" Content="显示在桌面" Margin="0,0,20,6"/><CheckBox x:Name="ShowScene" Content="显示背景" Margin="0,0,0,6" Checked="SceneVisibility_Changed" Unchecked="SceneVisibility_Changed"/></WrapPanel>
+   <TextBlock x:Name="SelectedDescription" TextWrapping="Wrap" Foreground="#4B6750" Margin="0,0,0,7"/>
+   <DockPanel LastChildFill="False">
+    <Button x:Name="PreviewButton" DockPanel.Dock="Left" Content="预览全部动作" Click="Preview_Click"/>
+    <Button x:Name="ApplyButton" DockPanel.Dock="Right" Content="应用到桌面" Background="#E0EBDE" IsDefault="True" Click="Apply_Click"/>
+    <Button DockPanel.Dock="Right" Content="取消搭配" IsCancel="True" Click="Cancel_Click"/>
+   </DockPanel>
+  </StackPanel>
+ </Grid>
 </UserControl>

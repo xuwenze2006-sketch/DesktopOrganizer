@@ -11,6 +11,7 @@ namespace DesktopOrganizer
         private void InitializeDesktopPet()
         {
             DesktopPet.SetCharacter(_appLayout.DesktopPet.CharacterId);
+            ApplyDesktopPetComposition();
             DesktopPet.SetSceneEnabled(_appLayout.DesktopPet.ShowScene);
             UpdateDesktopPetDescription();
             DesktopPetToggle.IsChecked = _appLayout.DesktopPet.IsVisible;
@@ -27,13 +28,14 @@ namespace DesktopOrganizer
         private void DesktopPetPicker_Click(object sender, RoutedEventArgs e)
         {
             var picker = new DesktopPetPicker(_appLayout.DesktopPet.CharacterId,
-                _appLayout.DesktopPet.IsVisible, _appLayout.DesktopPet.ShowScene);
-            var dialog = new Window { Title = "桌面宠物", Content = picker, Width = 600, Height = 660,
+                _appLayout.DesktopPet.IsVisible, _appLayout.DesktopPet.ShowScene, _appLayout.DesktopPet);
+            var dialog = new Window { Title = "桌宠素材与搭配", Content = picker, Width = Math.Min(920, SystemParameters.WorkArea.Width), Height = Math.Min(730, SystemParameters.WorkArea.Height),
                 MinWidth = 410, MinHeight = 360, MaxHeight = Math.Max(360, SystemParameters.WorkArea.Height),
                 WindowStartupLocation = WindowStartupLocation.CenterScreen, Background = new SolidColorBrush(Color.FromRgb(250, 248, 243)) };
             if (!_isAttachedToDesktop) dialog.Owner = this;
             picker.ApplyRequested += () =>
             {
+                picker.CopyCompositionTo(_appLayout.DesktopPet);
                 ApplyDesktopPetSelection(picker.SelectedCharacterId, picker.ShowOnDesktop, picker.SceneSelected);
                 dialog.Close();
             };
@@ -51,6 +53,7 @@ namespace DesktopOrganizer
             _appLayout.DesktopPet.ShowScene = scene;
             _appLayout.DesktopPet.IsVisible = visible;
             DesktopPet.SetCharacter(normalized);
+            ApplyDesktopPetComposition();
             DesktopPet.SetSceneEnabled(scene);
             Vector offset = DesktopPetWidget.GetCharacterOffset(normalized, scene);
             SetDesktopPetPosition(characterPosition.X - offset.X, characterPosition.Y - offset.Y, updateLayout: true);
@@ -63,6 +66,13 @@ namespace DesktopOrganizer
         }
 
         private void HideDesktopPet_Click(object sender, RoutedEventArgs e) => SetDesktopPetVisible(false);
+
+        private void ApplyDesktopPetComposition()
+        {
+            var pet = _appLayout.DesktopPet;
+            DesktopPet.SetComposition(pet.SceneId, pet.CharacterScale, pet.CharacterShiftX, pet.CharacterShiftY);
+        }
+        private string DesktopPetSceneName => DesktopPetScene.Scenes.First(s => s.Id == DesktopPet.SceneId).Name;
 
         private string DesktopPetName => DesktopPetCatalog.Find(DesktopPet.CharacterId).Name;
 
@@ -97,7 +107,7 @@ namespace DesktopOrganizer
             SetDesktopPetPosition(characterPosition.X - offset.X, characterPosition.Y - offset.Y, updateLayout: true);
             UpdateDesktopPetDescription();
             SaveLayout();
-            StatusText.Text = enabled ? "已开启" + DesktopPetScene.NameFor(DesktopPet.CharacterId) + "；拖动场景换位置，轻点角色互动"
+            StatusText.Text = enabled ? "已开启" + DesktopPetSceneName + "；拖动场景换位置，轻点角色互动"
                 : "已关闭配套背景，保留桌面伙伴";
         }
 
@@ -128,7 +138,10 @@ namespace DesktopOrganizer
             foreach (MenuItem item in menu.Items.OfType<MenuItem>())
             {
                 if (item.Tag is string id && DesktopPetCatalog.Contains(id))
+                {
                     item.IsChecked = id == _appLayout.DesktopPet.CharacterId;
+                    item.Visibility = DesktopPetLibrary.Shared.IsRemoved(id) ? Visibility.Collapsed : Visibility.Visible;
+                }
                 if (item.Tag is "action") item.IsEnabled = DesktopPet.IsVisible && !_isDesktopPetDragging;
                 if (item.Tag is "duo-action")
                 {
@@ -138,7 +151,7 @@ namespace DesktopOrganizer
                 if (item.Tag is "scene")
                 {
                     item.IsChecked = _appLayout.DesktopPet.ShowScene;
-                    item.Header = DesktopPetScene.NameFor(DesktopPet.CharacterId);
+                    item.Header = DesktopPetSceneName;
                 }
                 if (item.Header is "摸摸头" or "轻点回应")
                     item.Header = DesktopPet.CharacterId == DesktopPetCatalog.SunsetDuoId ? "轻点回应" : "摸摸头";

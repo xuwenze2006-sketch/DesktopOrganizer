@@ -40,6 +40,17 @@ namespace DesktopOrganizer
         internal int CurrentFrame => UsesClips ? _step : _sequence[_step].Frame;
         internal bool AnimationRunning => _timer.IsEnabled;
         internal bool SceneEnabled { get; private set; }
+        private string? _sceneId;
+        private double _characterScale = 1, _shiftX, _shiftY;
+        internal string SceneId => DesktopPetScene.ResolveId(_sceneId, _characterId);
+        internal void SetComposition(string? sceneId, double scale = 1, double x = 0, double y = 0)
+        {
+            _sceneId = sceneId;
+            _characterScale = double.IsFinite(scale) ? Math.Clamp(scale, .5, 1.6) : 1;
+            _shiftX = double.IsFinite(x) ? Math.Clamp(x, -240, 240) : 0;
+            _shiftY = double.IsFinite(y) ? Math.Clamp(y, -240, 240) : 0;
+            InvalidateVisual();
+        }
         internal VPetAnimation.Frame CurrentVPetFrame => _fallFrame ?? VPetAnimation.GetClip(_characterId, _clipName).Frames[_step];
         internal Matrix CharacterMotionTransform
         {
@@ -68,6 +79,13 @@ namespace DesktopOrganizer
             {
                 Vector offset = GetCharacterOffset(_characterId, SceneEnabled);
                 double size = GetCharacterSize(_characterId);
+                if (SceneEnabled)
+                {
+                    double scaled = Math.Min(size * _characterScale, DesktopPetScene.Size);
+                    offset = new Vector(Math.Clamp(offset.X + (size - scaled) / 2 + _shiftX, 0, DesktopPetScene.Size - scaled),
+                        Math.Clamp(offset.Y + size - scaled + _shiftY, 0, DesktopPetScene.Size - scaled));
+                    size = scaled;
+                }
                 return new Rect(offset.X * RenderSize.Width / Width, offset.Y * RenderSize.Height / Height,
                     size * RenderSize.Width / Width, size * RenderSize.Height / Height);
             }
@@ -310,8 +328,8 @@ namespace DesktopOrganizer
             if (!_active) return;
             if (SceneEnabled)
             {
-                drawingContext.DrawImage(DesktopPetScene.BackgroundFor(_characterId).Image, new Rect(RenderSize));
-                if (!IsSunsetDuo)
+                drawingContext.DrawImage(DesktopPetScene.GetBackground(SceneId).Image, new Rect(RenderSize));
+                if (!IsSunsetDuo && _sceneId is null && _characterScale == 1 && _shiftX == 0 && _shiftY == 0)
                 {
                     double xScale = RenderSize.Width / DesktopPetScene.Size;
                     double yScale = RenderSize.Height / DesktopPetScene.Size;
@@ -325,7 +343,7 @@ namespace DesktopOrganizer
             drawingContext.DrawImage(UsesClips ? CurrentVPetFrame.Image
                 : Frames.Value[CurrentFrame].Image, CharacterBounds);
             if (_fallFrame is not null) drawingContext.Pop();
-            if (SceneEnabled && DesktopPetScene.HasForeground(_characterId))
+            if (SceneEnabled && SceneId == "tree-grass")
                 drawingContext.DrawImage(DesktopPetScene.Foreground.Image, new Rect(RenderSize));
         }
 
@@ -339,7 +357,7 @@ namespace DesktopOrganizer
 
         internal bool ContainsOpaquePoint(Point point) =>
             ContainsCharacterPoint(point) || (_active && IsVisible && SceneEnabled &&
-                DesktopPetScene.ContainsOpaquePoint(point, RenderSize, _characterId));
+                DesktopPetScene.ContainsScenePoint(point, RenderSize, SceneId));
 
         internal bool ContainsCharacterPoint(Point point)
         {

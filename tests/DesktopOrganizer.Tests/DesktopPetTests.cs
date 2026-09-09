@@ -927,7 +927,8 @@ public sealed class DesktopPetTests
         picker.Characters.SelectedValue = "pink-haired";
         Assert.IsTrue(picker.SceneSelected);
         Assert.AreEqual("搭配透明夕阳城楼", picker.ShowScene.Content);
-        Assert.AreSame(DesktopPetScene.PinkPreview.Image, DesktopPetCatalog.Preview("pink-haired"));
+        Assert.AreSame(VPetAnimation.GetClip("pink-haired", "idle").Frames[0].Image,
+            DesktopPetCatalog.Preview("pink-haired"), "角色卡片不再绑定配套背景。");
         var reopened = new DesktopPetPicker("pink-haired", true, false);
         Assert.IsFalse(reopened.SceneSelected, "重新打开不能覆盖用户关闭背景的决定。");
         using var f = new Fixture();
@@ -1287,6 +1288,32 @@ public sealed class DesktopPetTests
         Assert.AreEqual("idle", f.Pet.CurrentClip);
         Assert.IsTrue(largestChange > 1000, "新动作必须带来明显肢体或朝向变化，不能只是原有眨眼微动。");
         if (preview.Count > 0) SaveFallPreview(preview,"desktop-"+action,"artifacts/sunset-duo-actions-v2");
+    }
+
+    [STATestMethod]
+    public void MaterialComposition_AppliesAndReloadsIndependentSceneAndPosition()
+    {
+        using var f = new Fixture();
+        f.Enable("black-haired");
+        var picker = new DesktopPetPicker("black-haired", true, true);
+        picker.Scenes.SelectedValue = "tiananmen";
+        picker.CharacterScale.Value = .75;
+        picker.CharacterX.Value = -90;
+        picker.CharacterY.Value = 12;
+        picker.CopyCompositionTo(f.Layout.DesktopPet);
+        f.Invoke("ApplyDesktopPetSelection", "black-haired", true, true);
+        f.Measure(1.5);
+        Assert.AreEqual("tiananmen", f.Pet.SceneId);
+        Rect expected = f.Pet.CharacterBounds;
+        Assert.IsTrue(expected.Width < 168 && expected.Left < 168);
+        f.Invoke("InitializeDesktopPet"); f.Measure(1.5);
+        Assert.AreEqual(expected, f.Pet.CharacterBounds);
+        f.Invoke("SetDesktopPetCharacter", "pink-haired"); f.Measure(1.5);
+        Assert.AreEqual("tiananmen", f.Pet.SceneId);
+        Assert.AreEqual(expected, f.Pet.CharacterBounds);
+        var saved = LayoutJsonSerializer.Deserialize(JsonSerializer.Serialize(f.Layout)).Layout;
+        Assert.AreEqual(-90, saved.DesktopPet.CharacterShiftX);
+        Assert.AreEqual(.75, saved.DesktopPet.CharacterScale);
     }
 
     private static void AdvanceUntil(DesktopPetWidget pet, string clip, int maximumFrames = 100)

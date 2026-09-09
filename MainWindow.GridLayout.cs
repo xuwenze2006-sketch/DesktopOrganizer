@@ -460,6 +460,12 @@ namespace DesktopOrganizer
             _appLayout.RecycleBinWidget ??= new RecycleBinWidgetLayoutInfo();
             _appLayout.DesktopPet ??= new DesktopPetLayoutInfo();
             _appLayout.DesktopPet.CharacterId = DesktopPetWidget.NormalizeCharacterId(_appLayout.DesktopPet.CharacterId);
+            var petComposition = _appLayout.DesktopPet;
+            if (petComposition.SceneId is not null)
+                petComposition.SceneId = DesktopPetScene.ResolveId(petComposition.SceneId, petComposition.CharacterId);
+            petComposition.CharacterScale = double.IsFinite(petComposition.CharacterScale) ? Math.Clamp(petComposition.CharacterScale, .5, 1.6) : 1;
+            petComposition.CharacterShiftX = double.IsFinite(petComposition.CharacterShiftX) ? Math.Clamp(petComposition.CharacterShiftX, -240, 240) : 0;
+            petComposition.CharacterShiftY = double.IsFinite(petComposition.CharacterShiftY) ? Math.Clamp(petComposition.CharacterShiftY, -240, 240) : 0;
             if (_appLayout.DesktopPet.X is double petX && !double.IsFinite(petX)) _appLayout.DesktopPet.X = null;
             if (_appLayout.DesktopPet.Y is double petY && !double.IsFinite(petY)) _appLayout.DesktopPet.Y = null;
             _appLayout.AutoClassificationOriginalPositions ??= new Dictionary<string, IconPosition>();
