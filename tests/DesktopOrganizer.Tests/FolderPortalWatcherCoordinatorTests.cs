@@ -1,12 +1,81 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Collections;
+using System.Reflection;
 
 namespace DesktopOrganizer.Tests;
 
 [TestClass]
 public sealed class FolderPortalWatcherCoordinatorTests
 {
+    [TestMethod]
+    public async Task WatcherError_RefreshesAndRebindsThenReceivesNewFileEvents()
+    {
+        string root = CreateTestDirectory();
+        try
+        {
+            var errors = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var changes = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var coordinator = new FolderPortalWatcherCoordinator((_, version) =>
+            {
+                if (!errors.TrySetResult(version)) changes.TrySetResult(version);
+            }, TimeSpan.FromMilliseconds(30));
+            Assert.IsTrue(coordinator.TryBind("portal", root));
+            FileSystemWatcher old = GetWatcher(coordinator, "portal");
+            RaiseError(old);
+            long version = await errors.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.IsTrue(coordinator.IsCurrentNotification("portal", version));
+            Assert.IsTrue(coordinator.TryBind("portal", root));
+            Assert.AreNotSame(old, GetWatcher(coordinator, "portal"));
+            Assert.IsFalse(coordinator.IsCurrentNotification("portal", version));
+
+            RaiseError(old); // 旧监听的迟到错误不能破坏新监听或发出额外通知。
+            await Task.Delay(100);
+            Assert.IsFalse(changes.Task.IsCompleted);
+            File.WriteAllText(Path.Combine(root, "new.txt"), "content");
+            long newVersion = await changes.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.IsTrue(coordinator.IsCurrentNotification("portal", newVersion));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [TestMethod]
+    public async Task WatcherError_AfterUnbindOrDisposeDoesNotPublishRefresh()
+    {
+        string root = CreateTestDirectory();
+        try
+        {
+            int callbacks = 0;
+            using var coordinator = new FolderPortalWatcherCoordinator(
+                (_, _) => Interlocked.Increment(ref callbacks), TimeSpan.FromMilliseconds(40));
+            Assert.IsTrue(coordinator.TryBind("portal", root));
+            FileSystemWatcher old = GetWatcher(coordinator, "portal");
+            RaiseError(old);
+            coordinator.Unbind("portal");
+            RaiseError(old);
+            Assert.IsTrue(coordinator.TryBind("portal", root));
+            FileSystemWatcher current = GetWatcher(coordinator, "portal");
+            coordinator.Dispose();
+            RaiseError(current);
+            await Task.Delay(150);
+            Assert.AreEqual(0, Volatile.Read(ref callbacks));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private static FileSystemWatcher GetWatcher(FolderPortalWatcherCoordinator coordinator, string id)
+    {
+        var registrations = (IDictionary)typeof(FolderPortalWatcherCoordinator)
+            .GetField("_registrations", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(coordinator)!;
+        object registration = registrations[id]!;
+        return (FileSystemWatcher)registration.GetType().GetProperty("Watcher")!.GetValue(registration)!;
+    }
+
+    private static void RaiseError(FileSystemWatcher watcher) =>
+        typeof(FileSystemWatcher).GetMethod("OnError", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(watcher, [new ErrorEventArgs(new InternalBufferOverflowException("test overflow"))]);
+
     [TestMethod]
     public async Task NotifyChanged_DebouncesRepeatedEventsPerPortal()
     {

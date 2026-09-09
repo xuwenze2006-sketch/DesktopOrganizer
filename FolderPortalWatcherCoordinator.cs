@@ -22,6 +22,8 @@ namespace DesktopOrganizer
 
             public long NotificationVersion { get; set; }
 
+            public bool NeedsRebind { get; set; }
+
             public void Dispose()
             {
                 Watcher.EnableRaisingEvents = false;
@@ -82,7 +84,8 @@ namespace DesktopOrganizer
                 }
 
                 if (_registrations.TryGetValue(portalId, out Registration? existing) &&
-                    existing.DirectoryPath.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase))
+                    existing.DirectoryPath.Equals(normalizedPath, StringComparison.OrdinalIgnoreCase) &&
+                    !existing.NeedsRebind)
                 {
                     return true;
                 }
@@ -102,7 +105,7 @@ namespace DesktopOrganizer
                 createdWatcher.Created += (_, _) => NotifyChanged(portalId, createdWatcher);
                 createdWatcher.Deleted += (_, _) => NotifyChanged(portalId, createdWatcher);
                 createdWatcher.Renamed += (_, _) => NotifyChanged(portalId, createdWatcher);
-                createdWatcher.Error += (_, _) => UnbindIfCurrent(portalId, createdWatcher);
+                createdWatcher.Error += (_, _) => NotifyError(portalId, createdWatcher);
             }
             catch (Exception exception) when (
                 exception is ArgumentException or IOException or UnauthorizedAccessException)
@@ -288,19 +291,20 @@ namespace DesktopOrganizer
             }
         }
 
-        private void UnbindIfCurrent(string portalId, FileSystemWatcher sourceWatcher)
+        private void NotifyError(string portalId, FileSystemWatcher sourceWatcher)
         {
-            Registration? registration = null;
             lock (_gate)
             {
-                if (_registrations.TryGetValue(portalId, out Registration? current) &&
-                    ReferenceEquals(current.Watcher, sourceWatcher))
-                {
-                    _registrations.Remove(portalId);
-                    registration = current;
-                }
+                if (_disposed || !_registrations.TryGetValue(portalId, out Registration? current) ||
+                    !ReferenceEquals(current.Watcher, sourceWatcher))
+                    return;
+
+                // 保留通知身份：UI 会丢弃已解绑注册的刷新通知。
+                // 成功重读后 TryBind 重新建立监听，不启动无界重试循环。
+                current.NeedsRebind = true;
+                current.NotificationVersion = NextNotificationVersion();
+                current.DebounceTimer?.Change(_debounceDelay, Timeout.InfiniteTimeSpan);
             }
-            registration?.Dispose();
         }
 
         private long NextNotificationVersion()

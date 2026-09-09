@@ -271,7 +271,21 @@ namespace DesktopOrganizer
                         throw new InvalidDataException("Portal 枚举器返回了指定目录之外的项目。");
                     }
 
-                    FileAttributes attributes = _getAttributes(fullPath);
+                    FileAttributes attributes;
+                    DateTime lastWriteTimeUtc;
+                    try
+                    {
+                        attributes = _getAttributes(fullPath);
+                        lastWriteTimeUtc = _getLastWriteTimeUtc(fullPath);
+                    }
+                    catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+                    {
+                        if (!_directoryExists(currentPath))
+                            throw;
+                        // 枚举后单项可能刚被删除；其它条目仍有效。
+                        // 根目录/越界/权限和枚举器本身的失败仍由外层报告。
+                        continue;
+                    }
                     bool isDirectory = (attributes & FileAttributes.Directory) != 0;
                     bool isReparsePoint = (attributes & FileAttributes.ReparsePoint) != 0;
                     string itemName = Path.GetFileName(Path.TrimEndingDirectorySeparator(fullPath));
@@ -285,7 +299,7 @@ namespace DesktopOrganizer
                         fullPath,
                         isDirectory,
                         isReparsePoint,
-                        _getLastWriteTimeUtc(fullPath)));
+                        lastWriteTimeUtc));
                 }
 
                 IReadOnlyList<PortalDirectoryEntry> ordered = entries

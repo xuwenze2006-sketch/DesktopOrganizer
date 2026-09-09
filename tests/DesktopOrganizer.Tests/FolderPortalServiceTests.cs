@@ -7,6 +7,51 @@ namespace DesktopOrganizer.Tests;
 public sealed class FolderPortalServiceTests
 {
     [TestMethod]
+    public void Read_ItemDisappearsDuringEnumeration_PreservesSurvivingEntries()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "portal-vanishing-entry");
+        string vanished = Path.Combine(root, "vanished.txt");
+        string survivor = Path.Combine(root, "survivor.txt");
+        var service = new FolderPortalService(ReadExpectedIdentity, _ => true,
+            _ => new[] { vanished, survivor },
+            path => path == vanished ? throw new FileNotFoundException() :
+                path == root ? FileAttributes.Directory : FileAttributes.Normal,
+            _ => DateTime.UnixEpoch);
+
+        PortalReadResult result = service.Read(CreatePortal(root, "root-id"));
+        Assert.IsTrue(result.Success, result.ErrorMessage);
+        Assert.HasCount(1, result.Entries);
+        Assert.AreEqual(survivor, result.Entries[0].FullPath);
+    }
+
+    [TestMethod]
+    public void Read_ItemPermissionFailure_StillRejectsPartialSnapshot()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "portal-denied-entry");
+        var service = new FolderPortalService(ReadExpectedIdentity, _ => true,
+            _ => new[] { Path.Combine(root, "denied.txt") },
+            path => path == root ? FileAttributes.Directory : throw new UnauthorizedAccessException(),
+            _ => DateTime.UnixEpoch);
+        Assert.IsFalse(service.Read(CreatePortal(root, "root-id")).Success);
+    }
+
+    [TestMethod]
+    public void Read_CurrentDirectoryDisappears_DoesNotReportSuccessfulEmptySnapshot()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "portal-disappearing-root");
+        bool directoryExists = true;
+        var service = new FolderPortalService(ReadExpectedIdentity, _ => directoryExists,
+            _ =>
+            {
+                directoryExists = false;
+                return new[] { Path.Combine(root, "cached-entry.txt") };
+            },
+            path => path == root ? FileAttributes.Directory : throw new DirectoryNotFoundException(),
+            _ => DateTime.UnixEpoch);
+        Assert.IsFalse(service.Read(CreatePortal(root, "root-id")).Success);
+    }
+
+    [TestMethod]
     public void LayoutPolicy_NormalizesSafelyAndRemovesDuplicateRoots()
     {
         string root = Path.Combine(Path.GetTempPath(), "portal-layout-root");
