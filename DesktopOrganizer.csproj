@@ -21,6 +21,11 @@
     <Resource Include="Assets\Pets\PixelPawsCat.png" />
     <Resource Include="Assets\Pets\VPet\*.png" />
     <Resource Include="Assets\Pets\VPet\manifest.json" />
+    <Resource Include="Assets\Pets\BlackHaired\*.png" />
+    <Resource Include="Assets\Pets\BlackHaired\manifest.json" />
+    <Resource Include="Assets\Pets\PinkHaired\*.png" />
+    <Resource Include="Assets\Pets\PinkHaired\manifest.json" />
+    <Content Include="Assets\Pets\CHARACTER-SOURCES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Resource Include="Assets\Scenes\TreeGrass\background.png" />
     <Resource Include="Assets\Scenes\TreeGrass\foreground.png" />
     <Resource Include="ThirdParty\VPet-ANIMATION-LICENSE.txt" />

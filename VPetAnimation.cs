@@ -25,26 +25,46 @@ namespace DesktopOrganizer
             public int Milliseconds { get; set; }
         }
 
-        private static readonly Lazy<Dictionary<string, Lazy<Clip>>> Clips = new(LoadManifest);
+        private static readonly Lazy<Dictionary<string, Lazy<Clip>>> Clips = new(() => LoadManifest("VPet"));
+        private static readonly Dictionary<string, Lazy<Dictionary<string, Lazy<Clip>>>> ImportedClips =
+            DesktopPetCatalog.Characters.Where(character => DesktopPetCatalog.IsImported(character.Id))
+                .ToDictionary(character => character.Id,
+                    character => new Lazy<Dictionary<string, Lazy<Clip>>>(() => LoadManifest(character.AssetFolder!)));
 
         internal static IEnumerable<string> ClipNames => Clips.Value.Keys;
         internal static Clip GetClip(string name) => Clips.Value[name].Value;
+        internal static Clip GetClip(string characterId, string name) => characterId == "vpet"
+            ? GetClip(name) : ImportedClips[characterId].Value[name].Value;
 
         internal static Stream OpenResource(string path) => Application.GetResourceStream(new Uri(
             "pack://application:,,,/DesktopOrganizer;component/" + path))!.Stream;
 
-        private static Dictionary<string, Lazy<Clip>> LoadManifest()
+        private static Dictionary<string, Lazy<Clip>> LoadManifest(string folder)
         {
-            using Stream stream = OpenResource("Assets/Pets/VPet/manifest.json");
+            using Stream stream = OpenResource($"Assets/Pets/{folder}/manifest.json");
             Manifest manifest = JsonSerializer.Deserialize<Manifest>(stream,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            if (folder != "VPet")
+            {
+                // 新角色共用一张动作图：每张图与每个透明度掩码只解码一次。
+                var sheets = manifest.Clips.Values.GroupBy(info => info.Sheet).ToDictionary(group => group.Key,
+                    group => new Lazy<Clip>(() => LoadClip(new ClipInfo
+                    {
+                        Sheet = group.Key,
+                        Frames = Enumerable.Range(0, group.SelectMany(info => info.Frames).Max(frame => frame.Index) + 1)
+                            .Select(index => new FrameInfo { Index = index }).ToList()
+                    }, manifest.CellSize, manifest.Columns, folder)));
+                return manifest.Clips.ToDictionary(pair => pair.Key, pair => new Lazy<Clip>(() => new Clip(
+                    pair.Value.Frames.Select(frame => sheets[pair.Value.Sheet].Value.Frames[frame.Index]).ToArray(),
+                    pair.Value.Frames.Select(frame => frame.Milliseconds).ToArray())));
+            }
             return manifest.Clips.ToDictionary(pair => pair.Key,
-                pair => new Lazy<Clip>(() => LoadClip(pair.Value, manifest.CellSize, manifest.Columns)));
+                pair => new Lazy<Clip>(() => LoadClip(pair.Value, manifest.CellSize, manifest.Columns, folder)));
         }
 
-        private static Clip LoadClip(ClipInfo info, int cellSize, int columns)
+        private static Clip LoadClip(ClipInfo info, int cellSize, int columns, string folder)
         {
-            using Stream stream = OpenResource("Assets/Pets/VPet/" + info.Sheet);
+            using Stream stream = OpenResource($"Assets/Pets/{folder}/" + info.Sheet);
             var sheet = new BitmapImage();
             sheet.BeginInit();
             sheet.CacheOption = BitmapCacheOption.OnLoad;

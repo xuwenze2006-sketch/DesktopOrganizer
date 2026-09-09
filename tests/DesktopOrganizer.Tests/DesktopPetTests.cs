@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -84,7 +85,7 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
-    public void SystemTab_ToggleFitsAndCanReopenHiddenPet()
+    public void SystemTab_PickerEntryFitsAndApplyingSelectionCanReopenHiddenPet()
     {
         using var f = new Fixture();
         f.Window.ControlPanel.Visibility = Visibility.Visible;
@@ -96,8 +97,8 @@ public sealed class DesktopPetTests
         Point bottom = f.Window.DesktopPetToggle.TranslatePoint(
             new Point(0, f.Window.DesktopPetToggle.ActualHeight), f.Window.ExpandedCommands);
         Assert.IsTrue(bottom.Y <= f.Window.ExpandedCommands.ActualHeight);
-        f.Window.DesktopPetToggle.IsChecked = true;
-        f.Window.DesktopPetToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Assert.AreEqual("选择桌宠", f.Window.DesktopPetToggle.Content);
+        f.Invoke("ApplyDesktopPetSelection", "pixelpaws", true, false);
         Assert.IsTrue(f.Layout.DesktopPet.IsVisible);
         Assert.IsTrue(f.Pet.AnimationRunning);
         f.Invoke("SetDesktopPetPosition", 500.0, 250.0, true);
@@ -727,9 +728,9 @@ public sealed class DesktopPetTests
         AdvanceUntil(f.Pet, "touchStart");
     }
 
-    private static void SaveFallPreview(List<(BitmapSource Image, int Milliseconds)> frames, string name)
+    private static void SaveFallPreview(List<(BitmapSource Image, int Milliseconds)> frames, string name, string folder = "artifacts/pet-fall-v3")
     {
-        string directory = Path.Combine(TestProjectFiles.Root, "artifacts/pet-fall-v3");
+        string directory = Path.Combine(TestProjectFiles.Root, folder);
         Directory.CreateDirectory(directory);
         var encoder = new GifBitmapEncoder();
         int size = frames[0].Image.PixelWidth;
@@ -822,6 +823,183 @@ public sealed class DesktopPetTests
         var pixels = new byte[image.PixelWidth * image.PixelHeight * 4];
         converted.CopyPixels(pixels, image.PixelWidth * 4, 0);
         return pixels;
+    }
+
+    [STATestMethod]
+    [DataRow("black-haired", false, 1.0)]
+    [DataRow("pink-haired", true, 1.5)]
+    [DataRow("black-haired", true, 2.0)]
+    public void ImportedCharacters_AnimateAllTransitions_KeepTransparencyAndReuseFrames(string id, bool scene, double scale)
+    {
+        using var f = new Fixture();
+        f.Enable(id);
+        f.Invoke("SetDesktopPetScene", scene);
+        f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true);
+        f.Measure(scale);
+        Assert.AreEqual(id, f.Pet.CharacterId);
+        Assert.AreEqual(scene ? 360 : 168, f.Pet.Width);
+        var idle = VPetAnimation.GetClip(id, "idle");
+        Assert.AreSame(idle.Frames[0], VPetAnimation.GetClip(id, "touchEnd").Frames[^1]);
+        CollectionAssert.AreEqual(idle.Frames[0].Alpha, idle.Frames[3].Alpha, "眨眼不得改变身体轮廓。");
+        long generation = f.Field<long>("_layoutSaveGeneration");
+        Assert.IsFalse(f.Pet.ContainsCharacterPoint(new Point(0, 0)));
+        string[] clips = ["idle", "wave", "touchStart", "touchLoop", "touchEnd", "raisedStart", "raisedLoop", "raisedEnd", "sleepStart", "sleepLoop", "sleepEnd"];
+        foreach (string name in clips)
+        {
+            var clip = VPetAnimation.GetClip(id, name);
+            Assert.AreSame(clip, VPetAnimation.GetClip(id, name));
+            Assert.AreEqual(clip.Frames.Length, clip.Milliseconds.Length);
+            Assert.IsTrue(clip.Milliseconds.All(ms => ms >= 30 && ms <= 3000));
+            foreach (var frame in clip.Frames)
+            {
+                Assert.IsTrue(frame.Image.IsFrozen);
+                Assert.AreEqual(256, frame.Image.PixelWidth);
+                Assert.IsTrue(frame.Alpha.Count(a => a == 0) > frame.Alpha.Length * .55, "周围留白必须真正透明。");
+                Assert.IsTrue(frame.Alpha.Count(a => a > 230) > 1800, "不能交付空帧。");
+                Assert.IsTrue(Enumerable.Range(0, 256).All(i => frame.Alpha[i] == 0 && frame.Alpha[255*256+i] == 0), "上下边缘不能截断人物。");
+            }
+        }
+        f.Pet.Wave(); Assert.AreEqual("wave", f.Pet.CurrentClip); AdvanceUntil(f.Pet, "idle");
+        f.Pet.ReactToTouch(); AdvanceUntil(f.Pet, "touchLoop"); AdvanceUntil(f.Pet, "idle");
+        f.Pet.SetDragging(true); AdvanceUntil(f.Pet, "raisedLoop");
+        var released = f.Pet.CurrentVPetFrame;
+        f.Pet.SetDragging(false);
+        Assert.AreEqual("fall", f.Pet.CurrentClip);
+        Assert.AreSame(released, f.Pet.CurrentVPetFrame);
+        f.Pet.AdvanceAnimation();
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.OffsetY > 0);
+        Assert.AreEqual(0, f.Pet.CharacterMotionTransform.M12, "新角色应竖直下落，不额外旋转。");
+        AdvanceUntil(f.Pet, "raisedEnd"); AdvanceUntil(f.Pet, "idle");
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity);
+        f.Pet.Rest(); AdvanceUntil(f.Pet, "sleepLoop");
+        f.Pet.Wave(); Assert.AreEqual("sleepEnd", f.Pet.CurrentClip);
+        AdvanceUntil(f.Pet, "wave"); AdvanceUntil(f.Pet, "idle");
+        f.Pet.SetDragging(true); f.Pet.SetDragging(false); f.Pet.ReactToTouch();
+        Assert.AreEqual("touchStart", f.Pet.CurrentClip);
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity);
+        Assert.AreEqual(generation, f.Field<long>("_layoutSaveGeneration"), "动作不得写回布局。");
+        f.Invoke("SetDesktopPetVisible", false);
+        Assert.IsFalse(f.Pet.AnimationRunning);
+        f.Pet.SetCharacter("pixelpaws");
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+    }
+
+    [STATestMethod]
+    public void PetPicker_AllImportedCardsAreVisible_StagedSelectionDoesNotChangeDesktopUntilApplied()
+    {
+        using var f = new Fixture();
+        f.Enable();
+        var picker = new DesktopPetPicker("pixelpaws", false, false);
+        using var source = new OffscreenSource(picker);
+        VisualTreeHelper.SetRootDpi(picker, new DpiScale(1.5, 1.5));
+        picker.Measure(new Size(600, 620));
+        picker.Arrange(new Rect(0, 0, 600, 620));
+        picker.UpdateLayout();
+        Assert.AreEqual(4, picker.Characters.Items.Count);
+        foreach (DesktopPetPicker.Card card in picker.Characters.Items)
+        {
+            Assert.IsNotNull(card.Preview);
+            Assert.IsTrue(card.Preview.IsFrozen);
+            var item = (ListBoxItem)picker.Characters.ItemContainerGenerator.ContainerFromItem(card);
+            Assert.IsTrue(item.ActualHeight > 150);
+        }
+        picker.Characters.SelectedValue = "pink-haired";
+        picker.ShowPet.IsChecked = true;
+        picker.ShowScene.IsChecked = true;
+        Assert.AreEqual("pixelpaws", f.Layout.DesktopPet.CharacterId, "选择卡片只是预览，尚未应用。");
+        bool requested = false;
+        picker.ApplyRequested += () => { requested = true; f.Invoke("ApplyDesktopPetSelection", picker.SelectedCharacterId, picker.ShowOnDesktop, picker.SceneSelected); };
+        picker.ApplyButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        Assert.IsTrue(requested);
+        Assert.AreEqual("pink-haired", f.Pet.CharacterId);
+        Assert.IsTrue(f.Pet.SceneEnabled);
+        Assert.IsTrue(f.Layout.DesktopPet.IsVisible);
+        var saved = LayoutJsonSerializer.Deserialize(JsonSerializer.Serialize(f.Layout)).Layout;
+        Assert.AreEqual("pink-haired", saved.DesktopPet.CharacterId);
+        f.Invoke("NormalizeLayout");
+        Assert.AreEqual("pink-haired", f.Layout.DesktopPet.CharacterId);
+        var reopened = new DesktopPetPicker(saved.DesktopPet.CharacterId, saved.DesktopPet.IsVisible, saved.DesktopPet.ShowScene);
+        Assert.AreEqual("pink-haired", reopened.SelectedCharacterId);
+        Assert.IsTrue(reopened.ShowOnDesktop && reopened.SceneSelected);
+        StringAssert.Contains(picker.SelectedDescription.Text, "粉发伙伴");
+        picker.UpdateLayout();
+        if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_IMPORTED_QA") == "1")
+        {
+            string directory = Path.Combine(TestProjectFiles.Root, "artifacts/two-character-actions-v2");
+            var image = new RenderTargetBitmap(900, 930, 144, 144, PixelFormats.Pbgra32);
+            image.Render(picker);
+            var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+            using var output = File.Create(Path.Combine(directory, "picker-preview.png")); encoder.Save(output);
+        }
+        // A narrow window remains scrollable and keeps its apply controls on screen.
+        picker.Measure(new Size(410, 360)); picker.Arrange(new Rect(0, 0, 410, 360)); picker.UpdateLayout();
+        Point button = picker.ApplyButton.TranslatePoint(new Point(0, picker.ApplyButton.ActualHeight), picker);
+        Assert.IsTrue(button.Y <= 360);
+        Assert.IsTrue(picker.Characters.ActualHeight > 60);
+        picker.Characters.SelectedIndex = -1;
+        Assert.IsFalse(picker.ApplyButton.IsEnabled);
+        Assert.IsFalse(picker.PreviewButton.IsEnabled);
+        requested = false;
+        picker.ApplyButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        Assert.IsFalse(requested);
+        picker.Characters.SelectedValue = "black-haired";
+        Assert.IsTrue(picker.ApplyButton.IsEnabled && picker.PreviewButton.IsEnabled);
+    }
+
+    [STATestMethod]
+    [DataRow("black-haired")]
+    [DataRow("pink-haired")]
+    public void ImportedCharacters_RenderRealActionsAndMatchingHitGeometry(string id)
+    {
+        using var f = new Fixture();
+        f.Enable(id);
+        f.Invoke("SetDesktopPetScene", true);
+        f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true);
+        f.Measure(1.5);
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget).GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+        var preview = new List<(BitmapSource Image, int Milliseconds)>();
+        void Capture(int milliseconds)
+        {
+            Rect bounds = f.Pet.CharacterBounds;
+            var frame = f.Pet.CurrentVPetFrame;
+            Matrix inverse = f.Pet.CharacterMotionTransform;
+            inverse.Invert();
+            for (int y = 0; y < 360; y += 5)
+            for (int x = 0; x < 360; x += 5)
+            {
+                Point p = inverse.Transform(new Point(x, y));
+                bool inside = p.X >= bounds.Left && p.X < bounds.Right && p.Y >= bounds.Top && p.Y < bounds.Bottom;
+                bool opaque = inside && frame.Alpha[(int)((p.Y-bounds.Top)*256/bounds.Height)*256 + (int)((p.X-bounds.Left)*256/bounds.Width)] > 32;
+                Assert.AreEqual(opaque, f.Pet.ContainsCharacterPoint(new Point(x, y)));
+            }
+            f.Window.RootGrid.UpdateLayout();
+            var bitmap = new RenderTargetBitmap(1500, 1050, 144, 144, PixelFormats.Pbgra32);
+            bitmap.Render(f.Window.RootGrid);
+            var crop = new CroppedBitmap(bitmap, new Int32Rect(450, 300, 540, 540));
+            Assert.IsTrue(BgraPixels(crop).Where((v, i) => i % 4 == 0).Any(v => v < 80));
+            if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_IMPORTED_QA") == "1")
+                preview.Add((crop, milliseconds));
+        }
+        void PlayUntilIdle()
+        {
+            for (int i = 0; i < 60 && f.Pet.CurrentClip != "idle"; i++)
+            { Capture((int)timer.Interval.TotalMilliseconds); f.Pet.AdvanceAnimation(); }
+            Assert.AreEqual("idle", f.Pet.CurrentClip);
+            Capture(500);
+        }
+        Capture(600);
+        f.Pet.Wave(); PlayUntilIdle();
+        f.Pet.ReactToTouch(); PlayUntilIdle();
+        if (preview.Count > 0) { SaveFallPreview(preview, id+"-interaction", "artifacts/two-character-actions-v2"); preview.Clear(); }
+        f.Pet.SetDragging(true); AdvanceUntil(f.Pet, "raisedLoop"); Capture(400);
+        f.Pet.SetDragging(false); PlayUntilIdle();
+        if (preview.Count > 0) { SaveFallPreview(preview, id+"-landing", "artifacts/two-character-actions-v2"); preview.Clear(); }
+        f.Pet.Rest();
+        for (int i = 0; i < 10 && f.Pet.CurrentClip != "sleepLoop"; i++)
+        { Capture((int)timer.Interval.TotalMilliseconds); f.Pet.AdvanceAnimation(); }
+        Assert.AreEqual("sleepLoop", f.Pet.CurrentClip);
+        Capture(1000); f.Pet.WakeUp(); PlayUntilIdle();
+        if (preview.Count > 0) SaveFallPreview(preview, id+"-rest", "artifacts/two-character-actions-v2");
     }
 
     private static void AdvanceUntil(DesktopPetWidget pet, string clip, int maximumFrames = 100)

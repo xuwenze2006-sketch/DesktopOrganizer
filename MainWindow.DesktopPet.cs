@@ -18,18 +18,59 @@ namespace DesktopOrganizer
             UpdateDesktopPetVisibility();
         }
 
-        private void DesktopPetToggle_Click(object sender, RoutedEventArgs e) =>
-            SetDesktopPetVisible(DesktopPetToggle.IsChecked == true);
+        private void DesktopPetToggle_Click(object sender, RoutedEventArgs e)
+        {
+            DesktopPetToggle.IsChecked = _appLayout.DesktopPet.IsVisible;
+            DesktopPetPicker_Click(sender, e);
+        }
+
+        private void DesktopPetPicker_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new DesktopPetPicker(_appLayout.DesktopPet.CharacterId,
+                _appLayout.DesktopPet.IsVisible, _appLayout.DesktopPet.ShowScene);
+            var dialog = new Window { Title = "桌面宠物", Content = picker, Width = 600, Height = 660,
+                MinWidth = 410, MinHeight = 360, MaxHeight = Math.Max(360, SystemParameters.WorkArea.Height),
+                WindowStartupLocation = WindowStartupLocation.CenterScreen, Background = new SolidColorBrush(Color.FromRgb(250, 248, 243)) };
+            if (!_isAttachedToDesktop) dialog.Owner = this;
+            picker.ApplyRequested += () =>
+            {
+                ApplyDesktopPetSelection(picker.SelectedCharacterId, picker.ShowOnDesktop, picker.SceneSelected);
+                dialog.Close();
+            };
+            picker.CancelRequested += () => dialog.Close();
+            dialog.ShowDialog();
+        }
+
+        private void ApplyDesktopPetSelection(string id, bool visible, bool scene)
+        {
+            CompleteDesktopPetDrag(commit: false);
+            Point characterPosition = GetDesktopPetPosition() +
+                DesktopPetWidget.GetCharacterOffset(DesktopPet.CharacterId, DesktopPet.SceneEnabled);
+            string normalized = DesktopPetWidget.NormalizeCharacterId(id);
+            _appLayout.DesktopPet.CharacterId = normalized;
+            _appLayout.DesktopPet.ShowScene = scene;
+            _appLayout.DesktopPet.IsVisible = visible;
+            DesktopPet.SetCharacter(normalized);
+            DesktopPet.SetSceneEnabled(scene);
+            Vector offset = DesktopPetWidget.GetCharacterOffset(normalized, scene);
+            SetDesktopPetPosition(characterPosition.X - offset.X, characterPosition.Y - offset.Y, updateLayout: true);
+            DesktopPetToggle.IsChecked = visible;
+            UpdateDesktopPetDescription();
+            UpdateDesktopPetVisibility();
+            SaveLayout();
+            StatusText.Text = "已选择" + DesktopPetName + (!visible ? "；当前隐藏，可在“选择桌宠”中开启"
+                : _organizerPaused ? "；继续整理后显示" : _isSafeModeActive ? "；关闭安全模式后显示" : "；轻点互动，拖动提起");
+        }
 
         private void HideDesktopPet_Click(object sender, RoutedEventArgs e) => SetDesktopPetVisible(false);
 
-        private string DesktopPetName => DesktopPet.CharacterId == DesktopPetWidget.VPetCharacterId ? "萝莉斯" : "小猫";
+        private string DesktopPetName => DesktopPetCatalog.Find(DesktopPet.CharacterId).Name;
 
         private void UpdateDesktopPetDescription()
         {
             DesktopPet.ToolTip = DesktopPet.CharacterId == DesktopPetWidget.VPetCharacterId
                 ? "萝莉斯 · VPet／虚拟主播模拟器制作组；轻点摸头，拖动提起，右键切换角色或查看来源"
-                : "小黑猫 · 轻点互动，拖动换位置，右键切换角色或隐藏";
+                : DesktopPetName + " · 轻点互动，拖动换位置，右键选择桌宠、动作或隐藏";
             if (DesktopPet.SceneEnabled) DesktopPet.ToolTip += "；拖动树或草地移动整景";
             System.Windows.Automation.AutomationProperties.SetName(DesktopPet, "桌面宠物 · " + DesktopPetName);
         }
@@ -73,7 +114,7 @@ namespace DesktopOrganizer
             SaveLayout();
             StatusText.Text = "已选择" + DesktopPetName + (_appLayout.DesktopPet.IsVisible
                 ? "；轻点互动，右键查看动作和素材来源"
-                : "；打开“桌面宠物”即可显示");
+                : "；在“选择桌宠”中勾选“显示在桌面”即可显示");
         }
 
         private void DesktopPetMenu_Opened(object sender, RoutedEventArgs e)
@@ -81,7 +122,7 @@ namespace DesktopOrganizer
             if (sender is not ContextMenu menu) return;
             foreach (MenuItem item in menu.Items.OfType<MenuItem>())
             {
-                if (item.Tag is string id && (id == DesktopPetWidget.CatCharacterId || id == DesktopPetWidget.VPetCharacterId))
+                if (item.Tag is string id && DesktopPetCatalog.Contains(id))
                     item.IsChecked = id == _appLayout.DesktopPet.CharacterId;
                 if (item.Tag is "action") item.IsEnabled = DesktopPet.IsVisible && !_isDesktopPetDragging;
                 if (item.Tag is "scene") item.IsChecked = _appLayout.DesktopPet.ShowScene;
@@ -89,6 +130,7 @@ namespace DesktopOrganizer
         }
 
         private void DesktopPetTouch_Click(object sender, RoutedEventArgs e) => DesktopPet.ReactToTouch();
+        private void DesktopPetWave_Click(object sender, RoutedEventArgs e) => DesktopPet.Wave();
         private void DesktopPetRest_Click(object sender, RoutedEventArgs e) => DesktopPet.Rest();
         private void DesktopPetWake_Click(object sender, RoutedEventArgs e) => DesktopPet.WakeUp();
 

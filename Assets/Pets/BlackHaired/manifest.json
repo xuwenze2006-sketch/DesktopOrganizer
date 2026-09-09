@@ -1,0 +1,221 @@
+{
+  "cellSize": 256,
+  "columns": 4,
+  "clips": {
+    "idle": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 900
+        },
+        {
+          "index": 12,
+          "milliseconds": 450
+        },
+        {
+          "index": 0,
+          "milliseconds": 650
+        },
+        {
+          "index": 1,
+          "milliseconds": 110
+        },
+        {
+          "index": 0,
+          "milliseconds": 890
+        }
+      ]
+    },
+    "wave": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 2,
+          "milliseconds": 120
+        },
+        {
+          "index": 13,
+          "milliseconds": 160
+        },
+        {
+          "index": 14,
+          "milliseconds": 160
+        },
+        {
+          "index": 13,
+          "milliseconds": 160
+        },
+        {
+          "index": 2,
+          "milliseconds": 180
+        },
+        {
+          "index": 0,
+          "milliseconds": 120
+        }
+      ]
+    },
+    "touchStart": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 0,
+          "milliseconds": 60
+        },
+        {
+          "index": 3,
+          "milliseconds": 120
+        }
+      ]
+    },
+    "touchLoop": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 15,
+          "milliseconds": 130
+        },
+        {
+          "index": 3,
+          "milliseconds": 180
+        },
+        {
+          "index": 15,
+          "milliseconds": 130
+        },
+        {
+          "index": 3,
+          "milliseconds": 200
+        }
+      ]
+    },
+    "touchEnd": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 3,
+          "milliseconds": 110
+        },
+        {
+          "index": 0,
+          "milliseconds": 150
+        }
+      ]
+    },
+    "raisedStart": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 4,
+          "milliseconds": 100
+        }
+      ]
+    },
+    "raisedLoop": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 4,
+          "milliseconds": 180
+        },
+        {
+          "index": 16,
+          "milliseconds": 160
+        },
+        {
+          "index": 4,
+          "milliseconds": 180
+        }
+      ]
+    },
+    "raisedEnd": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 5,
+          "milliseconds": 65
+        },
+        {
+          "index": 17,
+          "milliseconds": 45
+        },
+        {
+          "index": 6,
+          "milliseconds": 65
+        },
+        {
+          "index": 18,
+          "milliseconds": 95
+        },
+        {
+          "index": 6,
+          "milliseconds": 60
+        },
+        {
+          "index": 5,
+          "milliseconds": 70
+        },
+        {
+          "index": 7,
+          "milliseconds": 90
+        },
+        {
+          "index": 0,
+          "milliseconds": 180
+        }
+      ]
+    },
+    "sleepStart": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 8,
+          "milliseconds": 160
+        },
+        {
+          "index": 9,
+          "milliseconds": 240
+        },
+        {
+          "index": 10,
+          "milliseconds": 180
+        }
+      ]
+    },
+    "sleepLoop": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 10,
+          "milliseconds": 1600
+        },
+        {
+          "index": 19,
+          "milliseconds": 1600
+        }
+      ]
+    },
+    "sleepEnd": {
+      "sheet": "actions.png",
+      "frames": [
+        {
+          "index": 9,
+          "milliseconds": 150
+        },
+        {
+          "index": 11,
+          "milliseconds": 180
+        },
+        {
+          "index": 7,
+          "milliseconds": 120
+        },
+        {
+          "index": 0,
+          "milliseconds": 160
+        }
+      ]
+    }
+  }
+}

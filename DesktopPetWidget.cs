@@ -12,6 +12,7 @@ namespace DesktopOrganizer
         private sealed record Frame(BitmapSource Image, byte[] Alpha);
         private readonly record struct Step(int Frame, double Seconds);
         private static readonly Lazy<Frame[]> Frames = new(LoadFrames);
+        internal static BitmapSource CatPreview => Frames.Value[0].Image;
         private static readonly Step[] Idle = [new(0, 12), new(1, .18), new(0, 10), new(1, .18), new(0, 8)];
         private static readonly Step[] Sleep = [new(2, 3), new(3, 3)];
         private static readonly Step[] React = [new(4, .2), new(5, .2), new(4, .2), new(5, .2)];
@@ -28,13 +29,13 @@ namespace DesktopOrganizer
         private VPetAnimation.Frame? _fallFrame;
 
         internal string CharacterId => _characterId;
-        internal string CurrentClip => IsVPet ? _clipName : ReferenceEquals(_sequence, Sleep) ? "sleepLoop"
+        internal string CurrentClip => UsesClips ? _clipName : ReferenceEquals(_sequence, Sleep) ? "sleepLoop"
             : ReferenceEquals(_sequence, React) ? "touchLoop" : "idle";
-        private bool IsVPet => _characterId == VPetCharacterId;
-        internal int CurrentFrame => IsVPet ? _step : _sequence[_step].Frame;
+        private bool UsesClips => _characterId != CatCharacterId;
+        internal int CurrentFrame => UsesClips ? _step : _sequence[_step].Frame;
         internal bool AnimationRunning => _timer.IsEnabled;
         internal bool SceneEnabled { get; private set; }
-        internal VPetAnimation.Frame CurrentVPetFrame => _fallFrame ?? VPetAnimation.GetClip(_clipName).Frames[_step];
+        internal VPetAnimation.Frame CurrentVPetFrame => _fallFrame ?? VPetAnimation.GetClip(_characterId, _clipName).Frames[_step];
         internal Matrix CharacterMotionTransform
         {
             get
@@ -44,16 +45,17 @@ namespace DesktopOrganizer
                 Rect bounds = CharacterBounds;
                 double progress = (double)_step / (FallMilliseconds.Length - 1);
                 double distance = progress * progress;
-                motion.RotateAt(12 * distance, bounds.X + bounds.Width * .5, bounds.Y + bounds.Height * .6);
-                motion.Translate(0, bounds.Height * .14 * distance);
+                bool imported = DesktopPetCatalog.IsImported(_characterId);
+                if (!imported) motion.RotateAt(12 * distance, bounds.X + bounds.Width * .5, bounds.Y + bounds.Height * .6);
+                motion.Translate(0, bounds.Height * (imported ? .125 : .14) * distance);
                 return motion;
             }
         }
-        internal static string NormalizeCharacterId(string? id) => id == VPetCharacterId ? VPetCharacterId : CatCharacterId;
-        internal static double GetCharacterSize(string? id) => id == VPetCharacterId ? 168 : WidgetSize;
+        internal static string NormalizeCharacterId(string? id) => DesktopPetCatalog.Find(id).Id;
+        internal static double GetCharacterSize(string? id) => NormalizeCharacterId(id) != CatCharacterId ? 168 : WidgetSize;
         internal static double GetWidgetSize(string? id, bool scene) => scene ? DesktopPetScene.Size : GetCharacterSize(id);
         internal static Vector GetCharacterOffset(string? id, bool scene) => !scene ? new Vector()
-            : id == VPetCharacterId ? new Vector(168, 137) : new Vector(196, 192);
+            : NormalizeCharacterId(id) != CatCharacterId ? new Vector(168, 137) : new Vector(196, 192);
         internal Rect CharacterBounds
         {
             get
@@ -116,7 +118,7 @@ namespace DesktopOrganizer
         {
             if (_dragging == dragging) return;
             _dragging = dragging;
-            if (IsVPet && _active)
+            if (UsesClips && _active)
             {
                 if (dragging) StartClip("raisedStart");
                 else
@@ -135,7 +137,7 @@ namespace DesktopOrganizer
         internal void ReactToTouch()
         {
             if (!_active || _dragging) return;
-            if (IsVPet)
+            if (UsesClips)
             {
                 if (_clipName.StartsWith("sleep", StringComparison.Ordinal))
                 {
@@ -153,8 +155,8 @@ namespace DesktopOrganizer
 
         internal void AdvanceAnimation()
         {
-            if (!_active || !IsVisible || (_dragging && !IsVPet)) return;
-            if (IsVPet)
+            if (!_active || !IsVisible || (_dragging && !UsesClips)) return;
+            if (UsesClips)
             {
                 if (_fallFrame is not null)
                 {
@@ -166,7 +168,7 @@ namespace DesktopOrganizer
                     }
                     return;
                 }
-                VPetAnimation.Clip clip = VPetAnimation.GetClip(_clipName);
+                VPetAnimation.Clip clip = VPetAnimation.GetClip(_characterId, _clipName);
                 if (_clipName == "idle") _idleMilliseconds += clip.Milliseconds[_step];
                 if (++_step >= clip.Frames.Length)
                 {
@@ -175,7 +177,7 @@ namespace DesktopOrganizer
                         "idle" when _idleMilliseconds >= 30000 => "sleepStart",
                         "touchStart" => "touchLoop",
                         "touchLoop" => "touchEnd",
-                        "touchEnd" or "raisedEnd" => "idle",
+                        "touchEnd" or "raisedEnd" or "wave" => "idle",
                         "raisedStart" => "raisedLoop",
                         "sleepStart" => "sleepLoop",
                         "sleepEnd" => _afterWake,
@@ -206,7 +208,7 @@ namespace DesktopOrganizer
         internal void Rest()
         {
             if (!_active || _dragging) return;
-            if (IsVPet) StartClip("sleepStart");
+            if (UsesClips) StartClip("sleepStart");
             else
             {
                 _sequence = Sleep;
@@ -216,11 +218,23 @@ namespace DesktopOrganizer
             }
         }
 
+        internal void Wave()
+        {
+            if (!_active || _dragging) return;
+            if (!DesktopPetCatalog.IsImported(_characterId)) { ReactToTouch(); return; }
+            if (_clipName.StartsWith("sleep", StringComparison.Ordinal))
+            {
+                _afterWake = "wave";
+                StartClip("sleepEnd");
+            }
+            else StartClip("wave");
+        }
+
         internal void WakeUp()
         {
             if (!_active || _dragging) return;
             _afterWake = "idle";
-            if (IsVPet && _clipName.StartsWith("sleep", StringComparison.Ordinal)) StartClip("sleepEnd");
+            if (UsesClips && _clipName.StartsWith("sleep", StringComparison.Ordinal)) StartClip("sleepEnd");
             else ResetIdle();
         }
 
@@ -237,11 +251,11 @@ namespace DesktopOrganizer
         private void UpdateTimer()
         {
             _timer.Stop();
-            if (_active && IsVisible && (!_dragging || IsVPet))
+            if (_active && IsVisible && (!_dragging || UsesClips))
             {
-                _timer.Interval = IsVPet
+                _timer.Interval = UsesClips
                     ? TimeSpan.FromMilliseconds(_fallFrame is not null ? FallMilliseconds[_step]
-                        : VPetAnimation.GetClip(_clipName).Milliseconds[_step])
+                        : VPetAnimation.GetClip(_characterId, _clipName).Milliseconds[_step])
                     : TimeSpan.FromSeconds(_sequence[_step].Seconds);
                 _timer.Start();
             }
@@ -260,7 +274,7 @@ namespace DesktopOrganizer
                     (resting ? 72.5 : 33) * xScale, 5.5 * yScale);
             }
             if (_fallFrame is not null) drawingContext.PushTransform(new MatrixTransform(CharacterMotionTransform));
-            drawingContext.DrawImage(IsVPet ? CurrentVPetFrame.Image
+            drawingContext.DrawImage(UsesClips ? CurrentVPetFrame.Image
                 : Frames.Value[CurrentFrame].Image, CharacterBounds);
             if (_fallFrame is not null) drawingContext.Pop();
             if (SceneEnabled) drawingContext.DrawImage(DesktopPetScene.Foreground.Image, new Rect(RenderSize));
@@ -292,8 +306,8 @@ namespace DesktopOrganizer
                 point = inverse.Transform(point);
             }
             if (point.X < bounds.Left || point.Y < bounds.Top || point.X >= bounds.Right || point.Y >= bounds.Bottom) return false;
-            BitmapSource bitmap = IsVPet ? CurrentVPetFrame.Image : Frames.Value[CurrentFrame].Image;
-            byte[] alpha = IsVPet ? CurrentVPetFrame.Alpha : Frames.Value[CurrentFrame].Alpha;
+            BitmapSource bitmap = UsesClips ? CurrentVPetFrame.Image : Frames.Value[CurrentFrame].Image;
+            byte[] alpha = UsesClips ? CurrentVPetFrame.Alpha : Frames.Value[CurrentFrame].Alpha;
             int x = (int)((point.X - bounds.X) * bitmap.PixelWidth / bounds.Width);
             int y = (int)((point.Y - bounds.Y) * bitmap.PixelHeight / bounds.Height);
             return alpha[y * bitmap.PixelWidth + x] > 32;
