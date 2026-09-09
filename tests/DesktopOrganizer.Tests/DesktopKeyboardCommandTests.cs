@@ -8,6 +8,11 @@ public sealed class DesktopKeyboardCommandTests
 {
     [TestMethod]
     [DataRow(0x41u, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.SelectAllItems)]
+    [DataRow(0x43u, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.CopyFiles)]
+    [DataRow(0x56u, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.PasteFiles)]
+    [DataRow(0x43u, true, true, false, false, -1)]
+    [DataRow(0x56u, false, false, false, false, -1)]
+    [DataRow(0x56u, true, false, true, false, -1)]
     [DataRow(0x46u, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch)]
     [DataRow(0x5Au, true, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.UndoFileMove)]
     [DataRow(0x1Bu, false, false, false, false, (int)NativeMethods.DesktopKeyboardCommand.ClearSelection)]
@@ -47,6 +52,10 @@ public sealed class DesktopKeyboardCommandTests
 
     [TestMethod]
     [DataRow(Key.A, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.SelectAllItems)]
+    [DataRow(Key.C, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.CopyFiles)]
+    [DataRow(Key.V, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.PasteFiles)]
+    [DataRow(Key.V, ModifierKeys.Control, true, -1)]
+    [DataRow(Key.C, ModifierKeys.Control | ModifierKeys.Shift, false, -1)]
     [DataRow(Key.F, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch)]
     [DataRow(Key.Z, ModifierKeys.Control, false, (int)NativeMethods.DesktopKeyboardCommand.UndoFileMove)]
     [DataRow(Key.Escape, ModifierKeys.None, false, (int)NativeMethods.DesktopKeyboardCommand.ClearSelection)]

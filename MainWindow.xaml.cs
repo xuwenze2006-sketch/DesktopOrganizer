@@ -277,10 +277,11 @@ namespace DesktopOrganizer
         }
 
         internal MainWindow(bool startQuietly, Action<string>? backgroundLayoutWriter = null,
-            DesktopPathResolver? desktopPathResolver = null)
+            DesktopPathResolver? desktopPathResolver = null, IDesktopFileClipboard? desktopFileClipboard = null)
         {
             _startQuietly = startQuietly;
             _desktopPathResolver = desktopPathResolver ?? new DesktopPathResolver();
+            _desktopFileClipboard = desktopFileClipboard ?? new DesktopFileClipboard();
             _backgroundLayoutWriter = backgroundLayoutWriter ?? WriteLayoutJsonAtomically;
             InitializeComponent();
             _fileOperationService = new FileOperationService();

@@ -9,7 +9,9 @@ namespace DesktopOrganizer
             ClearSelection,
             SelectAllItems,
             OpenDesktopSearch,
-            RefreshDesktop
+            RefreshDesktop,
+            CopyFiles,
+            PasteFiles
         }
 
         /// <summary>
@@ -105,6 +107,8 @@ namespace DesktopOrganizer
             {
                 return DesktopKeyboardCommand.OpenDesktopSearch;
             }
+            if (controlDown && virtualKey == 0x43) return DesktopKeyboardCommand.CopyFiles;
+            if (controlDown && virtualKey == 0x56) return DesktopKeyboardCommand.PasteFiles;
             if (!controlDown && virtualKey == VK_ESCAPE)
             {
                 return DesktopKeyboardCommand.ClearSelection;

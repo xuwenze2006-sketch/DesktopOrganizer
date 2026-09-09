@@ -404,6 +404,10 @@ namespace DesktopOrganizer
             };
             var groupMenu = new ContextMenu();
             TrackGroupContextMenu(groupMenu);
+            var pasteFiles = CreatePasteFilesMenuItem();
+            groupMenu.Items.Add(pasteFiles);
+            groupMenu.Items.Add(new Separator());
+            groupMenu.Opened += (_, _) => pasteFiles.IsEnabled = !HasPendingFileOperations && _desktopFileClipboard.ContainsFiles;
             var renameItem = new MenuItem { Header = "重命名", IsEnabled = _appLayout.IsEditMode };
             renameItem.Click += (_, _) => RenameGroup(group);
             var collapseItem = new MenuItem { Header = group.IsCollapsed ? "展开" : "收起" };

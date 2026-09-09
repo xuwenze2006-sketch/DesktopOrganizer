@@ -189,6 +189,15 @@ namespace DesktopOrganizer
                 menu.Items.Add(reveal);
             }
 
+            MenuItem? copyFiles = null;
+            if (!isShellNamespace)
+            {
+                copyFiles = new MenuItem { Header = "复制", InputGestureText = "Ctrl+C", Tag = "copy-files" };
+                copyFiles.Click += (_, _) => CopySelectedDesktopFiles();
+                menu.Items.Add(copyFiles);
+            }
+            var pasteFiles = CreatePasteFilesMenuItem(!isShellNamespace && Directory.Exists(fullPath) ? fullPath : null);
+            menu.Items.Add(pasteFiles);
             menu.Items.Add(new Separator());
             var tagSummary = new MenuItem
             {
@@ -278,6 +287,8 @@ namespace DesktopOrganizer
                 }
 
                 tagSummary.Header = FormatDesktopItemTagSummary(displayName);
+                if (copyFiles != null) copyFiles.IsEnabled = CanCopySelectedFiles();
+                pasteFiles.IsEnabled = !HasPendingFileOperations && _desktopFileClipboard.ContainsFiles;
                 select.Header = _selectedItemNames.Contains(displayName) ? "取消选择" : "选择此项目";
                 int selectedCount = _selectedItemNames.Count;
                 int selectedPhysicalCount = _selectedItemNames.Count(name =>

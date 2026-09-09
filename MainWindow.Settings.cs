@@ -276,6 +276,10 @@ namespace DesktopOrganizer
         {
             return command switch
             {
+                NativeMethods.DesktopKeyboardCommand.CopyFiles =>
+                    CanRouteFileClipboardShortcut() && CanCopySelectedFiles(),
+                NativeMethods.DesktopKeyboardCommand.PasteFiles =>
+                    CanRouteFileClipboardShortcut() && _desktopFileClipboard.ContainsFiles,
                 NativeMethods.DesktopKeyboardCommand.UndoFileMove =>
                     _fileMoveHistory.First != null && !HasPendingFileOperations,
                 NativeMethods.DesktopKeyboardCommand.ClearSelection =>
@@ -298,6 +302,8 @@ namespace DesktopOrganizer
         {
             return command switch
             {
+                NativeMethods.DesktopKeyboardCommand.CopyFiles when CanRouteFileClipboardShortcut() => CopySelectedDesktopFiles(),
+                NativeMethods.DesktopKeyboardCommand.PasteFiles when CanRouteFileClipboardShortcut() => PasteFilesFromKeyboard(),
                 NativeMethods.DesktopKeyboardCommand.UndoFileMove =>
                     TryUndoLastFileMove(),
                 NativeMethods.DesktopKeyboardCommand.ClearSelection
@@ -327,6 +333,8 @@ namespace DesktopOrganizer
             return (key, modifiers) switch
             {
                 (Key.Z, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.UndoFileMove,
+                (Key.C, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.CopyFiles,
+                (Key.V, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.PasteFiles,
                 (Key.A, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.SelectAllItems,
                 (Key.F, ModifierKeys.Control) => NativeMethods.DesktopKeyboardCommand.OpenDesktopSearch,
                 (Key.Escape, ModifierKeys.None) => NativeMethods.DesktopKeyboardCommand.ClearSelection,
