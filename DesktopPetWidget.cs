@@ -316,15 +316,17 @@ namespace DesktopOrganizer
                     double xScale = RenderSize.Width / DesktopPetScene.Size;
                     double yScale = RenderSize.Height / DesktopPetScene.Size;
                     bool resting = CurrentClip.StartsWith("sleep", StringComparison.Ordinal) || CurrentClip == "raisedEnd";
-                    drawingContext.DrawEllipse(SceneShadow, null, new Point(253.5 * xScale, 301 * yScale),
-                        (resting ? 72.5 : 33) * xScale, 5.5 * yScale);
+                    bool plaza = _characterId == "pink-haired";
+                    drawingContext.DrawEllipse(SceneShadow, null, new Point(253.5 * xScale, (plaza ? 294 : 301) * yScale),
+                        (plaza ? (resting ? 36 : 23) : (resting ? 72.5 : 33)) * xScale, (plaza ? 3 : 5.5) * yScale);
                 }
             }
             if (_fallFrame is not null) drawingContext.PushTransform(new MatrixTransform(CharacterMotionTransform));
             drawingContext.DrawImage(UsesClips ? CurrentVPetFrame.Image
                 : Frames.Value[CurrentFrame].Image, CharacterBounds);
             if (_fallFrame is not null) drawingContext.Pop();
-            if (SceneEnabled && !IsSunsetDuo) drawingContext.DrawImage(DesktopPetScene.Foreground.Image, new Rect(RenderSize));
+            if (SceneEnabled && DesktopPetScene.HasForeground(_characterId))
+                drawingContext.DrawImage(DesktopPetScene.Foreground.Image, new Rect(RenderSize));
         }
 
         private static readonly Brush SceneShadow = CreateSceneShadow();

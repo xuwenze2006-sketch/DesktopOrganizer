@@ -108,7 +108,7 @@ namespace DesktopOrganizer
             CompleteDesktopPetDrag(commit: false);
             _appLayout.DesktopPet.CharacterId = normalized;
             DesktopPet.SetCharacter(normalized);
-            if (normalized == DesktopPetCatalog.SunsetDuoId)
+            if (normalized is "pink-haired" or DesktopPetCatalog.SunsetDuoId)
             {
                 _appLayout.DesktopPet.ShowScene = true;
                 DesktopPet.SetSceneEnabled(true);

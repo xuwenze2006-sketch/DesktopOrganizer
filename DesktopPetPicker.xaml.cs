@@ -31,7 +31,7 @@ namespace DesktopOrganizer
             if (ShowScene is not null)
             {
                 ShowScene.Content = "搭配" + DesktopPetScene.NameFor(SelectedCharacterId);
-                if (SelectedCharacterId == DesktopPetCatalog.SunsetDuoId) ShowScene.IsChecked = true;
+                if (SelectedCharacterId is "pink-haired" or DesktopPetCatalog.SunsetDuoId) ShowScene.IsChecked = true;
             }
         }
 

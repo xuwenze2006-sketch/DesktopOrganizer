@@ -28,6 +28,7 @@
     <Resource Include="Assets\Pets\SunsetDuo\*.png" />
     <Resource Include="Assets\Pets\SunsetDuo\manifest.json" />
     <Resource Include="Assets\Scenes\SunsetDuo\background.png" />
+    <Resource Include="Assets\Scenes\Tiananmen\background.png" />
     <Content Include="Assets\Pets\CHARACTER-SOURCES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Resource Include="Assets\Scenes\TreeGrass\background.png" />
     <Resource Include="Assets\Scenes\TreeGrass\foreground.png" />

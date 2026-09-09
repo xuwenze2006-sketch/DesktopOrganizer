@@ -31,28 +31,60 @@
       "sheet": "actions.png",
       "frames": [
         {
-          "index": 2,
-          "milliseconds": 120
+          "index": 22,
+          "milliseconds": 100
         },
         {
-          "index": 13,
+          "index": 23,
           "milliseconds": 160
         },
         {
-          "index": 14,
+          "index": 24,
+          "milliseconds": 100
+        },
+        {
+          "index": 25,
+          "milliseconds": 100
+        },
+        {
+          "index": 20,
           "milliseconds": 160
         },
         {
-          "index": 13,
+          "index": 21,
+          "milliseconds": 100
+        },
+        {
+          "index": 22,
+          "milliseconds": 100
+        },
+        {
+          "index": 23,
           "milliseconds": 160
         },
         {
-          "index": 2,
-          "milliseconds": 180
+          "index": 24,
+          "milliseconds": 100
+        },
+        {
+          "index": 25,
+          "milliseconds": 100
+        },
+        {
+          "index": 20,
+          "milliseconds": 160
+        },
+        {
+          "index": 21,
+          "milliseconds": 100
+        },
+        {
+          "index": 22,
+          "milliseconds": 100
         },
         {
           "index": 0,
-          "milliseconds": 120
+          "milliseconds": 150
         }
       ]
     },

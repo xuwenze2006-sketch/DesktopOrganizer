@@ -885,6 +885,62 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
+    [DataRow(1.0)]
+    [DataRow(1.5)]
+    [DataRow(2.0)]
+    public void PinkScene_PreservesTransparentDesktopArea_AndWaveFootAnchor(double scale)
+    {
+        using var f = new Fixture();
+        f.Enable("pink-haired");
+        f.Invoke("SetDesktopPetScene", true);
+        f.Measure(scale);
+        var scene = DesktopPetScene.BackgroundFor("pink-haired");
+        Assert.AreSame(scene, DesktopPetScene.BackgroundFor("pink-haired"));
+        Assert.IsTrue(scene.Image.IsFrozen);
+        Assert.IsFalse(DesktopPetScene.HasForeground("pink-haired"));
+        Assert.IsTrue(scene.Alpha.Count(a => a == 0) > scene.Alpha.Length * .5);
+        Assert.IsFalse(f.Pet.ContainsOpaquePoint(new Point(180, 30)), "屋檐上方必须穿透桌面，不能保留照片矩形。");
+        Assert.IsTrue(f.Pet.ContainsOpaquePoint(new Point(180, 220)), "城楼实体仍能拖动。");
+        int width = scene.Image.PixelWidth;
+        for (int y = 0; y < 360; y += 5)
+        for (int x = 0; x < 360; x += 5)
+        {
+            bool background = scene.Alpha[(int)(y * scene.Image.PixelHeight / 360.0) * width + (int)(x * width / 360.0)] > 32;
+            Assert.AreEqual(background || f.Pet.ContainsCharacterPoint(new Point(x, y)),
+                f.Pet.ContainsOpaquePoint(new Point(x, y)), "透明命中必须与新场景和人物一致。");
+        }
+        var idle = VPetAnimation.GetClip("pink-haired", "idle").Frames[0];
+        var wave = VPetAnimation.GetClip("pink-haired", "wave");
+        Assert.AreEqual(7, wave.Frames.Distinct().Count(), "六张新挥手姿势加回到待机，不能沿用整人旋转帧。");
+        static int FootRow(VPetAnimation.Frame frame) => Array.FindLastIndex(frame.Alpha, a => a > 230) / 256;
+        foreach (var frame in wave.Frames)
+            Assert.IsTrue(Math.Abs(FootRow(frame) - FootRow(idle)) <= 2, "挥手时不能上下跳脚。");
+        f.Invoke("SetDesktopPetScene", false);
+        Assert.AreEqual(168, f.Pet.Width);
+        Assert.IsFalse(f.Pet.SceneEnabled);
+    }
+
+    [STATestMethod]
+    public void PinkScene_PickerDefaultsNewSelectionToScene_AndRespectsSavedOptOut()
+    {
+        var picker = new DesktopPetPicker("vpet", true, false);
+        picker.Characters.SelectedValue = "pink-haired";
+        Assert.IsTrue(picker.SceneSelected);
+        Assert.AreEqual("搭配透明夕阳城楼", picker.ShowScene.Content);
+        Assert.AreSame(DesktopPetScene.PinkPreview.Image, DesktopPetCatalog.Preview("pink-haired"));
+        var reopened = new DesktopPetPicker("pink-haired", true, false);
+        Assert.IsFalse(reopened.SceneSelected, "重新打开不能覆盖用户关闭背景的决定。");
+        using var f = new Fixture();
+        f.Enable("vpet");
+        f.Invoke("SetDesktopPetCharacter", "pink-haired");
+        Assert.IsTrue(f.Pet.SceneEnabled);
+        f.Invoke("SetDesktopPetScene", false);
+        var saved = LayoutJsonSerializer.Deserialize(JsonSerializer.Serialize(f.Layout)).Layout.DesktopPet;
+        Assert.AreEqual("pink-haired", saved.CharacterId);
+        Assert.IsFalse(saved.ShowScene);
+    }
+
+    [STATestMethod]
     public void PetPicker_AllImportedCardsAreVisible_StagedSelectionDoesNotChangeDesktopUntilApplied()
     {
         using var f = new Fixture();
@@ -1118,7 +1174,7 @@ public sealed class DesktopPetTests
         Assert.AreEqual("夕阳城楼", menu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "scene")).Header);
         f.Invoke("SetDesktopPetCharacter", "pink-haired");
         f.Invoke("DesktopPetMenu_Opened", menu, new RoutedEventArgs());
-        Assert.AreEqual("树与草地", menu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "scene")).Header);
+        Assert.AreEqual("透明夕阳城楼", menu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "scene")).Header);
     }
 
     [STATestMethod]

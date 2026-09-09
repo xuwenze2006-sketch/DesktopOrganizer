@@ -9,11 +9,25 @@ namespace DesktopOrganizer
         private static readonly Lazy<Layer> Front = new(() => Load("foreground.png"));
         private static readonly Lazy<Layer> Sunset = new(() => Load("Assets/Scenes/SunsetDuo/background.png", fullPath: true));
         private static readonly Lazy<Layer> SunsetCard = new(() => Load("Assets/Pets/SunsetDuo/preview.png", fullPath: true));
+        private static readonly Lazy<Layer> Tiananmen = new(() => Load("Assets/Scenes/Tiananmen/background.png", fullPath: true));
+        private static readonly Lazy<Layer> PinkCard = new(() => Load("Assets/Pets/PinkHaired/preview.png", fullPath: true));
         internal static Layer Background => Back.Value;
         internal static Layer Foreground => Front.Value;
         internal static Layer SunsetPreview => SunsetCard.Value;
-        internal static Layer BackgroundFor(string characterId) => characterId == DesktopPetCatalog.SunsetDuoId ? Sunset.Value : Background;
-        internal static string NameFor(string characterId) => characterId == DesktopPetCatalog.SunsetDuoId ? "夕阳城楼" : "树与草地";
+        internal static Layer PinkPreview => PinkCard.Value;
+        internal static bool HasForeground(string characterId) => characterId is not ("pink-haired" or DesktopPetCatalog.SunsetDuoId);
+        internal static Layer BackgroundFor(string characterId) => characterId switch
+        {
+            "pink-haired" => Tiananmen.Value,
+            DesktopPetCatalog.SunsetDuoId => Sunset.Value,
+            _ => Background
+        };
+        internal static string NameFor(string characterId) => characterId switch
+        {
+            "pink-haired" => "透明夕阳城楼",
+            DesktopPetCatalog.SunsetDuoId => "夕阳城楼",
+            _ => "树与草地"
+        };
 
         internal static bool ContainsOpaquePoint(Point point, Size size, string characterId = DesktopPetWidget.CatCharacterId)
         {
@@ -24,7 +38,7 @@ namespace DesktopOrganizer
             int y = (int)(point.Y * background.Image.PixelHeight / size.Height);
             int index = y * background.Image.PixelWidth + x;
             int back = background.Alpha[index];
-            if (characterId == DesktopPetCatalog.SunsetDuoId) return back > 32;
+            if (!HasForeground(characterId)) return back > 32;
             return back + Foreground.Alpha[index] * (255 - back) / 255 > 32;
         }
 

@@ -6,6 +6,15 @@
 参考图中的下半身未展示，长裤及鞋子为设计补全。
 原图及设计工作文件由项目维护者另行保留在被 Git 忽略的 artifacts 目录。
 
+粉发伙伴的新版挥手使用内置官方生图重画连续手臂关键姿势，保留原有其他动作。
+运动参考为 Ludo Wave 预览和 Nick Kinteris 的 Hand Waving 动作分析：
+https://ludo.ai/tools/animation-presets/social
+https://nickkinteris.com/2023/10/25/hand-waving/
+参考视频及第三方画面未打包进程序。透明夕阳城楼由官方内置生图绘制，
+本地去除不透明底色并对齐场景；仅为插画，不是建筑测绘还原。
+挥手原稿另存 artifacts/pink-wave-reference-v2，场景及导出输入另存
+artifacts/tiananmen-desktop-cutout-v1，均需单独保留。
+
 夕阳双人使用已确认的双人全身夕阳稿，保留牵手关系与原画光色。
 官方内置生图补全遮挡背景并生成闭眼表情，本地拆出人物、眼部与背景，
 制作固定脚底的轻微呼吸、交替眨眼、点头回应和闭眼休息动画。
