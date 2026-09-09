@@ -261,127 +261,85 @@
       "frames": [
         {
           "index": 0,
-          "milliseconds": 125,
+          "milliseconds": 45,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLA_000_125.png",
           "sourceBlobSha": "1e783478fc7a35aef8acb2cfb490745322db2bad"
         },
         {
-          "index": 2,
-          "milliseconds": 125,
-          "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLA_001_125.png",
-          "sourceBlobSha": "c1e5913d70991c407ed032faa199b16769ba2ab3"
-        },
-        {
           "index": 4,
-          "milliseconds": 125,
+          "milliseconds": 45,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLA_002_125.png",
           "sourceBlobSha": "a0c2519fb12096e97ab9c67f9309a3f3286ca853"
         },
         {
           "index": 6,
-          "milliseconds": 125,
+          "milliseconds": 65,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLA_003_125.png",
           "sourceBlobSha": "0411d13154688ef8eabee2d6268a38bda892e355"
         },
         {
           "index": 8,
-          "milliseconds": 125,
+          "milliseconds": 160,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLA_004_125.png",
           "sourceBlobSha": "3b23454484854a2dadb5d4515d7d810a213a1f8a"
         },
         {
-          "index": 10,
-          "milliseconds": 125,
-          "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLA_005_125.png",
-          "sourceBlobSha": "9562152514673066145915cdc8da6467d21ba558"
-        },
-        {
-          "index": 12,
-          "milliseconds": 500,
-          "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLA_006_500.png",
-          "sourceBlobSha": "3b23454484854a2dadb5d4515d7d810a213a1f8a"
-        },
-        {
           "index": 1,
-          "milliseconds": 125,
+          "milliseconds": 70,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_000_125.png",
           "sourceBlobSha": "f9bc42b3ea81279de9a46d4302368cf687655b43"
         },
         {
           "index": 3,
-          "milliseconds": 125,
+          "milliseconds": 80,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_001_125.png",
           "sourceBlobSha": "afec8c7833eb86162f651122aec5b2d54f0ca449"
         },
         {
-          "index": 5,
-          "milliseconds": 125,
-          "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_002_125.png",
-          "sourceBlobSha": "c8c9fd93684f01cdb39cdac57c60761fff48b34a"
-        },
-        {
           "index": 7,
-          "milliseconds": 125,
+          "milliseconds": 85,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_003_125.png",
           "sourceBlobSha": "5646ede522d57f0dd140bc3fd6a52ba5d61fbb12"
         },
         {
-          "index": 9,
-          "milliseconds": 125,
-          "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_004_125.png",
-          "sourceBlobSha": "17104ae5fa1c3d2f03bf292d55199c4d45ab8940"
-        },
-        {
           "index": 11,
-          "milliseconds": 125,
+          "milliseconds": 85,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_005_125.png",
           "sourceBlobSha": "a46b16a12c7f98f599dd074dda8fcd753c8ebbf0"
         },
         {
           "index": 13,
-          "milliseconds": 125,
+          "milliseconds": 95,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_006_125.png",
           "sourceBlobSha": "abc8b3ffddbb829d38bc7ed1e12221b60979c6ec"
         },
         {
           "index": 14,
-          "milliseconds": 125,
+          "milliseconds": 85,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_007_125.png",
           "sourceBlobSha": "52ff1802534486fc126a1e74ef76f88c3058bf9f"
         },
         {
           "index": 15,
-          "milliseconds": 125,
+          "milliseconds": 80,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_008_125.png",
           "sourceBlobSha": "b4084f835025dbaac1f977721088e48acc396e84"
         },
         {
-          "index": 16,
-          "milliseconds": 125,
-          "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_009_125.png",
-          "sourceBlobSha": "bef8d63f1c96060ad3e06b2d94b6ddcf0ac7dfeb"
-        },
-        {
-          "index": 17,
-          "milliseconds": 125,
-          "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_010_125.png",
-          "sourceBlobSha": "08435e762a901ef54b4976aa629b74f408e0159c"
-        },
-        {
           "index": 18,
-          "milliseconds": 125,
+          "milliseconds": 85,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_011_125.png",
           "sourceBlobSha": "e35b4f59dc186434cbd28871387db7726c629b6e"
         },
         {
           "index": 19,
-          "milliseconds": 125,
+          "milliseconds": 110,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_012_125.png",
           "sourceBlobSha": "e9a7eb76a0e57948ea80401ee6b762001371b866"
         },
         {
           "index": 20,
-          "milliseconds": 125,
+          "milliseconds": 150,
           "sourcePath": "VPet-Simulator.Windows/mod/0000_core/pet/vup/Raise/Raised_Static/C_Nomal/FLB_013_125.png",
           "sourceBlobSha": "e5bcad0926f8e09b58f006a581a77d04e7e459dc"
         }

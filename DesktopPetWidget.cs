@@ -24,6 +24,8 @@ namespace DesktopOrganizer
         private string _clipName = "idle";
         private double _idleMilliseconds;
         private string _afterWake = "idle";
+        private static readonly int[] FallMilliseconds = [32, 24, 24, 24, 24, 24];
+        private VPetAnimation.Frame? _fallFrame;
 
         internal string CharacterId => _characterId;
         internal string CurrentClip => IsVPet ? _clipName : ReferenceEquals(_sequence, Sleep) ? "sleepLoop"
@@ -32,6 +34,21 @@ namespace DesktopOrganizer
         internal int CurrentFrame => IsVPet ? _step : _sequence[_step].Frame;
         internal bool AnimationRunning => _timer.IsEnabled;
         internal bool SceneEnabled { get; private set; }
+        internal VPetAnimation.Frame CurrentVPetFrame => _fallFrame ?? VPetAnimation.GetClip(_clipName).Frames[_step];
+        internal Matrix CharacterMotionTransform
+        {
+            get
+            {
+                Matrix motion = Matrix.Identity;
+                if (_fallFrame is null) return motion;
+                Rect bounds = CharacterBounds;
+                double progress = (double)_step / (FallMilliseconds.Length - 1);
+                double distance = progress * progress;
+                motion.RotateAt(12 * distance, bounds.X + bounds.Width * .5, bounds.Y + bounds.Height * .6);
+                motion.Translate(0, bounds.Height * .14 * distance);
+                return motion;
+            }
+        }
         internal static string NormalizeCharacterId(string? id) => id == VPetCharacterId ? VPetCharacterId : CatCharacterId;
         internal static double GetCharacterSize(string? id) => id == VPetCharacterId ? 168 : WidgetSize;
         internal static double GetWidgetSize(string? id, bool scene) => scene ? DesktopPetScene.Size : GetCharacterSize(id);
@@ -85,6 +102,7 @@ namespace DesktopOrganizer
 
         private void ResetIdle()
         {
+            _fallFrame = null;
             _idleMilliseconds = 0;
             _afterWake = "idle";
             _clipName = "idle";
@@ -98,7 +116,19 @@ namespace DesktopOrganizer
         {
             if (_dragging == dragging) return;
             _dragging = dragging;
-            if (IsVPet && _active) StartClip(dragging ? "raisedStart" : "raisedEnd");
+            if (IsVPet && _active)
+            {
+                if (dragging) StartClip("raisedStart");
+                else
+                {
+                    // 从松手时真正显示的悬挂帧开始，避免直接瞬移成趴地姿势。
+                    _fallFrame = CurrentVPetFrame;
+                    _clipName = "fall";
+                    _step = 0;
+                    InvalidateVisual();
+                    UpdateTimer();
+                }
+            }
             else ResetIdle();
         }
 
@@ -126,6 +156,16 @@ namespace DesktopOrganizer
             if (!_active || !IsVisible || (_dragging && !IsVPet)) return;
             if (IsVPet)
             {
+                if (_fallFrame is not null)
+                {
+                    if (++_step >= FallMilliseconds.Length) StartClip("raisedEnd");
+                    else
+                    {
+                        InvalidateVisual();
+                        UpdateTimer();
+                    }
+                    return;
+                }
                 VPetAnimation.Clip clip = VPetAnimation.GetClip(_clipName);
                 if (_clipName == "idle") _idleMilliseconds += clip.Milliseconds[_step];
                 if (++_step >= clip.Frames.Length)
@@ -186,6 +226,7 @@ namespace DesktopOrganizer
 
         private void StartClip(string name)
         {
+            _fallFrame = null;
             _clipName = name;
             _step = 0;
             if (name == "idle") _idleMilliseconds = 0;
@@ -199,7 +240,8 @@ namespace DesktopOrganizer
             if (_active && IsVisible && (!_dragging || IsVPet))
             {
                 _timer.Interval = IsVPet
-                    ? TimeSpan.FromMilliseconds(VPetAnimation.GetClip(_clipName).Milliseconds[_step])
+                    ? TimeSpan.FromMilliseconds(_fallFrame is not null ? FallMilliseconds[_step]
+                        : VPetAnimation.GetClip(_clipName).Milliseconds[_step])
                     : TimeSpan.FromSeconds(_sequence[_step].Seconds);
                 _timer.Start();
             }
@@ -217,8 +259,10 @@ namespace DesktopOrganizer
                 drawingContext.DrawEllipse(SceneShadow, null, new Point(253.5 * xScale, 301 * yScale),
                     (resting ? 72.5 : 33) * xScale, 5.5 * yScale);
             }
-            drawingContext.DrawImage(IsVPet ? VPetAnimation.GetClip(_clipName).Frames[_step].Image
+            if (_fallFrame is not null) drawingContext.PushTransform(new MatrixTransform(CharacterMotionTransform));
+            drawingContext.DrawImage(IsVPet ? CurrentVPetFrame.Image
                 : Frames.Value[CurrentFrame].Image, CharacterBounds);
+            if (_fallFrame is not null) drawingContext.Pop();
             if (SceneEnabled) drawingContext.DrawImage(DesktopPetScene.Foreground.Image, new Rect(RenderSize));
         }
 
@@ -241,9 +285,15 @@ namespace DesktopOrganizer
                 return false;
 
             Rect bounds = CharacterBounds;
+            if (_fallFrame is not null)
+            {
+                Matrix inverse = CharacterMotionTransform;
+                inverse.Invert();
+                point = inverse.Transform(point);
+            }
             if (point.X < bounds.Left || point.Y < bounds.Top || point.X >= bounds.Right || point.Y >= bounds.Bottom) return false;
-            BitmapSource bitmap = IsVPet ? VPetAnimation.GetClip(_clipName).Frames[_step].Image : Frames.Value[CurrentFrame].Image;
-            byte[] alpha = IsVPet ? VPetAnimation.GetClip(_clipName).Frames[_step].Alpha : Frames.Value[CurrentFrame].Alpha;
+            BitmapSource bitmap = IsVPet ? CurrentVPetFrame.Image : Frames.Value[CurrentFrame].Image;
+            byte[] alpha = IsVPet ? CurrentVPetFrame.Alpha : Frames.Value[CurrentFrame].Alpha;
             int x = (int)((point.X - bounds.X) * bitmap.PixelWidth / bounds.Width);
             int y = (int)((point.Y - bounds.Y) * bitmap.PixelHeight / bounds.Height);
             return alpha[y * bitmap.PixelWidth + x] > 32;

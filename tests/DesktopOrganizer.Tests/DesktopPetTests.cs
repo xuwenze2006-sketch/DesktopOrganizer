@@ -274,7 +274,8 @@ public sealed class DesktopPetTests
             for (int i = 0; i < 15; i++) f.Pet.AdvanceAnimation();
             Assert.AreEqual("raisedLoop", f.Pet.CurrentClip);
             f.Pet.SetDragging(false);
-            Assert.AreEqual("raisedEnd", f.Pet.CurrentClip);
+            Assert.AreEqual("fall", f.Pet.CurrentClip);
+            AdvanceUntil(f.Pet, "raisedEnd");
             AdvanceUntil(f.Pet, "idle");
             f.Pet.Rest();
             AdvanceUntil(f.Pet, "sleepLoop");
@@ -295,22 +296,23 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
-    public void VPetLanding_PlaysContinuousFallThenRecoveryFrames_WithTheirOriginalDurations()
+    public void VPetLanding_PlaysImpactThenRecovery_WithAQuickerUnevenRhythm()
     {
         using var f = new Fixture();
         f.Enable("vpet");
         f.Pet.SetDragging(true);
         f.Pet.SetDragging(false);
+        AdvanceUntil(f.Pet, "raisedEnd");
         VPetAnimation.Clip landing = VPetAnimation.GetClip("raisedEnd");
         var timer = (DispatcherTimer)typeof(DesktopPetWidget)
             .GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
 
-        // 原图集中的 FLA 与 FLB 是交错存储的。播放必须先连续走完 FLA 000–006，
-        // 再走 FLB 000–013；不能只按两个前缀各自从零开始的数字排序。
-        int[] expectedCells = [0, 2, 4, 6, 8, 10, 12, 1, 3, 5, 7, 9, 11, 13, 14, 15, 16, 17, 18, 19, 20];
+        // 保留接触、缓冲、撑起和站稳姿势，跳过重复趴地与末尾大幅摇摆。
+        int[] expectedCells = [0, 4, 6, 8, 1, 3, 7, 11, 13, 14, 15, 18, 19, 20];
+        int[] expectedDurations = [45, 45, 65, 160, 70, 80, 85, 85, 95, 85, 80, 85, 110, 150];
         Assert.HasCount(expectedCells.Length, landing.Frames);
         Assert.HasCount(expectedCells.Length, landing.Milliseconds);
-        Assert.AreEqual(3000, landing.Milliseconds.Sum());
+        Assert.AreEqual(1240, landing.Milliseconds.Sum());
         using Stream stream = VPetAnimation.OpenResource("Assets/Pets/VPet/RaisedEnd.png");
         var sheet = new BitmapImage();
         sheet.BeginInit();
@@ -334,13 +336,135 @@ public sealed class DesktopPetTests
             CollectionAssert.AreEqual(expectedAlpha, current.Alpha,
                 "透明命中缓存也必须跟随实际播放图像。");
 
-            int expectedMilliseconds = step == 6 ? 500 : 125;
+            int expectedMilliseconds = expectedDurations[step];
             Assert.AreEqual(expectedMilliseconds, landing.Milliseconds[step],
-                "500 毫秒停留须跟随 FLA 006，而非留在重排前的数组位置。");
+                "落地缓冲须稍停，起身须连续，不能恢复均匀慢放或重复趴地。");
             Assert.AreEqual(TimeSpan.FromMilliseconds(expectedMilliseconds), timer.Interval);
             f.Pet.AdvanceAnimation();
         }
         Assert.AreEqual("idle", f.Pet.CurrentClip, "完整恢复站立后才回到待机。");
+    }
+
+    [STATestMethod]
+    [DataRow(false, 1.0)]
+    [DataRow(true, 1.5)]
+    [DataRow(true, 2.0)]
+    public void VPetFall_KeepsTheReleasePose_Accelerates_AndMovesHitGeometryWithTheImage(bool scene, double scale)
+    {
+        using var f = new Fixture();
+        f.Enable("vpet");
+        f.Invoke("SetDesktopPetScene", scene);
+        f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true);
+        f.Measure(scale);
+        f.Pet.SetDragging(true);
+        AdvanceUntil(f.Pet, "raisedLoop");
+        f.Pet.AdvanceAnimation();
+        VPetAnimation.Frame releasedFrame = f.Pet.CurrentVPetFrame;
+        var preview = new List<(BitmapSource Image, int Milliseconds)>();
+        void Capture(int milliseconds)
+        {
+            if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_FALL_QA") != "1") return;
+            f.Window.RootGrid.UpdateLayout();
+            var bitmap = new RenderTargetBitmap((int)(1000 * scale),
+                (int)(700 * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            Brush originalBackground = f.Window.RootGrid.Background;
+            f.Window.RootGrid.Background = null;
+            try { bitmap.Render(f.Window.RootGrid); }
+            finally { f.Window.RootGrid.Background = originalBackground; }
+            var crop = new CroppedBitmap(bitmap, new Int32Rect((int)(f.Pet.Margin.Left * scale),
+                (int)(f.Pet.Margin.Top * scale), (int)(f.Pet.ActualWidth * scale), (int)(f.Pet.ActualHeight * scale)));
+            Assert.IsTrue(BgraPixels(crop).Where((value, index) => index % 4 == 3).Any(alpha => alpha > 32),
+                "动作预览必须包含实际控件画面，不能导出空白图。");
+            crop.Freeze();
+            preview.Add((crop, milliseconds));
+        }
+        Capture(200);
+        long saveGeneration = f.Field<long>("_layoutSaveGeneration");
+        Thickness originalPosition = f.Pet.Margin;
+        f.Pet.SetDragging(false);
+        Assert.AreEqual("fall", f.Pet.CurrentClip);
+        Assert.AreSame(releasedFrame, f.Pet.CurrentVPetFrame, "松手不能立刻换成趴地图像。");
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity);
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget)
+            .GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+        Rect bounds = f.Pet.CharacterBounds;
+        double lastY = 0, lastVelocity = 0;
+        int fallDuration = 0;
+        for (int step = 0; step < 6; step++)
+        {
+            Assert.AreEqual("fall", f.Pet.CurrentClip);
+            Assert.AreSame(releasedFrame, f.Pet.CurrentVPetFrame, "下落复用冻结帧，不逐帧生成位图。");
+            Matrix motion = f.Pet.CharacterMotionTransform;
+            Point pivot = new(bounds.X + bounds.Width * .5, bounds.Y + bounds.Height * .6);
+            double y = motion.Transform(pivot).Y - pivot.Y;
+            if (step > 0)
+            {
+                Assert.IsTrue(y > lastY);
+                Assert.IsTrue(y - lastY > lastVelocity, "下落位移应逐步增大。");
+                lastVelocity = y - lastY;
+            }
+            lastY = y;
+            fallDuration += (int)timer.Interval.TotalMilliseconds;
+            Capture((int)timer.Interval.TotalMilliseconds);
+            Matrix inverse = motion;
+            inverse.Invert();
+            for (int py = 2; py < f.Pet.ActualHeight; py += 5)
+            for (int px = 2; px < f.Pet.ActualWidth; px += 5)
+            {
+                Point sample = new(px, py);
+                Point local = inverse.Transform(sample);
+                bool inside = local.X >= bounds.Left && local.X < bounds.Right &&
+                    local.Y >= bounds.Top && local.Y < bounds.Bottom;
+                bool expected = inside && releasedFrame.Alpha[(int)((local.Y - bounds.Y) * 192 / bounds.Height) * 192 +
+                    (int)((local.X - bounds.X) * 192 / bounds.Width)] > 32;
+                Assert.AreEqual(expected, f.Pet.ContainsCharacterPoint(sample), "透明命中应随旋转和下落移动。");
+            }
+            Assert.AreEqual(originalPosition, f.Pet.Margin, "下落只改变角色画面，不能移动整棵树或写回布局。");
+            f.Pet.AdvanceAnimation();
+        }
+        Assert.AreEqual(152, fallDuration);
+        Assert.AreEqual("raisedEnd", f.Pet.CurrentClip);
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity);
+        for (int remaining = 0; remaining < 20 && f.Pet.CurrentClip != "idle"; remaining++)
+        {
+            Capture((int)timer.Interval.TotalMilliseconds);
+            f.Pet.AdvanceAnimation();
+        }
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        Capture(650);
+        if (preview.Count > 0) SaveFallPreview(preview, $"fall-{(scene ? "scene" : "standalone")}-{scale}");
+        Assert.AreEqual(saveGeneration, f.Field<long>("_layoutSaveGeneration"));
+    }
+
+    [STATestMethod]
+    public void VPetFall_CanBeInterruptedWithoutLeavingAMotionOffsetOrTimer()
+    {
+        using var f = new Fixture();
+        f.Enable("vpet");
+        void Fall()
+        {
+            f.Pet.SetDragging(true);
+            f.Pet.SetDragging(false);
+            f.Pet.AdvanceAnimation();
+            Assert.IsFalse(f.Pet.CharacterMotionTransform.IsIdentity);
+        }
+        Fall();
+        f.Pet.SetDragging(true);
+        Assert.AreEqual("raisedStart", f.Pet.CurrentClip);
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity);
+        f.Pet.SetDragging(false);
+        f.Pet.ReactToTouch();
+        Assert.AreEqual("touchStart", f.Pet.CurrentClip);
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity);
+        Fall();
+        f.Pet.SetCharacter("pixelpaws");
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity);
+        f.Pet.SetCharacter("vpet");
+        Fall();
+        f.Pet.SetActive(false);
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        Assert.IsFalse(f.Pet.AnimationRunning);
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity);
     }
 
     [STATestMethod]
@@ -441,7 +565,7 @@ public sealed class DesktopPetTests
         {
             action();
             f.Measure(scale);
-            VPetAnimation.Frame frame = VPetAnimation.GetClip(f.Pet.CurrentClip).Frames[f.Pet.CurrentFrame];
+            VPetAnimation.Frame frame = f.Pet.CurrentVPetFrame;
             Assert.IsTrue(frame.Image.IsFrozen);
             Assert.IsTrue(frame.Alpha.Any(alpha => alpha > 32));
             Assert.IsTrue(frame.Alpha.Any(alpha => alpha == 0));
@@ -458,7 +582,7 @@ public sealed class DesktopPetTests
         f.Measure(scale);
         Assert.IsFalse(f.Hit(384, 284));
         int frames = VPetAnimation.ClipNames.Sum(name => VPetAnimation.GetClip(name).Frames.Length);
-        Assert.AreEqual(74, frames);
+        Assert.AreEqual(67, frames);
         using var license = new StreamReader(VPetAnimation.OpenResource("ThirdParty/VPet-ANIMATION-LICENSE.txt"));
         StringAssert.Contains(license.ReadToEnd(), "https://github.com/LorisYounger/VPet");
     }
@@ -554,7 +678,7 @@ public sealed class DesktopPetTests
         f.BeginFakeDrag(new Point(300, 200), new Point(500, 320));
         Assert.AreEqual("raisedStart", f.Pet.CurrentClip);
         f.Invoke("CompleteDesktopPetDrag", true);
-        Assert.AreEqual("raisedEnd", f.Pet.CurrentClip);
+        Assert.AreEqual("fall", f.Pet.CurrentClip);
         Assert.AreEqual(500, f.Layout.DesktopPet.X);
         f.BeginFakeDrag(new Point(300, 200), new Point(500, 320));
         f.Invoke("SetDesktopPetScene", false);
@@ -601,6 +725,95 @@ public sealed class DesktopPetTests
         f.Invoke("DesktopPet_MouseUp", f.Pet, e);
         Assert.AreEqual("sleepEnd", f.Pet.CurrentClip);
         AdvanceUntil(f.Pet, "touchStart");
+    }
+
+    private static void SaveFallPreview(List<(BitmapSource Image, int Milliseconds)> frames, string name)
+    {
+        string directory = Path.Combine(TestProjectFiles.Root, "artifacts/pet-fall-v3");
+        Directory.CreateDirectory(directory);
+        var encoder = new GifBitmapEncoder();
+        int size = frames[0].Image.PixelWidth;
+        var contact = new DrawingVisual();
+        using (DrawingContext grid = contact.RenderOpen())
+        {
+            grid.DrawRectangle(Brushes.WhiteSmoke, null, new Rect(0, 0, size * 6, size * 4));
+            for (int i = 0; i < frames.Count; i++)
+            {
+                var canvas = new DrawingVisual();
+                using (DrawingContext drawing = canvas.RenderOpen())
+                {
+                    drawing.DrawRectangle(Brushes.WhiteSmoke, null, new Rect(0, 0, size, size));
+                    drawing.DrawImage(frames[i].Image, new Rect(0, 0, size, size));
+                }
+                var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(canvas);
+                var metadata = new BitmapMetadata("gif");
+                metadata.SetQuery("/grctlext/Delay", (ushort)Math.Max(1, Math.Round(frames[i].Milliseconds / 10.0)));
+                metadata.SetQuery("/grctlext/Disposal", (byte)2);
+                encoder.Frames.Add(BitmapFrame.Create(bitmap, null, metadata, null));
+                grid.DrawImage(bitmap, new Rect(i % 6 * size, i / 6 * size, size, size));
+            }
+        }
+        using var encoded = new MemoryStream();
+        encoder.Save(encoded);
+        byte[] gif = encoded.ToArray();
+        int headerLength = 13 + ((gif[10] & 0x80) != 0 ? 3 * (1 << ((gif[10] & 7) + 1)) : 0);
+        // GIF 的循环扩展；帧时值来自上面实际控件的计时器。
+        byte[] loop = [0x21, 0xff, 0x0b, 0x4e, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2e, 0x30, 3, 1, 0, 0, 0];
+        using (var output = File.Create(Path.Combine(directory, name + ".gif")))
+        {
+            output.Write(gif, 0, headerLength);
+            output.Write(loop);
+            int offset = headerLength, frame = 0, elapsed = 0, encodedTime = 0;
+            int EndSubBlocks(int position)
+            {
+                while (position < gif.Length && gif[position] != 0) position += gif[position] + 1;
+                if (position >= gif.Length) throw new InvalidDataException("Incomplete GIF data.");
+                return position + 1;
+            }
+            // WPF 编码器可能忽略多帧延时元数据；按实际帧时值重写图形控制扩展。
+            while (offset < gif.Length)
+            {
+                int start = offset;
+                if (gif[offset] == 0x21)
+                {
+                    byte label = gif[offset + 1];
+                    offset = EndSubBlocks(offset + 2);
+                    if (label != 0xf9) output.Write(gif, start, offset - start);
+                }
+                else if (gif[offset] == 0x2c)
+                {
+                    elapsed += frames[frame++].Milliseconds;
+                    int nextTime = (int)Math.Round(elapsed / 10.0, MidpointRounding.AwayFromZero);
+                    int delay = Math.Max(1, nextTime - encodedTime);
+                    encodedTime += delay;
+                    output.Write([0x21, 0xf9, 4, 8, (byte)(delay & 255), (byte)(delay >> 8), 0, 0]);
+                    byte flags = gif[offset + 9];
+                    offset += 10 + ((flags & 0x80) != 0 ? 3 * (1 << ((flags & 7) + 1)) : 0);
+                    offset = EndSubBlocks(offset + 1);
+                    output.Write(gif, start, offset - start);
+                }
+                else if (gif[offset] == 0x3b)
+                {
+                    output.WriteByte(0x3b);
+                    break;
+                }
+                else throw new InvalidDataException("Unexpected GIF block.");
+            }
+            Assert.AreEqual(frames.Count, frame);
+        }
+        var decoded = new GifBitmapDecoder(new Uri(Path.Combine(directory, name + ".gif")),
+            BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        Assert.AreEqual(frames.Count, decoded.Frames.Count);
+        int decodedTime = decoded.Frames.Sum(frame => Convert.ToInt32(((BitmapMetadata)frame.Metadata).GetQuery("/grctlext/Delay")) * 10);
+        Assert.IsTrue(Math.Abs(decodedTime - frames.Sum(frame => frame.Milliseconds)) <= 5,
+            "GIF 总时长须与实际控件一致，仅允许厘秒精度误差。");
+        var sheet = new RenderTargetBitmap(size * 6, size * 4, 96, 96, PixelFormats.Pbgra32);
+        sheet.Render(contact);
+        var png = new PngBitmapEncoder();
+        png.Frames.Add(BitmapFrame.Create(sheet));
+        using var stream = File.Create(Path.Combine(directory, name + ".png"));
+        png.Save(stream);
     }
 
     private static byte[] BgraPixels(BitmapSource image)
