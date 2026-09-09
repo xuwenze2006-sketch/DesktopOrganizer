@@ -30,6 +30,9 @@ coverage*.json
 # DesktopOrganizer runtime data accidentally copied to repository root
 /layout.json
 /layout.pending-exit.json
+/layout.pending-exit.json.*
+/layout.corrupt-*.json
+/operation-journal*.json
 /restore-native-icons.flag
 /Logs/
 

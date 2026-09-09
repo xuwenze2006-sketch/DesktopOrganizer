@@ -17,6 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Resource Include="Assets\Pets\PixelPawsCat.png" />
     <Resource Include="Assets\Pets\VPet\*.png" />
     <Resource Include="Assets\Pets\VPet\manifest.json" />

@@ -1,6 +1,17 @@
 # DesktopOrganizer
 
-面向 Windows 10/11 的 .NET 10 WPF 私人桌面整理软件。程序在桌面层绘制替代图标和分类框，并临时隐藏 Explorer 原生桌面图标。
+面向 Windows 10/11 的 .NET 10 WPF 桌面整理软件。程序在桌面层绘制替代图标和分类框，通过 Windows Shell 接口临时隐藏原生图标，保留系统桌面右键菜单。
+
+所有布局、分类、标签和操作记录保存在本机，不需要账号或云服务。项目自身代码采用 MIT 许可；内置桌宠素材的独立许可见文末。
+
+## 快速开始
+
+1. 从本仓库 GitHub Actions 中成功的 Windows CI 运行下载 `DesktopOrganizer-win-x64` 构建附件，解压其中的程序 ZIP。
+2. 保留 `DesktopOrganizer.exe`、`LICENSE` 和 `ThirdParty` 目录在一起，双击 EXE 运行；自包含构建无需另装 .NET Runtime。
+3. 先使用虚拟分类、布局和只读文件夹入口。拖入真实文件夹、删除、撤销和清空回收站会实际操作文件，执行前会走相应确认流程。
+4. 可用“暂停整理”恢复原生桌面，或从托盘退出程序。
+
+项目目前只提供 Windows x64 构建；多显示器、输入法、第三方 Shell 扩展等实机兼容检查见 [TEST_CHECKLIST.md](TEST_CHECKLIST.md)。自动测试不会启动桌面宿主，也不能代替这些实机检查。
 
 ## 核心功能
 
@@ -21,6 +32,7 @@
 - 覆盖完整虚拟桌面，支持左右/上下排列、负坐标显示器、独立任务栏工作区和不同 DPI 缩放。
 - FileSystemWatcher 防抖刷新、后台扫描、按差异增量更新视觉树、分类框可视区域虚拟化、Shell 图标后台优先队列、布局原子保存和崩溃恢复。
 - 文件重命名后保留图标坐标、所属分组与自动分类状态；关闭程序期间改名也可在下次启动时通过文件 ID 恢复。
+- 可切换 PixelPaws 小猫与 VPet 萝莉斯桌宠，支持角色动作、拖动与关闭，并可组合树与草地场景；尚未实现天气系统或多角色同时显示。
 - 原生托盘图标、单实例运行、安静开机启动和 Explorer 重启恢复。
 
 运行时项目不依赖第三方 NuGet 包；自动化测试项目仅使用 Microsoft 测试工具和 Coverlet。
@@ -116,7 +128,18 @@ artifacts\DesktopOrganizer-win-x64.sha256
 %AppData%\DesktopOrganizer\Logs
 ```
 
-布局损坏时会备份为 `layout.corrupt-日期时间.json`。异常退出时，程序会使用恢复标记尝试重新显示 Explorer 原生桌面图标。
+布局损坏时会先保存独立的 `layout.corrupt-*.json` 备份；原布局暂时不可读、恢复快照无法安全比较或损坏文件无法备份时，本次会话会停止布局写入，保留原文件，关闭程序后可重试读取。需要保留的冲突恢复快照不会被下一次退出保存覆盖。异常退出时，程序会使用恢复标记尝试重新显示 Explorer 原生桌面图标。
+
+`artifacts` 不进入 Git，其中可能保存美术源文件和个人备份，需单独保留。CI 只清理自己的测试结果和指定平台构建输出，不会清空整个目录。
+
+## 许可与素材来源
+
+项目自身代码和原创树草场景采用 [MIT License](LICENSE)。以下第三方素材不由本项目重新授权：
+
+- [PixelPaws](https://github.com/jordansbc/pixelpaws) 小猫：原作者 MIT 许可，来源、修订和修改说明见 [PixelPaws-LICENSE.txt](ThirdParty/PixelPaws-LICENSE.txt)。
+- [VPet](https://github.com/LorisYounger/VPet) 萝莉斯动画：采用上游独立动画及图片授权，包含来源告知、免费分发及商用用途的额外条件，完整原文见 [VPet-ANIMATION-LICENSE.txt](ThirdParty/VPet-ANIMATION-LICENSE.txt)。项目的 MIT 代码许可不替代这些条件。
+
+分发构建时请保留完整 ZIP 中的许可文件；程序内也提供 VPet 素材来源入口。
 
 ## 安全说明
 

@@ -39,7 +39,8 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw ".NET SDK was not found. Install .NET 10 SDK and retry."
 }
 
-$sdkVersionOutput = & dotnet --version | Select-Object -First 1
+$sdkVersionLines = & dotnet --version
+$sdkVersionOutput = @($sdkVersionLines) | Select-Object -First 1
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$sdkVersionOutput)) {
     throw "Unable to query the installed .NET SDK version."
 }
