@@ -3,6 +3,16 @@ namespace DesktopOrganizer
 {
     public partial class MainWindow
     {
+        private volatile bool _layoutWriteProtected;
+
+        private void ProtectLayoutWrites(string reason)
+        {
+            _layoutWriteProtected = true;
+            _layoutDirty = true;
+            _diagnostics.Log($"LAYOUT write protected: {reason}");
+            StatusText.Text = "原布局无法安全读取，本次布局变更不会保存；请关闭程序后重试";
+        }
+
         private void LoadLayout()
         {
             PendingExitLayoutRecoveryResult recovery =
@@ -16,6 +26,8 @@ namespace DesktopOrganizer
             }
             else if (recovery.State == PendingExitLayoutRecoveryState.Deferred)
             {
+                // 主布局不可读时，无法判断恢复快照是否比它更新，不能随后反向覆盖主文件。
+                ProtectLayoutWrites("pending snapshot could not be compared/promoted to main layout");
                 _diagnostics.Log("LAYOUT pending exit snapshot loaded; promotion deferred");
             }
             else if (recovery.State == PendingExitLayoutRecoveryState.Superseded)
@@ -70,7 +82,8 @@ namespace DesktopOrganizer
                         return;
                     }
 
-                    BackupCorruptLayout();
+                    if (!BackupCorruptLayout())
+                        ProtectLayoutWrites("failed to preserve unreadable layout");
                     _appLayout = new AppLayoutData();
                     return;
                 }
@@ -81,19 +94,31 @@ namespace DesktopOrganizer
 
         private void LoadMainLayoutOrDefault()
         {
-            if (!File.Exists(_layoutFilePath))
+            string json;
+            try
             {
+                json = File.ReadAllText(_layoutFilePath, Encoding.UTF8);
+            }
+            catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+            {
+                _appLayout = new AppLayoutData();
+                return;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                ProtectLayoutWrites(exception.GetType().Name);
                 _appLayout = new AppLayoutData();
                 return;
             }
 
             try
             {
-                ApplyLayoutJson(File.ReadAllText(_layoutFilePath, Encoding.UTF8));
+                ApplyLayoutJson(json);
             }
             catch
             {
-                BackupCorruptLayout();
+                if (!BackupCorruptLayout())
+                    ProtectLayoutWrites("failed to back up invalid layout");
                 _appLayout = new AppLayoutData();
             }
         }
@@ -113,24 +138,30 @@ namespace DesktopOrganizer
             }
         }
 
-        private void BackupCorruptLayout()
+        private bool BackupCorruptLayout()
         {
             try
             {
                 string directory = Path.GetDirectoryName(_layoutFilePath)!;
                 string backup = Path.Combine(
                     directory,
-                    $"layout.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+                    $"layout.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.json");
                 File.Copy(_layoutFilePath, backup, overwrite: false);
+                return true;
             }
             catch
             {
-                // 损坏布局无法备份时直接使用新布局。
+                return false;
             }
         }
 
         private void SaveLayout()
         {
+            if (_layoutWriteProtected)
+            {
+                _layoutDirty = true;
+                return;
+            }
             if (_isClosing)
             {
                 SaveLayoutNow();
@@ -153,6 +184,11 @@ namespace DesktopOrganizer
 
         private void QueueLayoutWrite()
         {
+            if (_layoutWriteProtected)
+            {
+                _layoutDirty = true;
+                return;
+            }
             string json;
             try
             {
@@ -206,7 +242,7 @@ namespace DesktopOrganizer
                     try
                     {
                         // 等锁期间可能已开始退出，旧快照不能覆盖 Closing 保存的最终布局。
-                        if (_isClosing)
+                        if (_isClosing || _layoutWriteProtected)
                         {
                             return;
                         }
@@ -254,6 +290,11 @@ namespace DesktopOrganizer
 
         private void SaveLayoutNow()
         {
+            if (_layoutWriteProtected)
+            {
+                _layoutDirty = true;
+                return;
+            }
             if (!_layoutDirty && File.Exists(_layoutFilePath) && !_isClosing)
             {
                 return;
@@ -306,11 +347,9 @@ namespace DesktopOrganizer
 
         private void WritePendingExitLayout(string json)
         {
-            string directory = Path.GetDirectoryName(_layoutExitRecoveryPath)!;
-            Directory.CreateDirectory(directory);
-            string temporaryPath = _layoutExitRecoveryPath + ".tmp";
-            File.WriteAllText(temporaryPath, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            File.Move(temporaryPath, _layoutExitRecoveryPath, overwrite: true);
+            if (_layoutWriteProtected)
+                throw new IOException("Original layout must be preserved until it can be read safely.");
+            PendingExitLayoutRecovery.WriteSnapshot(_layoutExitRecoveryPath, json, _preservePendingExitRecovery);
         }
 
         private void TryDeletePendingExitLayout()
@@ -336,6 +375,8 @@ namespace DesktopOrganizer
 
         private void WriteLayoutJsonAtomically(string json)
         {
+            if (_layoutWriteProtected)
+                throw new IOException("Original layout must be preserved until it can be read safely.");
             string directory = Path.GetDirectoryName(_layoutFilePath)!;
             Directory.CreateDirectory(directory);
             string temporaryPath = _layoutFilePath + ".tmp";

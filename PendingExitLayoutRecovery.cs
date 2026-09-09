@@ -18,6 +18,26 @@ namespace DesktopOrganizer
 
     internal static class PendingExitLayoutRecovery
     {
+        internal static void WriteSnapshot(string pendingPath, string json, bool preserveExisting)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(pendingPath)!);
+            string temporaryPath = pendingPath + ".tmp";
+            File.WriteAllText(temporaryPath, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            if (preserveExisting)
+            {
+                // 先保留冲突/未读快照；保留失败时绝不能继续覆盖。
+                try
+                {
+                    File.Move(pendingPath, pendingPath + $".preserved-{Guid.NewGuid():N}.json", overwrite: false);
+                }
+                catch (FileNotFoundException)
+                {
+                    // 已无旧快照；仍用非覆盖发布，避免覆盖随后出现的文件。
+                }
+            }
+            File.Move(temporaryPath, pendingPath, overwrite: !preserveExisting);
+        }
+
         public static PendingExitLayoutRecoveryResult ReadAndPromote(
             string pendingPath,
             string layoutPath)
