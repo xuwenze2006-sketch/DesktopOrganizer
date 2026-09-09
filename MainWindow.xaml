@@ -30,6 +30,8 @@
             <Separator/>
             <MenuItem Header="摸摸头" Tag="action" Click="DesktopPetTouch_Click"/>
             <MenuItem Header="打个招呼" Tag="action" Click="DesktopPetWave_Click"/>
+            <MenuItem Header="相视一笑" Tag="duo-action" Visibility="Collapsed" Click="DesktopPetLook_Click"/>
+            <MenuItem Header="牵手轻摆" Tag="duo-action" Visibility="Collapsed" Click="DesktopPetSway_Click"/>
             <MenuItem Header="休息" Tag="action" Click="DesktopPetRest_Click"/>
             <MenuItem Header="唤醒" Tag="action" Click="DesktopPetWake_Click"/>
             <Separator/>

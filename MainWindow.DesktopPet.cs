@@ -130,6 +130,11 @@ namespace DesktopOrganizer
                 if (item.Tag is string id && DesktopPetCatalog.Contains(id))
                     item.IsChecked = id == _appLayout.DesktopPet.CharacterId;
                 if (item.Tag is "action") item.IsEnabled = DesktopPet.IsVisible && !_isDesktopPetDragging;
+                if (item.Tag is "duo-action")
+                {
+                    item.Visibility = DesktopPet.CharacterId == DesktopPetCatalog.SunsetDuoId ? Visibility.Visible : Visibility.Collapsed;
+                    item.IsEnabled = DesktopPet.IsVisible && !_isDesktopPetDragging;
+                }
                 if (item.Tag is "scene")
                 {
                     item.IsChecked = _appLayout.DesktopPet.ShowScene;
@@ -142,6 +147,8 @@ namespace DesktopOrganizer
 
         private void DesktopPetTouch_Click(object sender, RoutedEventArgs e) => DesktopPet.ReactToTouch();
         private void DesktopPetWave_Click(object sender, RoutedEventArgs e) => DesktopPet.Wave();
+        private void DesktopPetLook_Click(object sender, RoutedEventArgs e) => DesktopPet.LookAtPartner();
+        private void DesktopPetSway_Click(object sender, RoutedEventArgs e) => DesktopPet.SwayHands();
         private void DesktopPetRest_Click(object sender, RoutedEventArgs e) => DesktopPet.Rest();
         private void DesktopPetWake_Click(object sender, RoutedEventArgs e) => DesktopPet.WakeUp();
 

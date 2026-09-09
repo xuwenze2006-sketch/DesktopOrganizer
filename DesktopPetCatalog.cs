@@ -11,7 +11,7 @@ namespace DesktopOrganizer
             new Character("vpet", "萝莉斯", "VPet · 摸头、提起与睡眠", "VPet"),
             new Character("black-haired", "黑发伙伴", "红瞳短发 · 挥手与轻巧落地", "BlackHaired"),
             new Character("pink-haired", "粉发伙伴", "蓝瞳长发 · 挥手与轻巧落地", "PinkHaired"),
-            new Character(SunsetDuoId, "夕阳双人", "牵手组合 · 眨眼、点头与相伴休息", "SunsetDuo")
+            new Character(SunsetDuoId, "夕阳双人", "牵手组合 · 挥手、相视、轻摆与依偎", "SunsetDuo")
         });
 
         internal static Character Find(string? id) => Characters.FirstOrDefault(character => character.Id == id) ?? Characters[0];

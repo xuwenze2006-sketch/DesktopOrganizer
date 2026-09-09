@@ -27,7 +27,7 @@ namespace DesktopOrganizer
             ApplyButton.IsEnabled = PreviewButton.IsEnabled = selected;
             SelectedDescription.Text = Characters.SelectedItem is Card card
                 ? "已选择：" + card.Name + (card.Id == DesktopPetCatalog.SunsetDuoId
-                    ? " · 两人一起移动，轻点点头回应" : " · 轻点互动，拖动换位置") : "请选择桌面伙伴";
+                    ? " · 轻点相视，待机时也会自然互动" : " · 轻点互动，拖动换位置") : "请选择桌面伙伴";
             if (ShowScene is not null)
             {
                 ShowScene.Content = "搭配" + DesktopPetScene.NameFor(SelectedCharacterId);
@@ -60,8 +60,9 @@ namespace DesktopOrganizer
                 actions.Children.Add(button);
             }
             bool duo = SelectedCharacterId == DesktopPetCatalog.SunsetDuoId;
-            Add(duo ? "点头招呼" : "挥手", pet.Wave);
-            Add(duo ? "轻点回应" : "摸头", pet.ReactToTouch);
+            Add("挥手", pet.Wave);
+            Add(duo ? "相视一笑" : "摸头", pet.ReactToTouch);
+            if (duo) Add("牵手轻摆", pet.SwayHands);
             Add(duo ? "一起移动" : "提起", () => pet.SetDragging(true));
             Add(duo ? "放稳" : "松手", () => pet.SetDragging(false));
             Add("休息", pet.Rest);
@@ -70,7 +71,7 @@ namespace DesktopOrganizer
             panel.Children.Add(actions);
             panel.Children.Add(stage);
             var preview = new Window { Title = DesktopPetCatalog.Find(SelectedCharacterId).Name + " · 动作预览",
-                Content = panel, Width = 480, Height = 500, MinWidth = 380, MinHeight = 450,
+                Content = panel, Width = 480, Height = duo ? 560 : 500, MinWidth = 380, MinHeight = duo ? 520 : 450,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this) };
             preview.Loaded += (_, _) => pet.SetActive(true);
             preview.Closed += (_, _) => pet.SetActive(false);

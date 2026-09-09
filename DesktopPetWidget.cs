@@ -24,6 +24,10 @@ namespace DesktopOrganizer
         private string _characterId = CatCharacterId;
         private string _clipName = "idle";
         private double _idleMilliseconds;
+        private int _duoIdleCycles;
+        private int _duoAmbientIndex;
+        private bool _duoAutomaticRest;
+        private int _duoRestCycles;
         private string _afterWake = "idle";
         private static readonly int[] FallMilliseconds = [32, 24, 24, 24, 24, 24];
         private VPetAnimation.Frame? _fallFrame;
@@ -108,6 +112,10 @@ namespace DesktopOrganizer
         {
             _fallFrame = null;
             _idleMilliseconds = 0;
+            _duoIdleCycles = 0;
+            _duoAmbientIndex = 0;
+            _duoAutomaticRest = false;
+            _duoRestCycles = 0;
             _afterWake = "idle";
             _clipName = "idle";
             _sequence = Idle;
@@ -178,12 +186,13 @@ namespace DesktopOrganizer
                 {
                     string next = _clipName switch
                     {
-                        "idle" when _idleMilliseconds >= 30000 => "sleepStart",
+                        "idle" => NextIdleClip(),
                         "touchStart" => "touchLoop",
                         "touchLoop" => "touchEnd",
-                        "touchEnd" or "raisedEnd" or "wave" => "idle",
+                        "touchEnd" or "raisedEnd" or "wave" or "look" or "sway" => "idle",
                         "raisedStart" => "raisedLoop",
                         "sleepStart" => "sleepLoop",
+                        "sleepLoop" when IsSunsetDuo && _duoAutomaticRest && ++_duoRestCycles >= 2 => "sleepEnd",
                         "sleepEnd" => _afterWake,
                         _ => _clipName
                     };
@@ -209,9 +218,40 @@ namespace DesktopOrganizer
             UpdateTimer();
         }
 
+        private string NextIdleClip()
+        {
+            if (!IsSunsetDuo) return _idleMilliseconds >= 30000 ? "sleepStart" : "idle";
+            // 每隔约十秒自然互动一次；轮流招呼、相视、摆手，最后依偎休息。
+            if (++_duoIdleCycles < 3) return "idle";
+            _duoIdleCycles = 0;
+            int action = _duoAmbientIndex++ % 4;
+            if (action == 3)
+            {
+                _duoAutomaticRest = true;
+                _duoRestCycles = 0;
+                _afterWake = "idle";
+            }
+            return action switch { 0 => "wave", 1 => "look", 2 => "sway", _ => "sleepStart" };
+        }
+
+        internal void LookAtPartner() => PlayDuoInteraction("look");
+        internal void SwayHands() => PlayDuoInteraction("sway");
+
+        private void PlayDuoInteraction(string clip)
+        {
+            if (!IsSunsetDuo || !_active || _dragging) return;
+            if (_clipName.StartsWith("sleep", StringComparison.Ordinal))
+            {
+                _afterWake = clip;
+                StartClip("sleepEnd");
+            }
+            else StartClip(clip);
+        }
+
         internal void Rest()
         {
             if (!_active || _dragging) return;
+            _duoAutomaticRest = false;
             if (UsesClips) StartClip("sleepStart");
             else
             {

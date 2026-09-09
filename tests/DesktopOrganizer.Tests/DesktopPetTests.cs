@@ -1097,7 +1097,7 @@ public sealed class DesktopPetTests
             {
                 var image = new RenderTargetBitmap(600, 620, 96, 96, PixelFormats.Pbgra32); image.Render(reopened);
                 var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
-                string path = Path.Combine(TestProjectFiles.Root, "artifacts/sunset-duo-animation/picker-preview.png");
+                string path = Path.Combine(TestProjectFiles.Root, "artifacts/sunset-duo-actions-v2/picker-preview.png");
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 using var output = File.Create(path); encoder.Save(output);
             }
@@ -1148,7 +1148,7 @@ public sealed class DesktopPetTests
         for (int i = 0; i < 30 && f.Pet.CurrentClip != "idle"; i++)
         { Capture((int)timer.Interval.TotalMilliseconds); f.Pet.AdvanceAnimation(); }
         Assert.AreEqual("idle", f.Pet.CurrentClip);
-        if (export) { SaveFallPreview(preview, "desktop-idle-and-greeting", "artifacts/sunset-duo-animation"); preview.Clear(); }
+        if (export) { SaveFallPreview(preview, "desktop-idle-and-greeting", "artifacts/sunset-duo-actions-v2"); preview.Clear(); }
         f.Pet.Rest();
         AdvanceUntil(f.Pet, "sleepLoop");
         byte[] resting = BgraPixels(Capture((int)timer.Interval.TotalMilliseconds));
@@ -1161,9 +1161,76 @@ public sealed class DesktopPetTests
         { Capture((int)timer.Interval.TotalMilliseconds); f.Pet.AdvanceAnimation(); }
         Assert.AreEqual("idle", f.Pet.CurrentClip);
         Capture(500);
-        if (export) SaveFallPreview(preview, "desktop-rest-and-wake", "artifacts/sunset-duo-animation");
+        if (export) SaveFallPreview(preview, "desktop-rest-and-wake", "artifacts/sunset-duo-actions-v2");
         f.Invoke("SetDesktopPetScene", false); f.Measure(1.5);
         Assert.IsFalse(first.SequenceEqual(BgraPixels(Capture(300))), "关闭背景应实际改变绘制结果。");
+    }
+
+    [STATestMethod]
+    public void SunsetDuo_AmbientActionsCycleBeforeRest_AndHiddenOrDraggedPetsDoNotReact()
+    {
+        using var f = new Fixture(); f.Enable(DesktopPetCatalog.SunsetDuoId);
+        long generation = f.Field<long>("_layoutSaveGeneration");
+        foreach (string next in new[] { "wave", "look", "sway", "sleepStart" })
+        {
+            AdvanceUntil(f.Pet, next, 50);
+            if (next != "sleepStart") AdvanceUntil(f.Pet, "idle");
+        }
+        AdvanceUntil(f.Pet, "sleepLoop");
+        AdvanceUntil(f.Pet, "idle", 30);
+        f.Pet.Rest(); AdvanceUntil(f.Pet, "sleepLoop");
+        for (int i = 0; i < 24; i++) f.Pet.AdvanceAnimation();
+        Assert.AreEqual("sleepLoop", f.Pet.CurrentClip, "手动休息应持续，自动依偎才会自行结束。");
+        f.Pet.SwayHands(); Assert.AreEqual("sleepEnd", f.Pet.CurrentClip);
+        AdvanceUntil(f.Pet, "sway"); AdvanceUntil(f.Pet, "idle");
+        f.Pet.SetDragging(true); f.Pet.LookAtPartner(); f.Pet.SwayHands();
+        Assert.AreEqual("raisedStart", f.Pet.CurrentClip);
+        f.Pet.SetDragging(false); AdvanceUntil(f.Pet, "idle");
+        Assert.AreEqual(generation, f.Field<long>("_layoutSaveGeneration"));
+        f.Invoke("SetDesktopPetVisible", false); f.Pet.LookAtPartner(); f.Pet.SwayHands();
+        Assert.AreEqual("idle", f.Pet.CurrentClip); Assert.IsFalse(f.Pet.AnimationRunning);
+        f.Enable("pink-haired"); f.Pet.LookAtPartner(); f.Pet.SwayHands();
+        Assert.AreEqual("idle", f.Pet.CurrentClip, "组合专用动作不能套用到其他角色。");
+        var menu = f.Pet.ContextMenu;
+        f.Invoke("DesktopPetMenu_Opened", menu, new RoutedEventArgs());
+        Assert.IsTrue(menu.Items.OfType<MenuItem>().Where(i => Equals(i.Tag, "duo-action")).All(i => i.Visibility == Visibility.Collapsed));
+    }
+
+    [STATestMethod]
+    [DataRow("look")]
+    [DataRow("sway")]
+    public void SunsetDuo_AddedActionsChangeUpperBody_KeepFeetAndHitGeometry(string action)
+    {
+        using var f = new Fixture(); f.Enable(DesktopPetCatalog.SunsetDuoId);
+        f.Invoke("SetDesktopPetScene", true); f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true); f.Measure(1.5);
+        byte[] original = BgraPixels(f.Pet.CurrentVPetFrame.Image);
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget).GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+        if (action == "look") f.Pet.LookAtPartner(); else f.Pet.SwayHands();
+        Assert.AreEqual(action, f.Pet.CurrentClip);
+        int largestChange = 0;
+        var preview = new List<(BitmapSource Image, int Milliseconds)>();
+        for (int step = 0; step < 30 && f.Pet.CurrentClip != "idle"; step++)
+        {
+            var frame = f.Pet.CurrentVPetFrame; byte[] current = BgraPixels(frame.Image);
+            int changed = 0;
+            for (int i = 0; i < current.Length; i += 4)
+                if (Math.Abs(current[i] - original[i]) + Math.Abs(current[i+1] - original[i+1]) + Math.Abs(current[i+2] - original[i+2]) > 45) changed++;
+            largestChange = Math.Max(largestChange, changed);
+            Assert.IsTrue(original.Skip(465*512*4).SequenceEqual(current.Skip(465*512*4)), "肢体动作不得改动原脚底像素。");
+            for (int y = 0; y < 360; y += 7)
+            for (int x = 0; x < 360; x += 7)
+                Assert.AreEqual(frame.Alpha[(int)(y*512.0/360)*512+(int)(x*512.0/360)] > 32, f.Pet.ContainsCharacterPoint(new Point(x,y)));
+            if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_SUNSET_QA") == "1")
+            {
+                f.Window.RootGrid.UpdateLayout();
+                var image = new RenderTargetBitmap(1500, 1050, 144, 144, PixelFormats.Pbgra32); image.Render(f.Window.RootGrid);
+                preview.Add((new CroppedBitmap(image,new Int32Rect(450,300,540,540)),(int)timer.Interval.TotalMilliseconds));
+            }
+            f.Pet.AdvanceAnimation();
+        }
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        Assert.IsTrue(largestChange > 1000, "新动作必须带来明显肢体或朝向变化，不能只是原有眨眼微动。");
+        if (preview.Count > 0) SaveFallPreview(preview,"desktop-"+action,"artifacts/sunset-duo-actions-v2");
     }
 
     private static void AdvanceUntil(DesktopPetWidget pet, string clip, int maximumFrames = 100)
