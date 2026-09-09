@@ -126,6 +126,11 @@ if ($SkipPublish) {
 Invoke-DotNet -Arguments @(
     "restore", $appProject,
     "--runtime", $RuntimeIdentifier,
+    "-p:Configuration=$Configuration",
+    "-p:SelfContained=true",
+    "-p:PublishSingleFile=true",
+    "-p:PublishReadyToRun=true",
+    "-p:PublishTrimmed=false",
     "--nologo"
 )
 
