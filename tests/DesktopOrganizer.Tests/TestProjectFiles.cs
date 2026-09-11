@@ -16,7 +16,7 @@ internal static class TestProjectFiles
             ["MainWindow.xaml"] = "src/App",
             ["MainWindow.DesktopHost.cs"] = "src/App",
             ["DesktopPetPicker.xaml"] = "src/App",
-            ["InboxWindow.xaml"] = "src/App",
+            ["InboxWindow.xaml"] = "src/Inbox",
             ["OperationCenterWindow.xaml"] = "src/App",
             ["RuleManagerWindow.xaml"] = "src/App",
             ["RulePreviewWindow.xaml"] = "src/App",
