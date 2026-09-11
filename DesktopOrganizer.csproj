@@ -7,7 +7,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationManifest>src\App\app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\DesktopOrganizer.ico</ApplicationIcon>
     <AssemblyName>DesktopOrganizer</AssemblyName>
     <RootNamespace>DesktopOrganizer</RootNamespace>
