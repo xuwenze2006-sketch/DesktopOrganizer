@@ -192,3 +192,11 @@
 - 任务完成回调返回 Dispatcher 后才修改 `_desktopItems`、`_appLayout`、选择状态和视觉缓存；后台线程不访问 WPF 控件。
 - 关闭程序时只取消尚未开始的任务。`File.Move`、`Directory.Move` 或 Windows 回收站内部调用一旦进入系统 API，不能通过线程中止安全取消；工作线程设置为后台线程，退出不会无限等待。
 - 文件任务仍由单一 STA 队列串行执行；当前主线在此基础上增加独立写前账本，并从中重建最近 20 次跨会话撤销候选。
+
+## 源码目录边界
+
+- 源码按职责存放在 `src/` 子目录：`App`、`Desktop`、`Layout`、`Pet`、`Inbox`、`Rules`、`Files`、`Persistence`、`ShellInterop`；全部文件继续使用同一个 `DesktopOrganizer` 命名空间，目录只表达职责，不改变类型全名。
+- `DesktopOrganizer.csproj`、`DesktopOrganizer.slnx`、`App.xaml`、`App.xaml.cs` 必须留在仓库根目录：WPF 默认 `ApplicationDefinition` 只在项目根目录生效，把 `App.xaml` 移入子目录会失去生成的入口点 `Main`。
+- 编译项继续依赖 SDK 默认通配符递归收集，`.csproj` 只登记非默认资源；`app.manifest` 的路径随源码位置同步为 `src\App\app.manifest`。
+- 契约测试读取源码时统一通过 `TestProjectFiles.SourcePath`/`ReadSource` 解析位置，并由 `TestProjectFilesTests` 校验登记文件真实存在；移动源码必须同步该定位表。
+- 完整目录说明与整理前后的路径映射见 `docs/SOURCE_LAYOUT.md`。

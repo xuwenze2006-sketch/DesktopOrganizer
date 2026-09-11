@@ -30,7 +30,7 @@
 
 </details>
 
-项目目前只提供 Windows x64 构建；多显示器、输入法、第三方 Shell 扩展等实机兼容检查见 [TEST_CHECKLIST.md](TEST_CHECKLIST.md)。自动测试不会启动桌面宿主，也不能代替这些实机检查。
+项目目前只提供 Windows x64 构建；多显示器、输入法、第三方 Shell 扩展等实机兼容检查见 [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)。自动测试不会启动桌面宿主，也不能代替这些实机检查。
 
 ## 功能概览
 
@@ -234,8 +234,27 @@ Issue 和附件公开可见。请隐藏截图与日志片段中的用户名、�
 
 ## 项目文档
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md)：模块职责和兼容边界。
-- [`CHANGELOG.md`](CHANGELOG.md)：版本历史。
-- [`TEST_CHECKLIST.md`](TEST_CHECKLIST.md)：Windows 实机回归清单。
-- [`OPEN_SOURCE_REFERENCES.md`](OPEN_SOURCE_REFERENCES.md)：开源设计参考及许可证说明。
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：模块职责和兼容边界。
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md)：版本历史。
+- [`docs/TEST_CHECKLIST.md`](docs/TEST_CHECKLIST.md)：Windows 实机回归清单。
+- [`docs/OPEN_SOURCE_REFERENCES.md`](docs/OPEN_SOURCE_REFERENCES.md)：开源设计参考及许可证说明。
+- [`docs/SOURCE_LAYOUT.md`](docs/SOURCE_LAYOUT.md)：源码目录结构与整理前后的路径映射。
 - [`docs/history/`](docs/history/)：各版本的一次性实施、修复与验证报告。
+
+## 目录结构
+
+源码按职责分目录存放，全部使用同一个 `DesktopOrganizer` 命名空间；`DesktopOrganizer.csproj`、`DesktopOrganizer.slnx`、`App.xaml` 与 `App.xaml.cs` 保持在仓库根目录（WPF 默认 `ApplicationDefinition` 只在项目根目录生效）。
+
+| 目录 | 内容 |
+|---|---|
+| `src/App/` | 应用启动、`MainWindow` 全部分部类、各个窗口、主题 |
+| `src/Desktop/` | 桌面宿主、图标布局与几何、搜索、回收站与剪贴板 |
+| `src/Layout/` | 工作区布局、布局持久化、网格与分组放置策略 |
+| `src/Pet/` | 桌宠目录、素材库、场景与动画 |
+| `src/Inbox/` | 待整理收件箱与标签 |
+| `src/Rules/` | 整理规则引擎与自动分类 |
+| `src/Files/` | 文件操作、操作日志、文件夹门户 |
+| `src/Persistence/` | 布局持久化、桌面路径解析、启动项与诊断 |
+| `src/ShellInterop/` | `NativeMethods` 系列与 Shell 图标/命名空间互操作 |
+| `docs/` | 项目文档与历史报告 |
+| `scripts/` | 构建、发布与测试脚本 |
