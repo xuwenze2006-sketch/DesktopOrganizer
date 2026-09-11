@@ -88,7 +88,7 @@
 
 ### 运行源码
 
-双击 `run-source.cmd`，或执行：
+双击 `scripts\run-source.cmd`，或执行：
 
 ```powershell
 dotnet run --project DesktopOrganizer.csproj
@@ -96,13 +96,13 @@ dotnet run --project DesktopOrganizer.csproj
 
 ### 发布单文件 EXE
 
-双击 `publish-win-x64.cmd`。成功后输出到：
+双击 `scripts\publish-win-x64.cmd`。成功后输出到：
 
 ```text
 release\win-x64\DesktopOrganizer.exe
 ```
 
-`build-and-start.cmd` 会先发布，再启动生成的 EXE。
+`scripts\build-and-start.cmd` 会先发布，再启动生成的 EXE。
 
 
 ### 自动化验证
@@ -115,8 +115,8 @@ release\win-x64\DesktopOrganizer.exe
 
 也可以双击：
 
-- `run-tests.cmd`：只执行还原、Release 编译和测试。
-- `ci-local.cmd`：执行还原、警告即错误编译、测试、覆盖率采集和 win-x64 单文件发布。
+- `scripts\run-tests.cmd`：只执行还原、Release 编译和测试。
+- `scripts\ci-local.cmd`：执行还原、警告即错误编译、测试、覆盖率采集和 win-x64 单文件发布。
 
 输出位置：
 

@@ -144,7 +144,7 @@
 - 新增 MSTest 测试项目，覆盖本地分类器、多显示器几何、Shell 身份编码、布局 Version 14 JSON 契约及后台 STA 文件任务队列。
 - 使用 Coverlet 生成 Cobertura 覆盖率；CI 上传 TRX、覆盖率文件、win-x64 单文件 EXE、ZIP 和 SHA-256 校验。
 - 新增 Dependabot，对 NuGet 测试工具与 GitHub Actions 依赖执行每周更新检查。
-- 新增 `run-tests.cmd` 与 `ci-local.cmd`，Windows 用户无需手写命令即可复现 CI。
+- 新增 `scripts\run-tests.cmd` 与 `scripts\ci-local.cmd`，Windows 用户无需手写命令即可复现 CI。
 - 主程序显式排除 `tests\**` 的 SDK 默认编译项，测试程序集禁用并行执行，并按 MSTest 4 分析器要求使用 `[TestMethod] + [DataRow]`。
 - 本地批处理脚本保留 PowerShell 的真实失败退出码，便于终端、IDE 与上层脚本识别失败。
 - 运行时项目仍无第三方 NuGet 依赖；布局格式保持 Version 14。

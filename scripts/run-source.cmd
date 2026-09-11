@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 where dotnet >nul 2>&1
 if errorlevel 1 (
@@ -9,13 +9,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not exist "%~dp0DesktopOrganizer.csproj" (
-    echo ERROR: DesktopOrganizer.csproj was not found next to this script.
+if not exist "%~dp0..\DesktopOrganizer.csproj" (
+    echo ERROR: DesktopOrganizer.csproj was not found at the repository root.
     pause
     exit /b 1
 )
 
-dotnet run --project "%~dp0DesktopOrganizer.csproj"
+dotnet run --project "%~dp0..\DesktopOrganizer.csproj"
 set "EXIT_CODE=%errorlevel%"
 if not "%EXIT_CODE%"=="0" pause
 exit /b %EXIT_CODE%

@@ -2,9 +2,9 @@
 
 ## 自动化构建与测试
 
-- [ ] 双击 `run-tests.cmd` 后，Release 构建和全部 MSTest 测试通过。
-- [ ] 双击 `ci-local.cmd` 后，`artifacts\publish\win-x64\DesktopOrganizer.exe`、ZIP 和 SHA-256 文件均生成。
-- [ ] 人为制造一个 C# 警告后，`ci-local.cmd` 和 GitHub Actions 都会失败。
+- [ ] 双击 `scripts\run-tests.cmd` 后，Release 构建和全部 MSTest 测试通过。
+- [ ] 双击 `scripts\ci-local.cmd` 后，`artifacts\publish\win-x64\DesktopOrganizer.exe`、ZIP 和 SHA-256 文件均生成。
+- [ ] 人为制造一个 C# 警告后，`scripts\ci-local.cmd` 和 GitHub Actions 都会失败。
 - [ ] GitHub push 或 pull request 后，Windows CI 工作流成功上传测试结果与 win-x64 构建产物。
 - [ ] 测试失败时仍能在 Actions artifact 中下载 TRX 和覆盖率文件。
 - [ ] Dependabot 能识别 MSTest、Microsoft.NET.Test.Sdk、Coverlet 和 GitHub Actions 的更新。
@@ -110,7 +110,7 @@
 - [ ] 关闭“开机自启”后，对应 Run 项被删除。
 - [ ] 重启 Explorer 后通知区域图标自动恢复。
 - [ ] 点击“退出”后通知区域图标消失，系统原生桌面图标恢复。
-- [ ] 双击 `publish-win-x64.cmd` 能生成自包含单文件 EXE。
+- [ ] 双击 `scripts\publish-win-x64.cmd` 能生成自包含单文件 EXE。
 
 
 ## v1.6 使用者视角优化
