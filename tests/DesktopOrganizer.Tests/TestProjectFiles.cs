@@ -15,7 +15,6 @@ internal static class TestProjectFiles
         {
             ["MainWindow.xaml"] = "src/App",
             ["MainWindow.DesktopHost.cs"] = "src/App",
-            ["DesktopPetPicker.xaml"] = "src/App",
             ["InboxWindow.xaml"] = "src/Inbox",
             ["OperationCenterWindow.xaml"] = "src/App",
             ["RuleManagerWindow.xaml"] = "src/App",
@@ -36,6 +35,9 @@ internal static class TestProjectFiles
             : Root;
         return Path.Combine(directory, fileName);
     }
+
+    /// <summary>定位表中登记的全部源码文件名。</summary>
+    internal static IReadOnlyCollection<string> RegisteredFiles => SourceDirectories.Keys;
 
     internal static string ReadSource(string fileName) => File.ReadAllText(SourcePath(fileName));
 
