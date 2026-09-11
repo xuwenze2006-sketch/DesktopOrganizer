@@ -103,7 +103,6 @@ public sealed class RulePreviewWindowUiContractTests
 
     private static XDocument LoadRulePreviewWindowXaml()
     {
-        string projectRoot = TestProjectFiles.Root;
-        return XDocument.Load(Path.Combine(projectRoot, "RulePreviewWindow.xaml"));
+        return XDocument.Load(TestProjectFiles.SourcePath("RulePreviewWindow.xaml"));
     }
 }

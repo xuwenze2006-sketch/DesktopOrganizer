@@ -1,5 +1,4 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.IO;
 
 namespace DesktopOrganizer.Tests;
 
@@ -9,7 +8,7 @@ public sealed class DesktopCompanionNativeContractTests
     [TestMethod]
     public void WindowEvents_UseChildStyleInsteadOfRejectingOwnedTopLevelWindows()
     {
-        string source = ReadProjectFile("NativeMethods.WindowEvents.cs");
+        string source = TestProjectFiles.ReadSource("NativeMethods.WindowEvents.cs");
 
         StringAssert.Contains(source, "(style & WS_CHILD) != 0");
         Assert.IsFalse(
@@ -20,7 +19,7 @@ public sealed class DesktopCompanionNativeContractTests
     [TestMethod]
     public void CompanionPlacement_UsesAtomicBatchWithoutForegroundOrTopmost()
     {
-        string source = ReadProjectFile("NativeMethods.DesktopLayer.cs");
+        string source = TestProjectFiles.ReadSource("NativeMethods.DesktopLayer.cs");
         const string methodStart = "public static int TryPlaceDesktopCompanionsAboveOrganizer";
         const string methodEnd = "private static IntPtr NormalizeRootWindow";
         int start = source.IndexOf(methodStart, StringComparison.Ordinal);
@@ -42,7 +41,7 @@ public sealed class DesktopCompanionNativeContractTests
     [TestMethod]
     public void CompanionShowHandling_UsesOneOrderedTwoPhaseBatch()
     {
-        string source = ReadProjectFile("MainWindow.DesktopHost.cs");
+        string source = TestProjectFiles.ReadSource("MainWindow.DesktopHost.cs");
 
         StringAssert.Contains(
             source,
@@ -65,7 +64,7 @@ public sealed class DesktopCompanionNativeContractTests
     [TestMethod]
     public void CompanionSizing_UsesPerMonitorCoverageBeforeVirtualDesktopFallback()
     {
-        string source = ReadProjectFile("NativeMethods.DesktopLayer.cs");
+        string source = TestProjectFiles.ReadSource("NativeMethods.DesktopLayer.cs");
 
         StringAssert.Contains(
             source,
@@ -74,12 +73,5 @@ public sealed class DesktopCompanionNativeContractTests
         StringAssert.Contains(
             source,
             "(double)desktopWidth * desktopHeight");
-    }
-
-    private static string ReadProjectFile(
-        string fileName)
-    {
-        string projectRoot = TestProjectFiles.Root;
-        return File.ReadAllText(Path.Combine(projectRoot, fileName));
     }
 }

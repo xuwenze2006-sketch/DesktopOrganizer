@@ -30,7 +30,6 @@ public sealed class SimpleInputDialogUiContractTests
 
     private static XDocument LoadSimpleInputDialogXaml()
     {
-        string projectRoot = TestProjectFiles.Root;
-        return XDocument.Load(Path.Combine(projectRoot, "SimpleInputDialog.xaml"));
+        return XDocument.Load(TestProjectFiles.SourcePath("SimpleInputDialog.xaml"));
     }
 }

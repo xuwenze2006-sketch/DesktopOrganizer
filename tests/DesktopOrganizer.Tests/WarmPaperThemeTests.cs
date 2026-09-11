@@ -104,7 +104,6 @@ public sealed class WarmPaperThemeTests
 
     private static XDocument LoadMainWindowXaml()
     {
-        string projectRoot = TestProjectFiles.Root;
-        return XDocument.Load(Path.Combine(projectRoot, "MainWindow.xaml"));
+        return XDocument.Load(TestProjectFiles.SourcePath("MainWindow.xaml"));
     }
 }

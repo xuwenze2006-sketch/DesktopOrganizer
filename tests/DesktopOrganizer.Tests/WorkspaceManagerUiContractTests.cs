@@ -328,7 +328,6 @@ public sealed class WorkspaceManagerUiContractTests
 
     private static XDocument LoadWorkspaceManagerXaml()
     {
-        string projectRoot = TestProjectFiles.Root;
-        return XDocument.Load(Path.Combine(projectRoot, "WorkspaceManagerWindow.xaml"));
+        return XDocument.Load(TestProjectFiles.SourcePath("WorkspaceManagerWindow.xaml"));
     }
 }

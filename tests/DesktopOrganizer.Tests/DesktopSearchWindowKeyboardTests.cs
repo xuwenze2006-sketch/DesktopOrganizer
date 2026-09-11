@@ -295,7 +295,6 @@ public sealed class DesktopSearchWindowKeyboardTests
 
     private static XDocument LoadSearchWindowXaml()
     {
-        string projectRoot = TestProjectFiles.Root;
-        return XDocument.Load(Path.Combine(projectRoot, "DesktopSearchWindow.xaml"));
+        return XDocument.Load(TestProjectFiles.SourcePath("DesktopSearchWindow.xaml"));
     }
 }

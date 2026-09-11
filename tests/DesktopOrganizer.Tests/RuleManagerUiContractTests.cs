@@ -511,7 +511,6 @@ public sealed class RuleManagerUiContractTests
 
     private static XDocument LoadRuleManagerXaml()
     {
-        string projectRoot = TestProjectFiles.Root;
-        return XDocument.Load(Path.Combine(projectRoot, "RuleManagerWindow.xaml"));
+        return XDocument.Load(TestProjectFiles.SourcePath("RuleManagerWindow.xaml"));
     }
 }

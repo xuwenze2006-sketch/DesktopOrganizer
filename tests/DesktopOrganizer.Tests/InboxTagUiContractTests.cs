@@ -38,7 +38,6 @@ public sealed class InboxTagUiContractTests
 
     private static XDocument LoadInboxWindowXaml()
     {
-        string projectRoot = TestProjectFiles.Root;
-        return XDocument.Load(Path.Combine(projectRoot, "InboxWindow.xaml"));
+        return XDocument.Load(TestProjectFiles.SourcePath("InboxWindow.xaml"));
     }
 }

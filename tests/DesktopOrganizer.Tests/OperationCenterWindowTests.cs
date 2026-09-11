@@ -338,7 +338,6 @@ public sealed class OperationCenterWindowTests
 
     private static XDocument LoadOperationCenterXaml()
     {
-        string projectRoot = TestProjectFiles.Root;
-        return XDocument.Load(Path.Combine(projectRoot, "OperationCenterWindow.xaml"));
+        return XDocument.Load(TestProjectFiles.SourcePath("OperationCenterWindow.xaml"));
     }
 }
