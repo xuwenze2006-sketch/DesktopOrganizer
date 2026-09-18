@@ -21,7 +21,9 @@
 | `src/Persistence/` | 布局持久化、桌面路径解析、启动项、托盘与诊断 |
 | `src/ShellInterop/` | `NativeMethods` 系列 P/Invoke 与 Shell 图标/命名空间互操作 |
 | `docs/` | 架构、变更日志、实机清单、开源参考与历史报告 |
-| `scripts/` | 构建、发布与测试脚本 |
+| `scripts/` | 构建、发布、测试与工作区维护脚本 |
+
+本地构建缓存、素材工作文件及历史发布产物的维护方式见 [WORKSPACE.md](WORKSPACE.md)。
 
 ## 整理前后的路径映射
 
