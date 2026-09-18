@@ -5,6 +5,7 @@ obj/
 # Local publish and CI output
 release/
 artifacts/
+.ua/
 TestResults/
 
 # Test and coverage output
