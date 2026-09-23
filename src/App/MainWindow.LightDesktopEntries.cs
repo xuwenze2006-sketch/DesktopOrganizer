@@ -102,56 +102,94 @@ namespace DesktopOrganizer
             var entries = _appLayout.Groups.Where(IsLightDesktopEntry).ToList();
             if (entries.Count > 0)
             {
-                double left = entries.Min(group => group.X), top = entries.Min(group => group.Y);
-                double right = entries.Max(group => group.X + GetGroupDisplayWidth(group));
-                double bottom = entries.Max(group => group.Y + GroupHeaderHeight);
-                // 用户手动分散入口后不再铺一张巨大的底板。
-                if (right - left <= LightDesktopLayoutPolicy.ColumnWidth + 1)
+                // 保留最多入口组成的双列区域；单个入口拖远时不能连原底板一起消失。
+                double maxSectionHeight = Math.Ceiling(entries.Count / 2.0) *
+                    (GroupHeaderHeight + LightDesktopLayoutPolicy.EntryGap) + GroupHeaderHeight;
+                GroupInfo? homeProject = _appLayout.Groups.FirstOrDefault(group =>
+                    group.DesktopRole == DesktopZoneRole.Projects && !group.IsSizeLocked);
+                double homeX = homeProject?.X ?? entries.Min(group => group.X);
+                double homeY = homeProject == null
+                    ? entries.Min(group => group.Y)
+                    : homeProject.Y + homeProject.Height + 24;
+                // 左上入口可能正是被拖走的那个，X 和 Y 需要分别取候选坐标。
+                var sectionEntries = entries.Select(group => group.X).Distinct()
+                    .SelectMany(x => entries.Select(group => group.Y).Distinct()
+                        .Select(y => entries.Where(group =>
+                            group.X >= x - 0.5 &&
+                            group.X + GetGroupDisplayWidth(group) <=
+                            x + LightDesktopLayoutPolicy.ColumnWidth + 1 &&
+                            group.Y >= y - 0.5 &&
+                            group.Y + GroupHeaderHeight <= y + maxSectionHeight + 1).ToList()))
+                    .OrderByDescending(cluster => cluster.Count)
+                    .ThenBy(cluster => Math.Abs(cluster.Min(group => group.X) - homeX) +
+                        Math.Abs(cluster.Min(group => group.Y) - homeY))
+                    .ThenBy(cluster => cluster.Min(group => group.X))
+                    .First();
+                double left = sectionEntries.Min(group => group.X), top = sectionEntries.Min(group => group.Y);
+                double right = sectionEntries.Max(group => group.X + GetGroupDisplayWidth(group));
+                double bottom = sectionEntries.Max(group => group.Y + GroupHeaderHeight);
+                // sectionEntries 已按横向和纵向范围筛选；重复比较宽度会因小数坐标误差跳过整个底板。
+                double sectionTop = top - 24;
+                double sectionWidth = right - left;
+                Thickness sectionBorder = new(0);
+                Brush? sectionBorderBrush = null;
+                bool draggingEntry = _groupDragMoved && _draggedGroup != null && entries.Contains(_draggedGroup);
+                GroupInfo? project = _appLayout.Groups.FirstOrDefault(group =>
+                    group.DesktopRole == DesktopZoneRole.Projects && !group.IsCollapsed && !group.IsSizeLocked &&
+                    !draggingEntry && !(_groupDragMoved && _draggedGroup == group) &&
+                    Math.Abs(group.X - left) < 0.5 && Math.Abs(group.Width - sectionWidth) < 0.5 &&
+                    Math.Abs(group.Y + group.Height - sectionTop) < 0.5);
+                bool joined = project != null && _groupPeekVisuals.ContainsKey(project.Id);
+                if (joined)
                 {
-                    double sectionTop = top - 24;
-                    double sectionWidth = right - left;
-                    Thickness sectionBorder = new(0);
-                    Brush? sectionBorderBrush = null;
-                    bool draggingEntry = _groupDragMoved && _draggedGroup != null && entries.Contains(_draggedGroup);
-                    GroupInfo? project = _appLayout.Groups.FirstOrDefault(group =>
-                        group.DesktopRole == DesktopZoneRole.Projects && !group.IsCollapsed && !group.IsSizeLocked &&
-                        !draggingEntry && !(_groupDragMoved && _draggedGroup == group) &&
-                        Math.Abs(group.X - left) < 0.5 && Math.Abs(group.Width - sectionWidth) < 0.5 &&
-                        Math.Abs(group.Y + group.Height - sectionTop) < 0.5);
-                    bool joined = project != null && _groupPeekVisuals.ContainsKey(project.Id);
-                    if (joined)
+                    GroupPeekVisualRegistration registration = _groupPeekVisuals[project!.Id];
+                    _joinedLightDesktopProject = registration.Container;
+                    _joinedLightDesktopProject.CornerRadius = new CornerRadius(11, 11, 0, 0);
+                    // Outer 的固定尺寸外还有边框；只调整底板，保持图标和入口坐标不变。
+                    Thickness border = registration.Container.BorderThickness;
+                    sectionBorder = new Thickness(border.Left, 0, border.Right, border.Bottom);
+                    sectionBorderBrush = registration.Container.BorderBrush;
+                    // 底板略托入底部留白，避免缩放取整后透明边框透出壁纸。
+                    sectionTop = project.Y + registration.Outer.Height;
+                }
+                var section = new Border { Width = sectionWidth, Height = bottom - sectionTop,
+                    Background = LightDesktopSurfaceBrush,
+                    BorderThickness = sectionBorder, BorderBrush = sectionBorderBrush,
+                    CornerRadius = joined ? new CornerRadius(0, 0, 11, 11) : new CornerRadius(11),
+                    IsHitTestVisible = false, SnapsToDevicePixels = true };
+                if (joined)
+                {
+                    // ActualWidth 包含 DPI 取整后的边框，不能用两个名义上的 1 DIP 推算。
+                    section.SetBinding(WidthProperty, new System.Windows.Data.Binding(nameof(ActualWidth))
+                        { Source = _joinedLightDesktopProject });
+                    section.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding(nameof(Border.BorderBrush))
+                        { Source = _joinedLightDesktopProject });
+                }
+                var heading = new TextBlock { Text = "其他分类", FontSize = 10,
+                    Foreground = WarmPaperTheme.SecondaryTextBrush,
+                    Margin = new Thickness(11 - sectionBorder.Left, 5, 0, 0) };
+                section.Child = heading;
+                Canvas.SetLeft(section, left); Canvas.SetTop(section, sectionTop);
+                Panel.SetZIndex(section, GroupNormalZIndex - 1);
+                _lightDesktopDecorations.Add(section);
+                IconCanvas.Children.Add(section);
+
+                // 离开双列区域的入口各自保留浅色承载，避免直接裸露在壁纸上。
+                var sectionIds = sectionEntries.Select(group => group.Id)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (GroupInfo group in entries.Where(group => !sectionIds.Contains(group.Id)))
+                {
+                    var surface = new Border
                     {
-                        GroupPeekVisualRegistration registration = _groupPeekVisuals[project!.Id];
-                        _joinedLightDesktopProject = registration.Container;
-                        _joinedLightDesktopProject.CornerRadius = new CornerRadius(11, 11, 0, 0);
-                        // Outer 的固定尺寸外还有边框；只调整底板，保持图标和入口坐标不变。
-                        Thickness border = registration.Container.BorderThickness;
-                        sectionBorder = new Thickness(border.Left, 0, border.Right, border.Bottom);
-                        sectionBorderBrush = registration.Container.BorderBrush;
-                        // 底板略托入底部留白，避免缩放取整后透明边框透出壁纸。
-                        sectionTop = project.Y + registration.Outer.Height;
-                    }
-                    var section = new Border { Width = sectionWidth, Height = bottom - sectionTop,
+                        Width = GetGroupDisplayWidth(group), Height = GroupHeaderHeight,
                         Background = LightDesktopSurfaceBrush,
-                        BorderThickness = sectionBorder, BorderBrush = sectionBorderBrush,
-                        CornerRadius = joined ? new CornerRadius(0, 0, 11, 11) : new CornerRadius(11),
-                        IsHitTestVisible = false, SnapsToDevicePixels = true };
-                    if (joined)
-                    {
-                        // ActualWidth 包含 DPI 取整后的边框，不能用两个名义上的 1 DIP 推算。
-                        section.SetBinding(WidthProperty, new System.Windows.Data.Binding(nameof(ActualWidth))
-                            { Source = _joinedLightDesktopProject });
-                        section.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding(nameof(Border.BorderBrush))
-                            { Source = _joinedLightDesktopProject });
-                    }
-                    var heading = new TextBlock { Text = "其他分类", FontSize = 10,
-                        Foreground = WarmPaperTheme.SecondaryTextBrush,
-                        Margin = new Thickness(11 - sectionBorder.Left, 5, 0, 0) };
-                    section.Child = heading;
-                    Canvas.SetLeft(section, left); Canvas.SetTop(section, sectionTop);
-                    Panel.SetZIndex(section, GroupNormalZIndex - 1);
-                    _lightDesktopDecorations.Add(section);
-                    IconCanvas.Children.Add(section);
+                        CornerRadius = new CornerRadius(7),
+                        IsHitTestVisible = false, SnapsToDevicePixels = true
+                    };
+                    Canvas.SetLeft(surface, group.X); Canvas.SetTop(surface, group.Y);
+                    Panel.SetZIndex(surface, GroupNormalZIndex - 1);
+                    _lightDesktopDecorations.Add(surface);
+                    IconCanvas.Children.Add(surface);
                 }
             }
         }

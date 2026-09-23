@@ -138,6 +138,99 @@ public sealed class LightDesktopLayoutTests
     }
 
     [STATestMethod]
+    [DataRow("图片", 120.0, 0.0)]
+    [DataRow("图片", 0.0, 300.0)]
+    [DataRow("图片", -180.0, 0.0)]
+    [DataRow("文档", 0.0, 130.0)]
+    [DataRow("文档", 400.0, 0.0)]
+    public void DraggingOneOtherEntry_KeepsOtherEntriesOnSection_AndMovedEntryOnSurface(
+        string movedName, double changeX, double changeY)
+    {
+        using var f = new Fixture();
+        GroupInfo moved = f.Group(movedName);
+        GroupInfo[] remaining = f.Layout.Groups
+            .Where(group => group.DesktopRole == DesktopZoneRole.Other && group != moved)
+            .ToArray();
+        var originalPositions = remaining.ToDictionary(group => group.Id,
+            group => new Point(group.X, group.Y));
+        Point start = new(moved.X, moved.Y);
+        Border anchor = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[moved.Id];
+        f.SetField("_draggedElement", anchor);
+        f.SetField("_draggedGroup", moved);
+        f.SetField("_draggedIsGroup", true);
+        f.SetField("_groupDragMoved", true);
+        f.SetField("_groupDragStartPosition", start);
+        Canvas.SetLeft(anchor, moved.X + changeX);
+        Canvas.SetTop(anchor, moved.Y + changeY);
+
+        f.Invoke("CompleteGroupDrag", true);
+        f.Measure();
+        Assert.AreEqual(start.X + changeX, moved.X);
+        Assert.AreEqual(start.Y + changeY, moved.Y);
+        foreach (GroupInfo group in remaining)
+            Assert.AreEqual(originalPositions[group.Id], new Point(group.X, group.Y));
+        AssertSurfaces();
+
+        f.Invoke("RebuildDesktopIcons");
+        f.Measure();
+        AssertSurfaces();
+        f.Render($"light-desktop-entry-detached-{movedName}-{changeX}-{changeY}.png");
+
+        void AssertSurfaces()
+        {
+            Border[] decorations = f.Field<List<FrameworkElement>>("_lightDesktopDecorations")
+                .OfType<Border>().ToArray();
+            Border? section = decorations.SingleOrDefault(border =>
+                border.Child is TextBlock { Text: "其他分类" });
+            Assert.IsNotNull(section, "其余入口仍应保留带标题的浅色底板。");
+            Assert.IsInstanceOfType<SolidColorBrush>(section.Background);
+            foreach (GroupInfo group in remaining)
+            {
+                Border entry = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[group.Id];
+                Assert.IsTrue(group.X >= Canvas.GetLeft(section) - 0.01 &&
+                    group.X + LightDesktopLayoutPolicy.EntryWidth <=
+                    Canvas.GetLeft(section) + section.ActualWidth + 0.01 &&
+                    group.Y >= Canvas.GetTop(section) - 0.01 &&
+                    group.Y + entry.ActualHeight <= Canvas.GetTop(section) + section.ActualHeight + 0.01,
+                    $"“{group.Name}”应仍在其他分类底板内。");
+            }
+
+            Border? movedSurface = decorations.SingleOrDefault(border =>
+                !ReferenceEquals(border, section) &&
+                Math.Abs(Canvas.GetLeft(border) - moved.X) < 0.01 &&
+                Math.Abs(Canvas.GetTop(border) - moved.Y) < 0.01);
+            Assert.IsNotNull(movedSurface, "被拖离的入口也需要独立浅色承载。");
+            Assert.IsInstanceOfType<SolidColorBrush>(movedSurface.Background);
+        }
+    }
+
+    [STATestMethod]
+    public void FractionalEntryPositions_DoNotLeaveEveryEntryWithoutASurface()
+    {
+        using var f = new Fixture();
+        f.Group("文档").X += 0.4;
+        f.Group("图片").X += 1.3;
+
+        f.Invoke("RefreshLightDesktopEntries");
+        f.Measure();
+
+        Border[] surfaces = f.Field<List<FrameworkElement>>("_lightDesktopDecorations")
+            .OfType<Border>().ToArray();
+        Assert.IsNotEmpty(surfaces, "小数坐标不能让整个其他分类区域失去背景。");
+        foreach (GroupInfo group in f.Layout.Groups.Where(group =>
+                     group.DesktopRole == DesktopZoneRole.Other))
+        {
+            Border entry = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[group.Id];
+            Point center = new(group.X + LightDesktopLayoutPolicy.EntryWidth / 2,
+                group.Y + entry.ActualHeight / 2);
+            Assert.IsTrue(surfaces.Any(surface =>
+                new Rect(Canvas.GetLeft(surface), Canvas.GetTop(surface),
+                    surface.ActualWidth, surface.ActualHeight).Contains(center)),
+                $"“{group.Name}”入口应处于浅色背景上。");
+        }
+    }
+
+    [STATestMethod]
     public void ItemCountAndRename_DoNotChangeColumnsViewportOrAnchors()
     {
         using var f = new Fixture();
