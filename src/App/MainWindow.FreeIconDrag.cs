@@ -294,7 +294,8 @@ namespace DesktopOrganizer
                 foreach (FrameworkElement? candidate in new[] { visual, entry })
                 {
                     if (candidate == null || !candidate.IsVisible || Panel.GetZIndex(candidate) < nextZIndex ||
-                        !TryGetElementBoundsOnCanvas(candidate, out Rect bounds) || !bounds.Contains(canvasPoint)) continue;
+                        !TryGetElementBoundsOnCanvas(candidate, out Rect bounds) || !bounds.Contains(canvasPoint) ||
+                        !IsPointInsideClippedAncestors(candidate, canvasPoint)) continue;
                     nextVisual = candidate;
                     nextGroup = group;
                     nextZIndex = Panel.GetZIndex(candidate);

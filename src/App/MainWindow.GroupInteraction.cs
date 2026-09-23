@@ -3,6 +3,7 @@ namespace DesktopOrganizer
 {
     public partial class MainWindow
     {
+        private Point? _groupDragLastCanvasPoint;
         private void GroupHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (sender is not FrameworkElement header ||
@@ -62,27 +63,34 @@ namespace DesktopOrganizer
                 return;
             }
 
-            UIElement? container = FindGroupContainer(header);
+            UIElement? container = IsLightDesktopEntry(group) && _lightDesktopEntries.TryGetValue(group.Id, out Border? entry)
+                ? entry : FindGroupContainer(header);
             if (container == null)
             {
                 return;
             }
 
             ClearPendingIconDrag();
+            // 提升入口会更换视觉父节点；布局刷新前必须沿用按下时的入口内偏移，避免首帧跳动。
+            Point dragStartOffset = e.GetPosition(container);
+            if (IsLightDesktopEntry(group) && container is Border entryBorder)
+                PromoteOtherCategoryEntryForDrag(entryBorder);
             _draggedElement = container;
             _draggedGroup = group;
             _draggedIsGroup = true;
             _groupDragCaptureElement = header;
             _groupDragStartPosition = new Point(group.X, group.Y);
             _groupDragMouseDownCanvasPoint = e.GetPosition(IconCanvas);
+            _groupDragLastCanvasPoint = _groupDragMouseDownCanvasPoint;
             _groupDragMoved = false;
-            _dragStartOffset = e.GetPosition(container);
+            _dragStartOffset = dragStartOffset;
 
             // 必须由接收 Move/Up 事件的标题栏捕获鼠标，而不是外层分组容器。
             // 这样即使光标移出标题栏，拖动仍能连续进行。
             if (!Mouse.Capture(header, CaptureMode.Element))
             {
                 ResetGroupDragState();
+                RefreshLightDesktopEntries();
                 return;
             }
 
@@ -124,6 +132,7 @@ namespace DesktopOrganizer
             }
 
             Point canvasPosition = e.GetPosition(IconCanvas);
+            _groupDragLastCanvasPoint = canvasPosition;
             if (!_groupDragMoved)
             {
                 double deltaX = canvasPosition.X - _groupDragMouseDownCanvasPoint.X;
@@ -144,6 +153,8 @@ namespace DesktopOrganizer
             ClampGroupCoordinates(_draggedGroup, ref left, ref top);
             Canvas.SetLeft(_draggedElement, left);
             Canvas.SetTop(_draggedElement, top);
+            if (_draggedGroup.DesktopRole == DesktopZoneRole.None && IsPointInOtherCategories(canvasPosition))
+                StatusText.Text = "松开可移入其他分类";
             e.Handled = true;
         }
 
@@ -154,6 +165,7 @@ namespace DesktopOrganizer
                 return;
             }
 
+            _groupDragLastCanvasPoint = e.GetPosition(IconCanvas);
             CompleteGroupDrag(commit: _groupDragMoved);
             e.Handled = true;
         }
@@ -198,6 +210,9 @@ namespace DesktopOrganizer
             {
                 _isCompletingGroupDrag = false;
             }
+
+            if (draggedGroup != null && CompleteOtherCategoryDrag(draggedGroup, draggedElement, commit && moved))
+                return;
 
             if (draggedGroup != null)
             {
@@ -253,6 +268,7 @@ namespace DesktopOrganizer
             _draggedIsGroup = false;
             _groupDragCaptureElement = null;
             _groupDragMoved = false;
+            _groupDragLastCanvasPoint = null;
         }
 
         private UIElement? FindGroupContainer(DependencyObject start)
@@ -432,7 +448,9 @@ namespace DesktopOrganizer
                 }
             }
 
+            Point? otherOrigin = IsLightDesktopEntry(group) ? GetOtherCategoryOrigin() : null;
             _appLayout.Groups.Remove(group);
+            if (otherOrigin is Point origin) ReflowOtherCategoryAnchors(origin);
             _lastSmartLayoutSnapshot = null;
             UndoSmartLayoutButton.IsEnabled = false;
             RebuildDesktopIconsAndSaveLayout();

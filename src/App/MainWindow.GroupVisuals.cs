@@ -456,6 +456,15 @@ namespace DesktopOrganizer
             groupMenu.Items.Add(collapseItem);
             groupMenu.Items.Add(toggleAllGroupsItem);
             groupMenu.Items.Add(autoFitItem);
+            var otherCategoriesItem = new MenuItem
+            {
+                Header = IsLightDesktopEntry(group) ? "移出其他分类" : "移入其他分类",
+                IsEnabled = _appLayout.IsEditMode,
+                Visibility = IsLightDesktopEntry(group) || group.DesktopRole == DesktopZoneRole.None
+                    ? Visibility.Visible : Visibility.Collapsed
+            };
+            otherCategoriesItem.Click += (_, _) => SetOtherCategoryMembership(group, !IsLightDesktopEntry(group));
+            groupMenu.Items.Add(otherCategoriesItem);
             groupMenu.Items.Add(sortMenu);
             groupMenu.Items.Add(selectionSeparator);
             groupMenu.Items.Add(toggleGroupSelectionItem);

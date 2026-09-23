@@ -7,13 +7,15 @@ namespace DesktopOrganizer
         private readonly Dictionary<string, Border> _lightDesktopEntries = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<FrameworkElement> _lightDesktopDecorations = new();
         private Border? _joinedLightDesktopProject;
+        private Border? _lightDesktopSection;
+        private ScrollViewer? _lightDesktopSectionScroll;
         private string? _lightDesktopDrawerId;
         private long _lightDesktopDrawerGeneration;
 
         private void RefreshLightDesktopEntries()
         {
             foreach (FrameworkElement visual in _lightDesktopEntries.Values)
-                IconCanvas.Children.Remove(visual);
+                (VisualTreeHelper.GetParent(visual) as Panel)?.Children.Remove(visual);
             _lightDesktopEntries.Clear();
             var entries = _appLayout.Groups.Where(IsLightDesktopEntry).ToList();
             if (!entries.Any(group => group.Id == _lightDesktopDrawerId))
@@ -65,7 +67,7 @@ namespace DesktopOrganizer
                     editGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
                     editGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     var handle = new Border { Name = "LightDesktopEntryDragHandle", Tag = group,
-                        Background = MediaBrushes.Transparent, Cursor = Cursors.SizeAll, ToolTip = "拖动分类入口",
+                        Background = MediaBrushes.Transparent, Cursor = Cursors.SizeAll, ToolTip = "拖出其他分类可恢复独立分组",
                         Child = new TextBlock { Text = "⠿", VerticalAlignment = VerticalAlignment.Center,
                             Foreground = WarmPaperTheme.SecondaryTextBrush } };
                     handle.PreviewMouseLeftButtonDown += GroupHeader_MouseLeftButtonDown;
@@ -91,6 +93,9 @@ namespace DesktopOrganizer
 
         private void RefreshLightDesktopSection()
         {
+            double scrollOffset = _lightDesktopSectionScroll?.VerticalOffset ?? 0;
+            _lightDesktopSectionScroll = null;
+            _lightDesktopSection = null;
             if (_joinedLightDesktopProject != null)
             {
                 _joinedLightDesktopProject.CornerRadius = new CornerRadius(11);
@@ -99,44 +104,25 @@ namespace DesktopOrganizer
             foreach (FrameworkElement visual in _lightDesktopDecorations)
                 IconCanvas.Children.Remove(visual);
             _lightDesktopDecorations.Clear();
-            var entries = _appLayout.Groups.Where(IsLightDesktopEntry).ToList();
+            var entries = GetOtherCategoryEntries();
             if (entries.Count > 0)
             {
-                // 保留最多入口组成的双列区域；单个入口拖远时不能连原底板一起消失。
-                double maxSectionHeight = Math.Ceiling(entries.Count / 2.0) *
-                    (GroupHeaderHeight + LightDesktopLayoutPolicy.EntryGap) + GroupHeaderHeight;
-                GroupInfo? homeProject = _appLayout.Groups.FirstOrDefault(group =>
-                    group.DesktopRole == DesktopZoneRole.Projects && !group.IsSizeLocked);
-                double homeX = homeProject?.X ?? entries.Min(group => group.X);
-                double homeY = homeProject == null
-                    ? entries.Min(group => group.Y)
-                    : homeProject.Y + homeProject.Height + 24;
-                // 左上入口可能正是被拖走的那个，X 和 Y 需要分别取候选坐标。
-                var sectionEntries = entries.Select(group => group.X).Distinct()
-                    .SelectMany(x => entries.Select(group => group.Y).Distinct()
-                        .Select(y => entries.Where(group =>
-                            group.X >= x - 0.5 &&
-                            group.X + GetGroupDisplayWidth(group) <=
-                            x + LightDesktopLayoutPolicy.ColumnWidth + 1 &&
-                            group.Y >= y - 0.5 &&
-                            group.Y + GroupHeaderHeight <= y + maxSectionHeight + 1).ToList()))
-                    .OrderByDescending(cluster => cluster.Count)
-                    .ThenBy(cluster => Math.Abs(cluster.Min(group => group.X) - homeX) +
-                        Math.Abs(cluster.Min(group => group.Y) - homeY))
-                    .ThenBy(cluster => cluster.Min(group => group.X))
-                    .First();
-                double left = sectionEntries.Min(group => group.X), top = sectionEntries.Min(group => group.Y);
-                double right = sectionEntries.Max(group => group.X + GetGroupDisplayWidth(group));
-                double bottom = sectionEntries.Max(group => group.Y + GroupHeaderHeight);
-                // sectionEntries 已按横向和纵向范围筛选；重复比较宽度会因小数坐标误差跳过整个底板。
+                Point origin = GetOtherCategoryOrigin();
+                double left = origin.X, top = origin.Y;
                 double sectionTop = top - 24;
-                double sectionWidth = right - left;
+                double sectionWidth = LightDesktopLayoutPolicy.ColumnWidth;
+                int rows = (entries.Count + 1) / 2;
+                double rowHeight = GroupHeaderHeight + LightDesktopLayoutPolicy.EntryGap;
+                double contentHeight = rows * rowHeight - LightDesktopLayoutPolicy.EntryGap;
+                Rect work = GetMonitorForItemRect(new Rect(left, sectionTop, sectionWidth, 24)).WorkArea;
+                double viewportHeight = Math.Min(contentHeight, Math.Min(
+                    LightDesktopLayoutPolicy.EntryVisibleRows * rowHeight - LightDesktopLayoutPolicy.EntryGap,
+                    Math.Max(GroupHeaderHeight, work.Bottom - top - 8)));
                 Thickness sectionBorder = new(0);
                 Brush? sectionBorderBrush = null;
-                bool draggingEntry = _groupDragMoved && _draggedGroup != null && entries.Contains(_draggedGroup);
                 GroupInfo? project = _appLayout.Groups.FirstOrDefault(group =>
                     group.DesktopRole == DesktopZoneRole.Projects && !group.IsCollapsed && !group.IsSizeLocked &&
-                    !draggingEntry && !(_groupDragMoved && _draggedGroup == group) &&
+                    !(_groupDragMoved && _draggedGroup == group) &&
                     Math.Abs(group.X - left) < 0.5 && Math.Abs(group.Width - sectionWidth) < 0.5 &&
                     Math.Abs(group.Y + group.Height - sectionTop) < 0.5);
                 bool joined = project != null && _groupPeekVisuals.ContainsKey(project.Id);
@@ -152,11 +138,11 @@ namespace DesktopOrganizer
                     // 底板略托入底部留白，避免缩放取整后透明边框透出壁纸。
                     sectionTop = project.Y + registration.Outer.Height;
                 }
-                var section = new Border { Width = sectionWidth, Height = bottom - sectionTop,
+                var section = new Border { Width = sectionWidth, Height = top - sectionTop + viewportHeight + sectionBorder.Bottom,
                     Background = LightDesktopSurfaceBrush,
                     BorderThickness = sectionBorder, BorderBrush = sectionBorderBrush,
                     CornerRadius = joined ? new CornerRadius(0, 0, 11, 11) : new CornerRadius(11),
-                    IsHitTestVisible = false, SnapsToDevicePixels = true };
+                    ClipToBounds = true, SnapsToDevicePixels = true };
                 if (joined)
                 {
                     // ActualWidth 包含 DPI 取整后的边框，不能用两个名义上的 1 DIP 推算。
@@ -168,29 +154,47 @@ namespace DesktopOrganizer
                 var heading = new TextBlock { Text = "其他分类", FontSize = 10,
                     Foreground = WarmPaperTheme.SecondaryTextBrush,
                     Margin = new Thickness(11 - sectionBorder.Left, 5, 0, 0) };
-                section.Child = heading;
+                var body = new Grid();
+                body.RowDefinitions.Add(new RowDefinition { Height = new GridLength(top - sectionTop) });
+                body.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                body.Children.Add(heading);
+                var items = new Grid { Height = contentHeight };
+                items.ColumnDefinitions.Add(new ColumnDefinition());
+                items.ColumnDefinitions.Add(new ColumnDefinition());
+                for (int row = 0; row < rows; row++)
+                    items.RowDefinitions.Add(new RowDefinition { Height = new GridLength(rowHeight) });
+                for (int index = 0; index < entries.Count; index++)
+                {
+                    if (!_lightDesktopEntries.TryGetValue(entries[index].Id, out Border? anchor) ||
+                        ReferenceEquals(anchor, _draggedElement)) continue;
+                    (VisualTreeHelper.GetParent(anchor) as Panel)?.Children.Remove(anchor);
+                    anchor.Width = double.NaN;
+                    anchor.VerticalAlignment = VerticalAlignment.Top;
+                    anchor.Margin = new Thickness(index % 2 == 0 ? 0 : LightDesktopLayoutPolicy.EntryGap / 2,
+                        0, index % 2 == 0 ? LightDesktopLayoutPolicy.EntryGap / 2 : 0, 0);
+                    Grid.SetColumn(anchor, index % 2); Grid.SetRow(anchor, index / 2);
+                    items.Children.Add(anchor);
+                }
+                var scroll = new ScrollViewer { Content = items, CanContentScroll = false,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    PanningMode = PanningMode.VerticalOnly, ClipToBounds = true, Focusable = false,
+                    Style = TryFindResource("GroupScrollViewerStyle") as Style };
+                Grid.SetRow(scroll, 1); body.Children.Add(scroll);
+                section.Child = body;
                 Canvas.SetLeft(section, left); Canvas.SetTop(section, sectionTop);
-                Panel.SetZIndex(section, GroupNormalZIndex - 1);
+                Panel.SetZIndex(section, GroupNormalZIndex);
                 _lightDesktopDecorations.Add(section);
                 IconCanvas.Children.Add(section);
-
-                // 离开双列区域的入口各自保留浅色承载，避免直接裸露在壁纸上。
-                var sectionIds = sectionEntries.Select(group => group.Id)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                foreach (GroupInfo group in entries.Where(group => !sectionIds.Contains(group.Id)))
+                _lightDesktopSection = section;
+                _lightDesktopSectionScroll = scroll;
+                scroll.ScrollChanged += (_, _) =>
                 {
-                    var surface = new Border
-                    {
-                        Width = GetGroupDisplayWidth(group), Height = GroupHeaderHeight,
-                        Background = LightDesktopSurfaceBrush,
-                        CornerRadius = new CornerRadius(7),
-                        IsHitTestVisible = false, SnapsToDevicePixels = true
-                    };
-                    Canvas.SetLeft(surface, group.X); Canvas.SetTop(surface, group.Y);
-                    Panel.SetZIndex(surface, GroupNormalZIndex - 1);
-                    _lightDesktopDecorations.Add(surface);
-                    IconCanvas.Children.Add(surface);
-                }
+                    if (ReferenceEquals(scroll, _lightDesktopSectionScroll) && _lightDesktopDrawerId is string id &&
+                        _groupPeekVisuals.TryGetValue(id, out GroupPeekVisualRegistration? openDrawer))
+                        ApplyLightDesktopDrawerPresentation(openDrawer, true);
+                };
+                scroll.ScrollToVerticalOffset(scrollOffset);
             }
         }
 
@@ -204,6 +208,14 @@ namespace DesktopOrganizer
         {
             StopGroupPeek();
             if (_organizerPaused || !_groupPeekVisuals.ContainsKey(group.Id)) return;
+            if (_lightDesktopSectionScroll is ScrollViewer scroll)
+            {
+                int index = GetOtherCategoryEntries().IndexOf(group);
+                double rowTop = index / 2 * (GroupHeaderHeight + LightDesktopLayoutPolicy.EntryGap);
+                if (index >= 0 && (scroll.ViewportHeight <= 0 || rowTop < scroll.VerticalOffset ||
+                    rowTop + GroupHeaderHeight > scroll.VerticalOffset + scroll.ViewportHeight))
+                    scroll.ScrollToVerticalOffset(rowTop);
+            }
             _lightDesktopDrawerId = group.Id;
             _lightDesktopDrawerGeneration++;
             _activeGroupPeekId = group.Id;
@@ -221,7 +233,9 @@ namespace DesktopOrganizer
             double right = _appLayout.Groups.Where(candidate => candidate.DesktopRole != DesktopZoneRole.None &&
                 work.Contains(new Point(candidate.X, candidate.Y))).Max(candidate => GetGroupBounds(candidate).Right);
             double x = Math.Clamp(right + 12, work.Left + 8, Math.Max(work.Left + 8, work.Right - group.Width - 8));
-            double y = Math.Clamp(group.Y, work.Top + 8, Math.Max(work.Top + 8, work.Bottom - height - 8));
+            double anchorY = _lightDesktopEntries.TryGetValue(group.Id, out Border? entry) &&
+                TryGetElementBoundsOnCanvas(entry, out Rect entryBounds) ? entryBounds.Top : group.Y;
+            double y = Math.Clamp(anchorY, work.Top + 8, Math.Max(work.Top + 8, work.Bottom - height - 8));
             registration.Outer.Width = group.Width;
             registration.Outer.Height = height;
             registration.Body.Visibility = Visibility.Visible;

@@ -4,6 +4,14 @@ namespace DesktopOrganizer
     public partial class SimpleInputDialog : Window
     {
         public string ResultText { get; private set; } = string.Empty;
+        public bool IsOptionChecked => OptionCheckBox.IsChecked == true;
+
+        public void ConfigureOption(string label, bool isChecked = false)
+        {
+            OptionCheckBox.Content = label;
+            OptionCheckBox.IsChecked = isChecked;
+            OptionCheckBox.Visibility = Visibility.Visible;
+        }
 
         public SimpleInputDialog(string prompt, string defaultValue = "")
         {

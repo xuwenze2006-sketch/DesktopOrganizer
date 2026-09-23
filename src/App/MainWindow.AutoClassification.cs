@@ -7,15 +7,18 @@ namespace DesktopOrganizer
         private void NewGroupButton_Click(object sender, RoutedEventArgs e)
         {
             SimpleInputDialog dialog = CreateInputDialog("请输入分组名称：", "新分组");
+            dialog.ConfigureOption("加入其他分类", _appLayout.Groups.Any(IsLightDesktopEntry));
             if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.ResultText))
             {
                 return;
             }
 
-            AddManualGroup(dialog.ResultText.Trim());
+            AddManualGroupCore(dialog.ResultText.Trim(), dialog.IsOptionChecked);
         }
 
-        private void AddManualGroup(string name)
+        private void AddManualGroup(string name) => AddManualGroupCore(name, false);
+
+        private void AddManualGroupCore(string name, bool joinOtherCategories)
         {
             _appLayout.IsEditMode = true;
             EditModeToggle.IsChecked = true;
@@ -28,6 +31,13 @@ namespace DesktopOrganizer
                 IsSizeLocked = false
             };
             AutoFitGroup(group, clampPosition: false);
+
+            if (joinOtherCategories)
+            {
+                _appLayout.Groups.Add(group);
+                SetOtherCategoryMembership(group, true);
+                return;
+            }
 
             Point position = FindAvailableAutoGroupPosition(group.Width, GetGroupDisplayHeight(group));
             group.X = position.X;

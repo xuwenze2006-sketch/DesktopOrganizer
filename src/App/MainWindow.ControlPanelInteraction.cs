@@ -292,9 +292,10 @@ namespace DesktopOrganizer
             GroupInfo? draggedGroup = _draggedGroup;
             bool draggedWasGroup = _draggedIsGroup;
             bool groupedIconWasDetached = _groupedIconDragSourceGroup != null;
+            bool otherEntryWasDetached = draggedWasGroup && draggedGroup != null && IsLightDesktopEntry(draggedGroup);
             bool recycleWidgetWasDragging = _isRecycleBinWidgetDragging;
             bool folderPortalWasDragging = _draggedFolderPortal != null;
-            bool needsVisualRebuild = restoreDraggedVisual && groupedIconWasDetached;
+            bool needsVisualRebuild = restoreDraggedVisual && (groupedIconWasDetached || otherEntryWasDetached);
 
             if (restoreDraggedVisual && recycleWidgetWasDragging)
             {
@@ -382,6 +383,7 @@ namespace DesktopOrganizer
             _draggedIsGroup = false;
             _groupDragCaptureElement = null;
             _groupDragMoved = false;
+            _groupDragLastCanvasPoint = null;
             _groupedIconDragSourceGroup = null;
             _dragOriginalPosition = null;
             _dragAllowsLayoutMove = false;
@@ -391,7 +393,7 @@ namespace DesktopOrganizer
             _isRecycleBinWidgetDragging = false;
             _recycleBinWidgetDragMoved = false;
 
-            if (needsVisualRebuild && !_isClosing && _desktopItems.Count > 0)
+            if (needsVisualRebuild && !_isClosing && (_desktopItems.Count > 0 || otherEntryWasDetached))
             {
                 RebuildDesktopIcons();
             }

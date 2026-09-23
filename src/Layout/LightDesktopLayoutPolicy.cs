@@ -6,6 +6,7 @@ namespace DesktopOrganizer
         public const double Gap = 12;
         public const double EntryGap = 4;
         public const double EntryWidth = (ColumnWidth - EntryGap) / 2;
+        public const int EntryVisibleRows = 3;
 
         public static DesktopZoneRole ResolveRole(GroupInfo group)
         {

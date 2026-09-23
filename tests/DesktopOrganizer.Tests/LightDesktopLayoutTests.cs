@@ -138,23 +138,23 @@ public sealed class LightDesktopLayoutTests
     }
 
     [STATestMethod]
-    [DataRow("图片", 120.0, 0.0)]
-    [DataRow("图片", 0.0, 300.0)]
-    [DataRow("图片", -180.0, 0.0)]
-    [DataRow("文档", 0.0, 130.0)]
-    [DataRow("文档", 400.0, 0.0)]
-    public void DraggingOneOtherEntry_KeepsOtherEntriesOnSection_AndMovedEntryOnSurface(
-        string movedName, double changeX, double changeY)
+    [DataRow("图片", 120.0, 0.0, true)]
+    [DataRow("图片", 0.0, 300.0, true)]
+    [DataRow("图片", -180.0, 0.0, false)]
+    [DataRow("文档", 0.0, 130.0, true)]
+    [DataRow("文档", 400.0, 0.0, true)]
+    public void DraggingOneOtherEntry_KeepsSection_AndRestoresStandaloneGroupOnlyOutside(
+        string movedName, double changeX, double changeY, bool detached)
     {
         using var f = new Fixture();
         GroupInfo moved = f.Group(movedName);
         GroupInfo[] remaining = f.Layout.Groups
             .Where(group => group.DesktopRole == DesktopZoneRole.Other && group != moved)
             .ToArray();
-        var originalPositions = remaining.ToDictionary(group => group.Id,
-            group => new Point(group.X, group.Y));
+        string mainCards = JsonSerializer.Serialize(f.Layout.Groups.Where(group => group.DesktopRole != DesktopZoneRole.Other));
         Point start = new(moved.X, moved.Y);
         Border anchor = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[moved.Id];
+        f.Invoke("PromoteOtherCategoryEntryForDrag", anchor);
         f.SetField("_draggedElement", anchor);
         f.SetField("_draggedGroup", moved);
         f.SetField("_draggedIsGroup", true);
@@ -165,10 +165,11 @@ public sealed class LightDesktopLayoutTests
 
         f.Invoke("CompleteGroupDrag", true);
         f.Measure();
-        Assert.AreEqual(start.X + changeX, moved.X);
-        Assert.AreEqual(start.Y + changeY, moved.Y);
-        foreach (GroupInfo group in remaining)
-            Assert.AreEqual(originalPositions[group.Id], new Point(group.X, group.Y));
+        Assert.AreEqual(detached ? DesktopZoneRole.None : DesktopZoneRole.Other, moved.DesktopRole);
+        Assert.AreEqual(start.X + (detached ? changeX : 0), moved.X);
+        Assert.AreEqual(start.Y + (detached ? changeY : 0), moved.Y);
+        Assert.AreEqual(mainCards, JsonSerializer.Serialize(f.Layout.Groups.Where(group =>
+            group != moved && group.DesktopRole != DesktopZoneRole.Other)));
         AssertSurfaces();
 
         f.Invoke("RebuildDesktopIcons");
@@ -181,26 +182,28 @@ public sealed class LightDesktopLayoutTests
             Border[] decorations = f.Field<List<FrameworkElement>>("_lightDesktopDecorations")
                 .OfType<Border>().ToArray();
             Border? section = decorations.SingleOrDefault(border =>
-                border.Child is TextBlock { Text: "其他分类" });
+                FindChildren<TextBlock>(border).Any(text => text.Text == "其他分类"));
             Assert.IsNotNull(section, "其余入口仍应保留带标题的浅色底板。");
             Assert.IsInstanceOfType<SolidColorBrush>(section.Background);
             foreach (GroupInfo group in remaining)
             {
                 Border entry = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[group.Id];
-                Assert.IsTrue(group.X >= Canvas.GetLeft(section) - 0.01 &&
-                    group.X + LightDesktopLayoutPolicy.EntryWidth <=
+                Point position = entry.TranslatePoint(new Point(), f.Window.IconCanvas);
+                Assert.IsTrue(position.X >= Canvas.GetLeft(section) - 0.01 &&
+                    position.X + entry.ActualWidth <=
                     Canvas.GetLeft(section) + section.ActualWidth + 0.01 &&
-                    group.Y >= Canvas.GetTop(section) - 0.01 &&
-                    group.Y + entry.ActualHeight <= Canvas.GetTop(section) + section.ActualHeight + 0.01,
+                    position.Y >= Canvas.GetTop(section) - 0.01 &&
+                    position.Y + entry.ActualHeight <= Canvas.GetTop(section) + section.ActualHeight + 0.01,
                     $"“{group.Name}”应仍在其他分类底板内。");
             }
 
-            Border? movedSurface = decorations.SingleOrDefault(border =>
-                !ReferenceEquals(border, section) &&
-                Math.Abs(Canvas.GetLeft(border) - moved.X) < 0.01 &&
-                Math.Abs(Canvas.GetTop(border) - moved.Y) < 0.01);
-            Assert.IsNotNull(movedSurface, "被拖离的入口也需要独立浅色承载。");
-            Assert.IsInstanceOfType<SolidColorBrush>(movedSurface.Background);
+            if (detached)
+            {
+                Assert.IsTrue(f.Visual(moved).IsVisible, "拖出后应恢复带底板的独立分组。");
+                Assert.IsInstanceOfType<SolidColorBrush>(((Border)f.Visual(moved)).Background);
+                Assert.IsFalse(moved.IsCollapsed);
+                Assert.AreEqual(DesktopZoneRole.None, LightDesktopLayoutPolicy.ResolveRole(moved));
+            }
         }
     }
 
@@ -337,6 +340,194 @@ public sealed class LightDesktopLayoutTests
         f.Invoke("ToggleAllGroupsCollapsed");
         Assert.IsTrue(f.Layout.Groups.Where(g => g.DesktopRole == DesktopZoneRole.Other).All(g => g.IsCollapsed));
         StringAssert.Contains(f.Window.StatusText.Text, "其他分类可点击入口查看");
+    }
+
+    [STATestMethod]
+    public void CustomGroup_CanJoinAndLeaveOtherCategories_WithoutChangingItsItemsOrMainCards()
+    {
+        using var f = new Fixture();
+        f.Layout.IsEditMode = true;
+        f.Invoke("AddManualGroup", "我的资料");
+        GroupInfo custom = f.Group("我的资料");
+        f.AddItem(custom, "手动保存.txt");
+        string mainCards = JsonSerializer.Serialize(f.Layout.Groups.Where(g =>
+            g.DesktopRole is DesktopZoneRole.Shortcuts or DesktopZoneRole.Research or DesktopZoneRole.Projects));
+        f.Invoke("RebuildDesktopIcons"); f.Measure();
+        ContextMenu menu = FindChildren<Border>(f.Visual(custom))
+            .Select(border => border.ContextMenu).First(candidate => candidate != null)!;
+        menu.Items.OfType<MenuItem>().Single(item => (string)item.Header == "移入其他分类")
+            .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        f.Measure();
+        Assert.AreEqual(DesktopZoneRole.Other, custom.DesktopRole);
+        Assert.IsTrue(custom.IsCollapsed);
+        Assert.HasCount(1, custom.ItemNames);
+        Assert.IsTrue(f.Field<Dictionary<string, Border>>("_lightDesktopEntries").ContainsKey(custom.Id));
+        var restored = LayoutJsonSerializer.Deserialize(JsonSerializer.Serialize(f.Layout)).Layout;
+        Assert.AreEqual(DesktopZoneRole.Other, restored.Groups.Single(g => g.Id == custom.Id).DesktopRole);
+        var workspace = WorkspaceLayoutManager.CreateAndActivate(f.Layout, "分组归入", DateTime.UnixEpoch);
+        Assert.AreEqual(DesktopZoneRole.Other, workspace.Layout.Groups.Single(g => g.Id == custom.Id).DesktopRole);
+
+        f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[custom.Id].ContextMenu!
+            .Items.OfType<MenuItem>().Single(item => (string)item.Header == "移出其他分类")
+            .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        f.Measure();
+        Assert.AreEqual(DesktopZoneRole.None, custom.DesktopRole);
+        Assert.IsFalse(custom.IsCollapsed);
+        Assert.IsTrue(f.Visual(custom).IsVisible);
+        Assert.HasCount(1, custom.ItemNames);
+        Assert.AreEqual(mainCards, JsonSerializer.Serialize(f.Layout.Groups.Where(g =>
+            g.DesktopRole is DesktopZoneRole.Shortcuts or DesktopZoneRole.Research or DesktopZoneRole.Projects)));
+    }
+
+    [STATestMethod]
+    public void ManyOtherCategories_ScrollWithinThreeRows_AndPreserveOffsetAcrossRefresh()
+    {
+        using var f = new Fixture();
+        GroupInfo first = f.Group("文档");
+        for (int index = 0; index < 20; index++)
+            f.Layout.Groups.Add(new GroupInfo { Name = $"自定义{index}", DesktopRole = DesktopZoneRole.Other,
+                X = first.X, Y = first.Y + 84, IsCollapsed = true });
+        f.Invoke("RebuildDesktopIcons"); f.Measure();
+        Border section = f.Field<List<FrameworkElement>>("_lightDesktopDecorations").OfType<Border>().Single();
+        ScrollViewer? scroll = FindChildren<ScrollViewer>(section).SingleOrDefault();
+        Assert.IsNotNull(scroll, "其他分类内容过多时必须提供滚动视口。");
+        Assert.IsTrue(section.ActualHeight <= 160);
+        Assert.IsTrue(scroll.ScrollableHeight > 0);
+        Assert.IsTrue((bool)f.Invoke("IsInteractiveClientPoint", section.TranslatePoint(new Point(10, 10), f.Window.IconCanvas))!);
+        scroll.ScrollToEnd(); f.Measure();
+        Assert.IsTrue(scroll.VerticalOffset > 0);
+        Border last = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[f.Group("自定义19").Id];
+        Point center = last.TranslatePoint(new Point(last.ActualWidth / 2, last.ActualHeight / 2), f.Window.IconCanvas);
+        Assert.IsTrue((bool)f.Invoke("IsPointInsideClippedAncestors", last, center)!);
+        Border hidden = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[first.Id];
+        Point hiddenCenter = hidden.TranslatePoint(new Point(40, 16), f.Window.IconCanvas);
+        f.Invoke("UpdateGroupDropPreview", hiddenCenter, new Border());
+        Assert.AreNotSame(first, f.Field<GroupInfo?>("_activeGroupDropTarget"));
+        f.Invoke("UpdateGroupDropPreview", center, new Border());
+        Assert.AreSame(f.Group("自定义19"), f.Field<GroupInfo?>("_activeGroupDropTarget"));
+        double offset = scroll.VerticalOffset;
+        f.Invoke("RebuildDesktopIcons"); f.Measure();
+        section = f.Field<List<FrameworkElement>>("_lightDesktopDecorations").OfType<Border>().Single();
+        scroll = FindChildren<ScrollViewer>(section).Single();
+        Assert.AreEqual(offset, scroll.VerticalOffset, 0.01);
+        f.Render("other-categories-scrolled.png");
+        f.Window.LocateDesktopSearchResult(first.ItemNames[0]); f.Measure();
+        scroll = f.Field<ScrollViewer>("_lightDesktopSectionScroll");
+        Assert.AreEqual(0, scroll.VerticalOffset, 0.01, "搜索定位应将隐藏的分类入口滚入视口。");
+        f.Layout.Groups.RemoveAll(g => g.Name.StartsWith("自定义", StringComparison.Ordinal));
+        f.Invoke("RebuildDesktopIcons"); f.Measure();
+        section = f.Field<List<FrameworkElement>>("_lightDesktopDecorations").OfType<Border>().Single();
+        scroll = FindChildren<ScrollViewer>(section).Single();
+        Assert.AreEqual(0, scroll.VerticalOffset);
+    }
+
+    private static IEnumerable<T> FindChildren<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match) yield return match;
+            foreach (T descendant in FindChildren<T>(child)) yield return descendant;
+        }
+    }
+
+    [STATestMethod]
+    public void CreateGroupOption_AddsDirectlyToOtherCategories_WithoutAffectingOtherDialogs()
+    {
+        using var f = new Fixture();
+        var dialog = new SimpleInputDialog("名称", "新分组");
+        Assert.AreEqual(Visibility.Collapsed, dialog.OptionCheckBox.Visibility);
+        dialog.ConfigureOption("加入其他分类", true);
+        Assert.IsTrue(dialog.IsOptionChecked);
+        Assert.AreEqual(Visibility.Visible, dialog.OptionCheckBox.Visibility);
+        f.Invoke("AddManualGroupCore", "新建并归入", dialog.IsOptionChecked); f.Measure();
+        GroupInfo created = f.Group("新建并归入");
+        Assert.AreEqual(DesktopZoneRole.Other, created.DesktopRole);
+        Assert.IsTrue(f.Field<Dictionary<string, Border>>("_lightDesktopEntries").ContainsKey(created.Id));
+        Assert.IsNull(f.Field<object?>("_lastSmartLayoutSnapshot"));
+    }
+
+    [STATestMethod]
+    [DataRow(false, false)]
+    [DataRow(true, false)]
+    [DataRow(true, true)]
+    public void ScrolledEntry_CancelAndRecovery_RestoreContainerAndOffset(bool recover, bool emptyDesktop)
+    {
+        using var f = new Fixture();
+        if (emptyDesktop)
+        {
+            f.Field<Dictionary<string, string>>("_desktopItems").Clear();
+            foreach (GroupInfo group in f.Layout.Groups) group.ItemNames.Clear();
+        }
+        for (int index = 0; index < 8; index++) f.Invoke("AddManualGroupCore", $"滚动组{index}", true);
+        f.Measure();
+        ScrollViewer scroll = f.Field<ScrollViewer>("_lightDesktopSectionScroll");
+        scroll.ScrollToEnd(); f.Measure();
+        double offset = scroll.VerticalOffset;
+        GroupInfo moved = f.Group("滚动组7");
+        string before = JsonSerializer.Serialize(f.Layout.Groups);
+        Border entry = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[moved.Id];
+        f.Invoke("PromoteOtherCategoryEntryForDrag", entry);
+        f.SetField("_draggedElement", entry); f.SetField("_draggedGroup", moved);
+        f.SetField("_draggedIsGroup", true); f.SetField("_groupDragMoved", true);
+        f.SetField("_groupDragStartPosition", new Point(moved.X, moved.Y));
+        f.SetField("_groupDragLastCanvasPoint", new Point(1000, 700));
+        Canvas.SetLeft(entry, 1000); Canvas.SetTop(entry, 700);
+        if (recover) f.Invoke("ResetAllInteractionState", true);
+        else f.Invoke("CompleteGroupDrag", false);
+        f.Measure();
+        Assert.AreEqual(before, JsonSerializer.Serialize(f.Layout.Groups));
+        entry = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[moved.Id];
+        Assert.AreNotSame(f.Window.IconCanvas, VisualTreeHelper.GetParent(entry));
+        Assert.AreEqual(offset, f.Field<ScrollViewer>("_lightDesktopSectionScroll").VerticalOffset, 0.01);
+        Assert.IsNull(f.Field<Point?>("_groupDragLastCanvasPoint"));
+    }
+
+    [STATestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void OrdinaryGroup_DragIntoOtherCategories_ChangesMembershipOnlyOnCommit(bool commit)
+    {
+        using var f = new Fixture();
+        f.Invoke("AddManualGroup", "待归入"); f.Measure();
+        GroupInfo moved = f.Group("待归入");
+        Point start = new(moved.X, moved.Y);
+        FrameworkElement visual = f.Visual(moved);
+        Border section = f.Field<Border>("_lightDesktopSection");
+        Point target = section.TranslatePoint(new Point(40, 40), f.Window.IconCanvas);
+        f.SetField("_draggedElement", visual); f.SetField("_draggedGroup", moved);
+        f.SetField("_draggedIsGroup", true); f.SetField("_groupDragMoved", true);
+        f.SetField("_groupDragStartPosition", start); f.SetField("_groupDragLastCanvasPoint", target);
+        Canvas.SetLeft(visual, target.X); Canvas.SetTop(visual, target.Y);
+        f.Invoke("CompleteGroupDrag", commit); f.Measure();
+        Assert.AreEqual(commit ? DesktopZoneRole.Other : DesktopZoneRole.None, moved.DesktopRole);
+        if (!commit) Assert.AreEqual(start, new Point(moved.X, moved.Y));
+        else Assert.IsTrue(f.Field<Dictionary<string, Border>>("_lightDesktopEntries").ContainsKey(moved.Id));
+    }
+
+    [STATestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void DeletingFirstRow_KeepsOtherCategoriesAtTheSamePosition(bool automaticRemoval)
+    {
+        using var f = new Fixture();
+        Border section = f.Field<Border>("_lightDesktopSection");
+        Point origin = new(Canvas.GetLeft(section), Canvas.GetTop(section));
+        foreach (string name in new[] { "文档", "文件夹" })
+        {
+            GroupInfo group = f.Group(name);
+            group.ItemNames.Clear();
+            if (automaticRemoval)
+            {
+                group.IsAutoCategory = true;
+                f.Invoke("RemoveMissingAndDuplicateGroupItems", f.Field<Dictionary<string, string>>("_desktopItems"));
+                f.Invoke("RebuildDesktopIcons");
+            }
+            else f.Invoke("DeleteGroup", group);
+            f.Measure();
+        }
+        section = f.Field<Border>("_lightDesktopSection");
+        Assert.AreEqual(origin, new Point(Canvas.GetLeft(section), Canvas.GetTop(section)));
     }
 
     private sealed class Fixture : IDisposable

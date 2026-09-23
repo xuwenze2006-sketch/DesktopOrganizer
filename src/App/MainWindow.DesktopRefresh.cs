@@ -741,8 +741,11 @@ namespace DesktopOrganizer
             }
 
             // 自动分类没有项目时直接移除，避免留下截图中那种空白大框；手工空分组保留。
+            Point? otherOrigin = _appLayout.Groups.Any(group => IsLightDesktopEntry(group) &&
+                group.IsAutoCategory && group.ItemNames.Count == 0) ? GetOtherCategoryOrigin() : null;
             int removedEmptyAutoGroups = _appLayout.Groups.RemoveAll(group =>
                 group.IsAutoCategory && group.ItemNames.Count == 0);
+            if (otherOrigin is Point origin) ReflowOtherCategoryAnchors(origin);
             changed |= removedEmptyAutoGroups > 0;
 
             return changed;
