@@ -257,7 +257,17 @@ namespace DesktopOrganizer
             registration.Container.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
             if (!isOpen) return;
             Rect work = GetMonitorForItemRect(GetGroupBounds(group)).WorkArea;
-            double height = Math.Min(group.Height, work.Height - 16);
+            int rows = Math.Clamp((int)Math.Ceiling(registration.ItemsPanel.GetItemNamesSnapshot().Count /
+                (double)GetDesiredGroupColumnCount(group)), 1, LightDesktopLayoutPolicy.Rows(DesktopZoneRole.Other));
+            Thickness margin = registration.ItemsPanel.Margin;
+            Thickness padding = registration.ItemsPanel.ScrollOwner?.Padding ?? new Thickness(0);
+            // 分别向上取整各层留白，保证分数缩放下整行内容也不会产生细小溢出。
+            double scale = VisualTreeHelper.GetDpi(registration.Container).DpiScaleY;
+            double PixelCeiling(double value) => Math.Ceiling(value * scale) / scale;
+            double contentHeight = PixelCeiling(GroupHeaderHeight) + PixelCeiling(rows * GetGroupedIconRowHeight()) +
+                PixelCeiling(margin.Top) + PixelCeiling(margin.Bottom) + PixelCeiling(padding.Top) + PixelCeiling(padding.Bottom);
+            // 抽屉尺寸只影响当前显示，保留独立分组的宽高和入口位置。
+            double height = Math.Min(contentHeight, work.Height - 16);
             double right = _appLayout.Groups.Where(candidate => candidate.DesktopRole != DesktopZoneRole.None &&
                 work.Contains(new Point(candidate.X, candidate.Y))).Max(candidate => GetGroupBounds(candidate).Right);
             double x = Math.Clamp(right + 12, work.Left + 8, Math.Max(work.Left + 8, work.Right - group.Width - 8));

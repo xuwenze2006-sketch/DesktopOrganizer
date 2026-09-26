@@ -588,6 +588,20 @@ namespace DesktopOrganizer
 
             var bodyLayer = new Grid();
             bodyLayer.Children.Add(scrollViewer);
+            if (IsLightDesktopEntry(group) && virtualItems.Count == 0)
+            {
+                bodyLayer.Children.Add(new TextBlock
+                {
+                    Text = "暂无项目\n将桌面项目拖到分类入口即可加入",
+                    FontSize = 12,
+                    Foreground = WarmPaperTheme.SecondaryTextBrush,
+                    TextAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(16, 8, 16, 8),
+                    IsHitTestVisible = false
+                });
+            }
             var bodyDivider = new Border
             {
                 Height = 1,

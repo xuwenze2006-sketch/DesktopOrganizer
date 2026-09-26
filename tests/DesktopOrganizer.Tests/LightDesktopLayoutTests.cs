@@ -276,6 +276,75 @@ public sealed class LightDesktopLayoutTests
     }
 
     [STATestMethod]
+    [DataRow(1.0, true)]
+    [DataRow(1.25, true)]
+    [DataRow(1.5, true)]
+    [DataRow(2.0, true)]
+    [DataRow(1.0, false)]
+    [DataRow(1.25, false)]
+    [DataRow(1.5, false)]
+    [DataRow(2.0, false)]
+    public void Drawer_FitsContentRows_WithoutChangingSavedLayout(double scale, bool compact)
+    {
+        using var f = new Fixture(scale);
+        f.Layout.CompactGroupLayout = compact;
+        GroupInfo group = f.Group("图片");
+        double oneRowHeight = 0, threeRowHeight = 0;
+        foreach (int count in new[] { 0, 2, 3, 4, 9, 10, 2 })
+        {
+            group.ItemNames.Clear();
+            for (int index = 0; index < count; index++) f.AddItem(group, $"抽屉双行名称{index}.txt");
+            f.Invoke("RebuildDesktopIcons"); f.Measure();
+            string before = JsonSerializer.Serialize(f.Layout.Groups);
+            f.Invoke("OpenLightDesktopDrawer", group); f.Measure();
+            var drawer = (Border)f.Visual(group);
+            var outer = (Grid)drawer.Child;
+            var panel = f.Field<Dictionary<string, VirtualizingGroupPanel>>("_groupItemPanels")[group.Id];
+            ScrollViewer scroll = panel.ScrollOwner!;
+            Assert.AreEqual(3, f.Invoke("GetDesiredGroupColumnCount", group));
+            Assert.AreEqual(count > 9, scroll.ScrollableHeight > 0,
+                $"count={count}, scale={scale}, compact={compact}, extent={scroll.ExtentHeight}, viewport={scroll.ViewportHeight}");
+            if (count == 0) oneRowHeight = outer.ActualHeight;
+            if (count is 2 or 3)
+            {
+                Assert.AreEqual(oneRowHeight, outer.ActualHeight, 1 / scale);
+                Assert.AreEqual(0, scroll.VerticalOffset, "内容变少后应清除失效的旧滚动偏移。");
+            }
+            if (count == 4) Assert.IsTrue(outer.ActualHeight > oneRowHeight + 60);
+            if (count == 9) threeRowHeight = outer.ActualHeight;
+            if (count == 10) Assert.AreEqual(threeRowHeight, outer.ActualHeight, 1 / scale);
+            Assert.IsTrue(oneRowHeight < 170, "少量内容只占一行高度。");
+            if (count > 0)
+            {
+                if (count > 9) { scroll.ScrollToEnd(); f.Measure(); }
+                Border last = panel.Children.OfType<Border>().Last();
+                Assert.IsTrue(last.TranslatePoint(new Point(0, last.ActualHeight), scroll).Y <= scroll.ActualHeight + 1 / scale,
+                    "最后一行图标和双行名称必须完整可见。");
+            }
+            Assert.AreEqual(before, JsonSerializer.Serialize(f.Layout.Groups), "展开尺寸不能写回已保存布局。");
+        }
+    }
+
+    [STATestMethod]
+    public void EmptyDrawer_ShowsHint_AndReplacesItWhenItemsArrive()
+    {
+        using var f = new Fixture();
+        f.Invoke("AddManualGroupCore", "空分类", true); f.Measure();
+        GroupInfo group = f.Group("空分类");
+        f.Invoke("OpenLightDesktopDrawer", group); f.Measure();
+        TextBlock hint = FindChildren<TextBlock>(f.Visual(group)).Single(text => text.Text.Contains("暂无项目"));
+        Assert.IsTrue(hint.IsVisible);
+        Assert.IsFalse(hint.IsHitTestVisible, "空状态不能截获拖放。");
+        Point target = hint.TranslatePoint(new Point(hint.ActualWidth / 2, hint.ActualHeight / 2), f.Window.IconCanvas);
+        f.Invoke("UpdateGroupDropPreview", target, new Border());
+        Assert.AreSame(group, f.Field<GroupInfo>("_activeGroupDropTarget"));
+        f.AddItem(group, "新增项目.txt"); f.Invoke("RebuildDesktopIcons"); f.Measure();
+        Assert.IsTrue(f.Visual(group).IsVisible);
+        Assert.IsFalse(FindChildren<TextBlock>(f.Visual(group)).Any(text => text.Text.Contains("暂无项目")));
+        Assert.AreEqual(0, f.Field<Dictionary<string, VirtualizingGroupPanel>>("_groupItemPanels")[group.Id].VerticalOffset);
+    }
+
+    [STATestMethod]
     public void Drawer_BlocksCoveredGroupAndPhysicalFolderDrop_WithoutFileOperations()
     {
         using var f = new Fixture();
