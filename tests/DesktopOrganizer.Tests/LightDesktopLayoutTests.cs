@@ -380,6 +380,89 @@ public sealed class LightDesktopLayoutTests
     }
 
     [STATestMethod]
+    [DataRow(1.0, 5)]
+    [DataRow(1.25, 5)]
+    [DataRow(1.5, 5)]
+    [DataRow(2.0, 5)]
+    [DataRow(1.0, 6)]
+    [DataRow(1.25, 6)]
+    [DataRow(1.5, 6)]
+    [DataRow(2.0, 6)]
+    [DataRow(1.0, 7)]
+    [DataRow(1.25, 7)]
+    [DataRow(1.5, 7)]
+    [DataRow(2.0, 7)]
+    public void OtherCategoryViewport_OnlyScrollsWhenRowsOverflow(double scale, int count)
+    {
+        using var f = new Fixture(scale);
+        for (int index = 5; index < count; index++) f.Invoke("AddManualGroupCore", $"新增{index}", true);
+        f.Measure();
+        ScrollViewer scroll = f.Field<ScrollViewer>("_lightDesktopSectionScroll");
+        bool overflow = count > 6;
+        Assert.AreEqual(overflow ? Visibility.Visible : Visibility.Collapsed, scroll.ComputedVerticalScrollBarVisibility);
+        Assert.AreEqual(overflow, scroll.ScrollableHeight > 0, $"内容={scroll.ExtentHeight}，视口={scroll.ViewportHeight}");
+        scroll.ScrollToEnd(); f.Measure();
+        GroupInfo lastGroup = ((List<GroupInfo>)f.Invoke("GetOtherCategoryEntries")!)[^1];
+        Border last = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[lastGroup.Id];
+        Point lastBottom = last.TranslatePoint(new Point(0, last.ActualHeight), scroll);
+        Assert.IsTrue(lastBottom.Y <= scroll.ViewportHeight + 1 / scale, "最后一行应完整可见。");
+        Border section = f.Field<Border>("_lightDesktopSection");
+        Assert.IsTrue(section.ActualHeight - last.TranslatePoint(new Point(0, last.ActualHeight), section).Y >= 4,
+            "最后一行与底部圆角之间应留有空隙。");
+    }
+
+    [STATestMethod]
+    [DataRow(1120.0)]
+    [DataRow(1162.0)]
+    public void OtherCategoryViewport_NearScreenBottom_RemainsScrollable(double top)
+    {
+        using var f = new Fixture(1.5);
+        f.Invoke("ReflowOtherCategoryAnchors", new Point(400, top));
+        f.Invoke("RefreshLightDesktopEntries"); f.Measure();
+        ScrollViewer scroll = f.Field<ScrollViewer>("_lightDesktopSectionScroll");
+        Border section = f.Field<Border>("_lightDesktopSection");
+        Assert.IsTrue(scroll.ScrollableHeight > 0);
+        Assert.IsTrue(Canvas.GetTop(section) + section.ActualHeight <= 1200);
+        scroll.ScrollToEnd(); f.Measure();
+        Border last = f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[f.Group("压缩包").Id];
+        Assert.IsTrue(last.TranslatePoint(new Point(0, last.ActualHeight), scroll).Y <= scroll.ViewportHeight + 1);
+    }
+
+    [STATestMethod]
+    public void OtherCategoryEntry_ReflectsOpenDrawer_AcrossSwitchRefreshAndClose()
+    {
+        using var f = new Fixture();
+        GroupInfo documents = f.Group("文档"), pictures = f.Group("图片");
+        System.Windows.Controls.Primitives.ToggleButton Entry(GroupInfo group) =>
+            FindChildren<System.Windows.Controls.Primitives.ToggleButton>(
+                f.Field<Dictionary<string, Border>>("_lightDesktopEntries")[group.Id]).Single();
+        void Toggle(GroupInfo group) =>
+            ((System.Windows.Automation.Provider.IToggleProvider)
+                new System.Windows.Automation.Peers.ToggleButtonAutomationPeer(Entry(group))
+                    .GetPattern(System.Windows.Automation.Peers.PatternInterface.Toggle)).Toggle();
+        void AssertState(GroupInfo group, bool open)
+        {
+            var button = Entry(group);
+            Assert.AreEqual(open, button.IsChecked);
+            Assert.AreEqual(open, f.Visual(group).IsVisible, "入口状态必须与实际抽屉同步。");
+            Assert.AreEqual($"{group.Name}，{group.ItemNames.Count} 项，{(open ? "已展开" : "已收起")}",
+                System.Windows.Automation.AutomationProperties.GetName(button));
+            Assert.IsTrue(FindChildren<TextBlock>(button).Any(text => text.Text == (open ? "‹" : "›")));
+        }
+        AssertState(documents, false);
+        Toggle(documents);
+        f.Measure(); AssertState(documents, true);
+        Toggle(pictures);
+        f.Measure(); AssertState(documents, false); AssertState(pictures, true);
+        f.Invoke("RebuildDesktopIcons"); f.Measure(); AssertState(pictures, true);
+        f.Invoke("StopGroupPeek"); f.Measure(); AssertState(pictures, false);
+        Toggle(pictures); f.Measure(); AssertState(pictures, true);
+        Toggle(pictures); f.Measure(); AssertState(pictures, false);
+        f.SetField("_organizerPaused", true);
+        Toggle(pictures); f.Measure(); AssertState(pictures, false);
+    }
+
+    [STATestMethod]
     public void ManyOtherCategories_ScrollWithinThreeRows_AndPreserveOffsetAcrossRefresh()
     {
         using var f = new Fixture();

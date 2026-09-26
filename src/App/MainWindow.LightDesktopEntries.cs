@@ -5,6 +5,7 @@ namespace DesktopOrganizer
         private static readonly Brush LightDesktopSurfaceBrush =
             CreateFrozenBrush(Color.FromArgb(248, 240, 246, 246));
         private readonly Dictionary<string, Border> _lightDesktopEntries = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, ToggleButton> _lightDesktopEntryButtons = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<FrameworkElement> _lightDesktopDecorations = new();
         private Border? _joinedLightDesktopProject;
         private Border? _lightDesktopSection;
@@ -17,6 +18,7 @@ namespace DesktopOrganizer
             foreach (FrameworkElement visual in _lightDesktopEntries.Values)
                 (VisualTreeHelper.GetParent(visual) as Panel)?.Children.Remove(visual);
             _lightDesktopEntries.Clear();
+            _lightDesktopEntryButtons.Clear();
             var entries = _appLayout.Groups.Where(IsLightDesktopEntry).ToList();
             if (!entries.Any(group => group.Id == _lightDesktopDrawerId))
                 _lightDesktopDrawerId = null;
@@ -40,23 +42,43 @@ namespace DesktopOrganizer
                 var arrow = new TextBlock { Text = "›", FontSize = 17, VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(arrow, 3);
                 content.Children.Add(dot); content.Children.Add(title); content.Children.Add(count); content.Children.Add(arrow);
-                var button = new Button { Content = content, Background = MediaBrushes.Transparent,
+                var button = new ToggleButton { Content = content, Background = MediaBrushes.Transparent,
                     Foreground = WarmPaperTheme.PrimaryTextBrush, BorderThickness = new Thickness(0),
                     HorizontalContentAlignment = HorizontalAlignment.Stretch, Cursor = Cursors.Hand,
-                    ToolTip = $"{group.Name} · {group.ItemNames.Count} 项\n点击展开，再次点击或按 Esc 关闭；右键打开分组菜单" };
-                // 保留键盘焦点边框和鼠标反馈，常态没有按钮底色。
+                    IsChecked = _lightDesktopDrawerId == group.Id };
                 var chrome = new FrameworkElementFactory(typeof(Border));
                 chrome.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
                 chrome.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Control.BackgroundProperty));
                 var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
                 presenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
                 chrome.AppendChild(presenter);
-                button.Template = new ControlTemplate(typeof(Button)) { VisualTree = chrome };
-                button.Click += (_, _) => ToggleLightDesktopDrawer(group);
-                button.MouseEnter += (_, _) => button.Background = new SolidColorBrush(Color.FromArgb(85, 255, 255, 255));
-                button.MouseLeave += (_, _) => button.Background = MediaBrushes.Transparent;
-                button.IsKeyboardFocusedChanged += (_, _) => button.Background = button.IsKeyboardFocused
-                    ? WarmPaperTheme.SageSoftBrush : MediaBrushes.Transparent;
+                button.Template = new ControlTemplate(typeof(ToggleButton)) { VisualTree = chrome };
+                void UpdateEntryAppearance()
+                {
+                    bool open = button.IsChecked == true;
+                    button.Background = open ? WarmPaperTheme.SageSoftBrush :
+                        button.IsMouseOver || button.IsKeyboardFocused ? WarmPaperTheme.WarmHoverBrush : MediaBrushes.Transparent;
+                    arrow.Text = open ? "‹" : "›";
+                    button.ToolTip = $"{group.Name} · {group.ItemNames.Count} 项\n{(open ? "点击收起或按 Esc 关闭" : "点击展开")}；右键打开分组菜单";
+                    System.Windows.Automation.AutomationProperties.SetName(button,
+                        $"{group.Name}，{group.ItemNames.Count} 项，{(open ? "已展开" : "已收起")}");
+                }
+                button.Checked += (_, _) =>
+                {
+                    if (_lightDesktopDrawerId != group.Id) OpenLightDesktopDrawer(group);
+                    button.IsChecked = _lightDesktopDrawerId == group.Id;
+                    UpdateEntryAppearance();
+                };
+                button.Unchecked += (_, _) =>
+                {
+                    if (_lightDesktopDrawerId == group.Id) StopGroupPeek();
+                    UpdateEntryAppearance();
+                };
+                button.MouseEnter += (_, _) => UpdateEntryAppearance();
+                button.MouseLeave += (_, _) => UpdateEntryAppearance();
+                button.IsKeyboardFocusedChanged += (_, _) => UpdateEntryAppearance();
+                UpdateEntryAppearance();
+                _lightDesktopEntryButtons[group.Id] = button;
                 var anchor = new Border { Width = GetGroupDisplayWidth(group), Height = GroupHeaderHeight,
                     Child = button, Tag = group, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7),
                     BorderBrush = MediaBrushes.Transparent, Background = MediaBrushes.Transparent,
@@ -113,11 +135,13 @@ namespace DesktopOrganizer
                 double sectionWidth = LightDesktopLayoutPolicy.ColumnWidth;
                 int rows = (entries.Count + 1) / 2;
                 double rowHeight = GroupHeaderHeight + LightDesktopLayoutPolicy.EntryGap;
-                double contentHeight = rows * rowHeight - LightDesktopLayoutPolicy.EntryGap;
                 Rect work = GetMonitorForItemRect(new Rect(left, sectionTop, sectionWidth, 24)).WorkArea;
-                double viewportHeight = Math.Min(contentHeight, Math.Min(
-                    LightDesktopLayoutPolicy.EntryVisibleRows * rowHeight - LightDesktopLayoutPolicy.EntryGap,
-                    Math.Max(GroupHeaderHeight, work.Bottom - top - 8)));
+                // 贴底入口为最后一行与圆角留出空间；只调整显示位置，不改持久化锚点。
+                double bottomShift = Math.Max(0, top + rowHeight + 8 - work.Bottom);
+                top -= bottomShift;
+                sectionTop -= bottomShift;
+                double viewportHeight = Math.Min(LightDesktopLayoutPolicy.EntryVisibleRows * rowHeight,
+                    Math.Max(rowHeight, work.Bottom - top - 8));
                 Thickness sectionBorder = new(0);
                 Brush? sectionBorderBrush = null;
                 GroupInfo? project = _appLayout.Groups.FirstOrDefault(group =>
@@ -138,8 +162,8 @@ namespace DesktopOrganizer
                     // 底板略托入底部留白，避免缩放取整后透明边框透出壁纸。
                     sectionTop = project.Y + registration.Outer.Height;
                 }
-                var section = new Border { Width = sectionWidth, Height = top - sectionTop + viewportHeight + sectionBorder.Bottom,
-                    Background = LightDesktopSurfaceBrush,
+                var section = new Border { Width = sectionWidth,
+                    Background = LightDesktopSurfaceBrush, Padding = new Thickness(0, 0, 0, 4),
                     BorderThickness = sectionBorder, BorderBrush = sectionBorderBrush,
                     CornerRadius = joined ? new CornerRadius(0, 0, 11, 11) : new CornerRadius(11),
                     ClipToBounds = true, SnapsToDevicePixels = true };
@@ -156,9 +180,10 @@ namespace DesktopOrganizer
                     Margin = new Thickness(11 - sectionBorder.Left, 5, 0, 0) };
                 var body = new Grid();
                 body.RowDefinitions.Add(new RowDefinition { Height = new GridLength(top - sectionTop) });
-                body.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 body.Children.Add(heading);
-                var items = new Grid { Height = contentHeight };
+                // 由行高自然测量内容，避免固定外框与边框在 DPI 取整后挤出不足 1 DIP 的假溢出。
+                var items = new Grid();
                 items.ColumnDefinitions.Add(new ColumnDefinition());
                 items.ColumnDefinitions.Add(new ColumnDefinition());
                 for (int row = 0; row < rows; row++)
@@ -175,7 +200,7 @@ namespace DesktopOrganizer
                     Grid.SetColumn(anchor, index % 2); Grid.SetRow(anchor, index / 2);
                     items.Children.Add(anchor);
                 }
-                var scroll = new ScrollViewer { Content = items, CanContentScroll = false,
+                var scroll = new ScrollViewer { Content = items, CanContentScroll = false, MaxHeight = viewportHeight,
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                     HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                     PanningMode = PanningMode.VerticalOnly, ClipToBounds = true, Focusable = false,
@@ -226,6 +251,9 @@ namespace DesktopOrganizer
         private void ApplyLightDesktopDrawerPresentation(GroupPeekVisualRegistration registration, bool isOpen)
         {
             GroupInfo group = registration.Group;
+            if (_lightDesktopEntryButtons.TryGetValue(group.Id, out ToggleButton? button))
+                // 重建期间卡片会短暂隐藏，入口仍应遵循抽屉状态，不能反向关闭抽屉。
+                button.IsChecked = _lightDesktopDrawerId == group.Id;
             registration.Container.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
             if (!isOpen) return;
             Rect work = GetMonitorForItemRect(GetGroupBounds(group)).WorkArea;
