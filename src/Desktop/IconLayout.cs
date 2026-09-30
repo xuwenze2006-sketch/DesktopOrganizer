@@ -148,6 +148,9 @@ namespace DesktopOrganizer
     {
         public int Version { get; set; } = 19;
         public long SaveGeneration { get; set; }
+
+        // Per stable group ID, independent of workspace layout snapshots.
+        public Dictionary<string, double> GroupScrollOffsets { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public bool SnapToGrid { get; set; } = true;
         public bool PushReflowEnabled { get; set; } = true;
 

@@ -3,6 +3,14 @@ namespace DesktopOrganizer
 {
     public partial class MainWindow
     {
+        private void RememberGroupScrollOffset(string groupId, double offset)
+        {
+            if (!double.IsFinite(offset) || offset < 0) return;
+            if (_groupScrollOffsets.TryGetValue(groupId, out double previous) && Math.Abs(previous - offset) < 0.1) return;
+            _groupScrollOffsets[groupId] = offset;
+            SaveLayout(); // Existing timer debounces changes and flushes on normal exit.
+        }
+
         private int GetDesiredGroupColumnCount(GroupInfo group)
         {
             if (group.DesktopRole != DesktopZoneRole.None && !group.IsSizeLocked)
@@ -559,7 +567,7 @@ namespace DesktopOrganizer
                 groupedSlotWidth,
                 GetGroupedIconRowHeight(),
                 initialScrollOffset,
-                offset => _groupScrollOffsets[group.Id] = offset)
+                offset => RememberGroupScrollOffset(group.Id, offset))
             {
                 Margin = _appLayout.CompactGroupLayout
                     ? new Thickness(6, 6, 6, 6)

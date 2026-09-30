@@ -455,6 +455,11 @@ namespace DesktopOrganizer
             _appLayout.Version = 19;
             _appLayout.FreeIcons ??= new Dictionary<string, IconPosition>();
             _appLayout.Groups ??= new List<GroupInfo>();
+            var normalizedScrollOffsets = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in _appLayout.GroupScrollOffsets ?? new Dictionary<string, double>())
+                if (!string.IsNullOrWhiteSpace(entry.Key) && double.IsFinite(entry.Value) && entry.Value >= 0)
+                    normalizedScrollOffsets[entry.Key] = entry.Value;
+            _appLayout.GroupScrollOffsets = normalizedScrollOffsets;
             _appLayout.DesktopTopology ??= new List<DesktopMonitorLayoutInfo>();
             _appLayout.ItemIdentities ??= new Dictionary<string, DesktopItemIdentityInfo>();
             _appLayout.RecycleBinWidget ??= new RecycleBinWidgetLayoutInfo();

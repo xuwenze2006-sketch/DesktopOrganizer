@@ -99,7 +99,7 @@ namespace DesktopOrganizer
         private readonly Dictionary<string, FrameworkElement> _groupVisuals = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, VirtualizingGroupPanel> _groupItemPanels = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _groupVisualFingerprints = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, double> _groupScrollOffsets = new(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, double> _groupScrollOffsets => _appLayout.GroupScrollOffsets;
         private readonly Dictionary<string, FreeIconVisualState> _freeIconVisualStates = new(StringComparer.OrdinalIgnoreCase);
         private readonly LinkedList<FileMoveUndoRecord> _fileMoveHistory = new();
         private readonly HashSet<string> _pendingFileOperationPaths = new(StringComparer.OrdinalIgnoreCase);

@@ -45,7 +45,7 @@ namespace DesktopOrganizer
             _columnCount = Math.Max(1, columnCount);
             _slotWidth = Math.Max(1, slotWidth);
             _rowHeight = Math.Max(1, rowHeight);
-            _verticalOffset = Math.Max(0, initialVerticalOffset);
+            _verticalOffset = double.IsFinite(initialVerticalOffset) ? Math.Max(0, initialVerticalOffset) : 0;
             _verticalOffsetChanged = verticalOffsetChanged;
 
             ClipToBounds = true;
@@ -323,7 +323,8 @@ namespace DesktopOrganizer
             _viewportWidth = viewportWidth;
             _viewportHeight = viewportHeight;
 
-            double clampedOffset = CoerceVerticalOffset(_verticalOffset);
+            // A zero viewport represents initialization/collapse, not a usable scroll range.
+            double clampedOffset = viewportHeight > 0 ? CoerceVerticalOffset(_verticalOffset) : _verticalOffset;
             if (!AreClose(clampedOffset, _verticalOffset))
             {
                 _verticalOffset = clampedOffset;
@@ -448,6 +449,7 @@ namespace DesktopOrganizer
 
         public void SetVerticalOffset(double offset)
         {
+            if (_viewportHeight <= 0 || double.IsNaN(offset)) return;
             double clamped = CoerceVerticalOffset(offset);
             if (AreClose(clamped, _verticalOffset))
             {
