@@ -162,6 +162,7 @@ public sealed class RecycleBinDropTests
 
         public Fixture(double scale = 1)
         {
+            Set("_desktopSnapshotInitialized", true);
             Window.RootGrid = new Grid();
             Window.IconCanvas = new Canvas { Margin = new Thickness(20, 15, 0, 0) };
             Window.RecycleBinWidget = new Border

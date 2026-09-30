@@ -71,9 +71,15 @@ namespace DesktopOrganizer
                     return;
                 }
 
+                if (!ApplyDesktopPaths(snapshot.Paths))
+                {
+                    RequestDesktopRefresh(clearIconCache: false, statusMessage: null);
+                    return;
+                }
+
                 if (!snapshot.PhysicalScanComplete || !snapshot.ShellScanComplete)
                 {
-                    StatusText.Text = "桌面扫描暂时不完整，未修改现有布局，请稍后重试";
+                    RejectIncompleteDesktopSnapshot(snapshot);
                     return;
                 }
 
@@ -131,6 +137,14 @@ namespace DesktopOrganizer
                     return;
                 }
 
+                if (!ApplyDesktopPaths(snapshot.Paths))
+                {
+                    StatusText.Text = "桌面位置已变化，请刷新后重新预览分类";
+                    RequestDesktopRefresh(clearIconCache: false, statusMessage: null);
+                    return;
+                }
+
+                _desktopScanUnavailable = false;
                 _desktopItems = snapshot.Items;
                 _desktopCategories = snapshot.Categories;
                 _reliableDesktopCategoryNames = snapshot.ReliableCategoryNames;
@@ -213,6 +227,11 @@ namespace DesktopOrganizer
         private void ClearAutoClassificationAfterConfirmation(
             IReadOnlyCollection<GroupInfo> autoGroups)
         {
+            if (!_desktopSnapshotInitialized)
+            {
+                StatusText.Text = "桌面尚未完整读取，已保留分类与原位置，请稍后重试";
+                return;
+            }
             var existing = new Dictionary<string, string>(_desktopItems, StringComparer.OrdinalIgnoreCase);
             var manualGroupedNames = new HashSet<string>(
                 _appLayout.Groups
@@ -694,8 +713,11 @@ namespace DesktopOrganizer
                 ? "安全模式下已暂停；退出后恢复原设置"
                 : "之后出现的新桌面项目自动进入对应分类";
             bool hasAutoGroups = _appLayout.Groups.Any(group => group.IsAutoCategory);
-            ClearAutoClassificationButton.IsEnabled = hasAutoGroups && !HasPendingFileOperations;
-            ClearAutoClassificationButton.ToolTip = !hasAutoGroups
+            ClearAutoClassificationButton.IsEnabled =
+                _desktopSnapshotInitialized && hasAutoGroups && !HasPendingFileOperations;
+            ClearAutoClassificationButton.ToolTip = !_desktopSnapshotInitialized
+                ? "桌面尚未完整读取，暂时保留分类与原位置"
+                : !hasAutoGroups
                 ? "当前没有自动分类分组"
                 : HasPendingFileOperations
                     ? "后台真实文件任务完成后才能取消分类"
@@ -705,19 +727,26 @@ namespace DesktopOrganizer
         // ==================== 桌面扫描与刷新 ====================
 
         private Dictionary<string, string> ScanDesktopItems(
+            DesktopPathSnapshot paths,
             CancellationToken cancellationToken,
             out bool physicalScanComplete,
             out bool shellScanComplete)
         {
             var existing = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (!paths.IsAvailable)
+            {
+                physicalScanComplete = false;
+                shellScanComplete = true;
+                return existing;
+            }
             // 公共桌面先加入；同名时用户桌面覆盖公共桌面，更符合 Explorer 的显示逻辑。
             // 每个目录必须完整枚举成功后才提交，防止瞬时 I/O 异常产生半份快照。
             bool commonDesktopComplete = AddDesktopPathItems(
-                _commonDesktopPath,
+                paths.CommonDesktop.Path!,
                 existing,
                 cancellationToken);
             bool userDesktopComplete = AddDesktopPathItems(
-                _userDesktopPath,
+                paths.UserDesktop.Path!,
                 existing,
                 cancellationToken);
             physicalScanComplete = commonDesktopComplete && userDesktopComplete;

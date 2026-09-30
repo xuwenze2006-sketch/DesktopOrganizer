@@ -2,7 +2,6 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.ComponentModel;
 using System.IO;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -337,12 +336,9 @@ public sealed class OperationCenterWindowTests
         Assert.AreEqual(expectedBinding, column.Attribute("Binding")?.Value);
     }
 
-    private static XDocument LoadOperationCenterXaml(
-        [CallerFilePath] string sourceFilePath = "")
+    private static XDocument LoadOperationCenterXaml()
     {
-        string testDirectory = Path.GetDirectoryName(sourceFilePath)
-            ?? throw new InvalidOperationException("Cannot resolve the test source directory.");
-        string projectRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+        string projectRoot = TestProjectFiles.Root;
         return XDocument.Load(Path.Combine(projectRoot, "OperationCenterWindow.xaml"));
     }
 }
