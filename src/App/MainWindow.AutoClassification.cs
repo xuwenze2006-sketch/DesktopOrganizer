@@ -20,17 +20,23 @@ namespace DesktopOrganizer
 
         private void AddManualGroupCore(string name, bool joinOtherCategories)
         {
-            _appLayout.IsEditMode = true;
-            EditModeToggle.IsChecked = true;
-            EditModeToggle.Content = "完成编辑";
-            UpdatePushReflowAvailability();
-
             var group = new GroupInfo
             {
                 Name = name,
                 IsSizeLocked = false
             };
             AutoFitGroup(group, clampPosition: false);
+
+            Point position = default;
+            if (!joinOtherCategories && !TryFindAvailableAutoGroupPosition(group.Width, GetGroupDisplayHeight(group), out position))
+            {
+                StatusText.Text = "没有足够的空白区域创建分组，请先腾出空间；已有图标位置未改变";
+                return;
+            }
+            _appLayout.IsEditMode = true;
+            EditModeToggle.IsChecked = true;
+            EditModeToggle.Content = "完成编辑";
+            UpdatePushReflowAvailability();
 
             if (joinOtherCategories)
             {
@@ -39,7 +45,7 @@ namespace DesktopOrganizer
                 return;
             }
 
-            Point position = FindAvailableAutoGroupPosition(group.Width, GetGroupDisplayHeight(group));
+
             group.X = position.X;
             group.Y = position.Y;
             ClampGroupToCanvas(group);
@@ -674,46 +680,81 @@ namespace DesktopOrganizer
             }
         }
 
-        private Point FindAvailableAutoGroupPosition(double width, double height)
+        private bool TryFindAvailableAutoGroupPosition(double width, double height, out Point position)
         {
             const double margin = 14;
             const double step = 36;
+            var obstacles = _appLayout.Groups.Select(GetGroupBounds).ToList();
+            obstacles.AddRange(_appLayout.FolderPortals.Select(portal =>
+                new Rect(portal.X, portal.Y, portal.Width, portal.Height)));
+            Rect? recycle = GetRecycleBinWidgetObstacle();
+            if (recycle.HasValue) obstacles.Add(recycle.Value);
+            if (TryGetElementBoundsOnCanvas(ControlPanel, out Rect panel)) obstacles.Add(panel);
 
-            foreach (DesktopMonitorRegion monitor in _desktopGeometry.Monitors
-                         .OrderByDescending(item => item.IsPrimary))
+            var groupedNames = _appLayout.Groups.SelectMany(group => group.ItemNames)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            // The complete 90-DIP tile includes the two-line label, padding and margin.
+            // Live visuals also cover transient icons that have not acquired saved coordinates.
+            foreach (string name in _desktopItems.Keys.Concat(_freeIconVisuals.Keys)
+                         .Distinct(StringComparer.OrdinalIgnoreCase).Where(name => !groupedNames.Contains(name)))
             {
-                Rect workArea = monitor.WorkArea;
-                double startX = workArea.Left + 20;
-                double startY = workArea.Top + (monitor.IsPrimary ? 112 : 20);
-                for (double y = startY; y + height <= workArea.Bottom; y += step)
+                if (_freeIconVisuals.TryGetValue(name, out FrameworkElement? visual) &&
+                    TryGetElementBoundsOnCanvas(visual, out Rect bounds))
                 {
-                    for (double x = startX; x + width <= workArea.Right; x += step)
-                    {
-                        var candidate = new Rect(
-                            x - margin,
-                            y - margin,
-                            width + margin * 2,
-                            height + margin * 2);
-                        bool overlaps = _appLayout.Groups.Any(group =>
-                            candidate.IntersectsWith(GetGroupBounds(group)));
-                        overlaps |= IntersectsFolderPortal(candidate);
-                        Rect? recycleObstacle = GetRecycleBinWidgetObstacle();
-                        overlaps |= recycleObstacle.HasValue && candidate.IntersectsWith(recycleObstacle.Value);
-                        if (!overlaps && IsRectInsideUsableDesktop(new Rect(x, y, width, height)))
-                        {
-                            return new Point(x, y);
-                        }
-                    }
+                    bounds.Inflate(visual.Margin.Left, visual.Margin.Top);
+                    obstacles.Add(bounds);
+                }
+                else if (_appLayout.FreeIcons.TryGetValue(name, out IconPosition? saved))
+                {
+                    obstacles.Add(new Rect(saved.X, saved.Y, IconCellWidth, IconCellHeight));
                 }
             }
 
+            bool Fits(double x, double y, Rect area, IReadOnlyList<Rect> regionObstacles)
+            {
+                var actual = new Rect(x, y, width, height);
+                if (!area.Contains(actual)) return false;
+                actual.Inflate(margin, margin);
+                return !regionObstacles.Any(actual.IntersectsWith);
+            }
+            foreach (DesktopMonitorRegion monitor in _desktopGeometry.Monitors.OrderByDescending(item => item.IsPrimary))
+            {
+                Rect area = monitor.WorkArea;
+                Rect extendedArea = area;
+                extendedArea.Inflate(margin, margin);
+                Rect[] regionObstacles = obstacles.Where(extendedArea.IntersectsWith).ToArray();
+                double startX = area.Left + 20;
+                double startY = area.Top + (monitor.IsPrimary ? 112 : 20);
+                for (double y = startY; y + height <= area.Bottom; y += step)
+                    for (double x = startX; x + width <= area.Right; x += step)
+                        if (Fits(x, y, area, regionObstacles)) { position = new Point(x, y); return true; }
+
+                // A fixed-step grid can skip an available gap near an obstacle or monitor edge.
+                double[] xs = regionObstacles.Select(obstacle => obstacle.Right + margin + 0.01)
+                    .Concat(regionObstacles.Select(obstacle => obstacle.Left - width - margin - 0.01))
+                    .Concat(new[] { area.Left, startX, area.Right - width }).Where(x => x >= area.Left && x + width <= area.Right).Distinct().Order().ToArray();
+                double[] ys = regionObstacles.Select(obstacle => obstacle.Bottom + margin + 0.01)
+                    .Concat(regionObstacles.Select(obstacle => obstacle.Top - height - margin - 0.01))
+                    .Concat(new[] { area.Top, startY, area.Bottom - height }).Where(y => y >= area.Top && y + height <= area.Bottom).Distinct().Order().ToArray();
+                foreach (double y in ys)
+                    foreach (double x in xs)
+                        if (Fits(x, y, area, regionObstacles)) { position = new Point(x, y); return true; }
+            }
+            position = default;
+            return false;
+        }
+
+        private Point FindAvailableAutoGroupPosition(double width, double height)
+        {
+            if (TryFindAvailableAutoGroupPosition(width, height, out Point available)) return available;
+            // Preserve the legacy fallback for automatic classification; manual creation fails safely.
             int index = _appLayout.Groups.Count(group => group.IsAutoCategory);
             Rect primary = GetPrimaryWorkArea();
-            Point fallback = new(
-                primary.Left + 20 + (index % 8) * 24,
+            Point fallback = new(primary.Left + 20 + (index % 8) * 24,
                 primary.Top + 112 + (index % 8) * 24);
             return ClampRectToUsableDesktop(fallback.X, fallback.Y, width, height);
         }
+
 
         private void UpdateAutoClassificationControls()
         {
