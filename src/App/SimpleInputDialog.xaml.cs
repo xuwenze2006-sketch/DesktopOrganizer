@@ -5,6 +5,31 @@ namespace DesktopOrganizer
     {
         public string ResultText { get; private set; } = string.Empty;
         public bool IsOptionChecked => OptionCheckBox.IsChecked == true;
+        private bool _allowEmpty;
+        private bool _hasCompleted;
+
+        // Naming requires content; tag editing explicitly allows clearing all tags.
+        public bool AllowEmpty
+        {
+            get => _allowEmpty;
+            set
+            {
+                _allowEmpty = value;
+                UpdateInputState();
+            }
+        }
+
+        private void InputBox_TextChanged(object sender, TextChangedEventArgs e) =>
+            UpdateInputState();
+
+        private void UpdateInputState()
+        {
+            // TextChanged can run while InitializeComponent is still building the controls.
+            if (OkButton is null || ValidationText is null) return;
+            bool valid = AllowEmpty || !string.IsNullOrWhiteSpace(InputBox.Text);
+            OkButton.IsEnabled = valid;
+            ValidationText.Visibility = valid ? Visibility.Collapsed : Visibility.Visible;
+        }
 
         public void ConfigureOption(string label, bool isChecked = false)
         {
@@ -18,6 +43,8 @@ namespace DesktopOrganizer
             InitializeComponent();
             PromptText.Text = prompt;
             InputBox.Text = defaultValue;
+            UpdateInputState();
+            Closed += (_, _) => _hasCompleted = true;
             Loaded += (_, _) =>
             {
                 InputBox.Focus();
@@ -27,6 +54,14 @@ namespace DesktopOrganizer
 
         private void Ok_Click(object sender, RoutedEventArgs e)
         {
+            if (_hasCompleted) return;
+            if (!AllowEmpty && string.IsNullOrWhiteSpace(InputBox.Text))
+            {
+                UpdateInputState();
+                InputBox.Focus();
+                return;
+            }
+            _hasCompleted = true;
             ResultText = InputBox.Text.Trim();
             DialogResult = true;
         }

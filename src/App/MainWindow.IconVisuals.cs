@@ -346,6 +346,7 @@ namespace DesktopOrganizer
             SimpleInputDialog dialog = CreateInputDialog(
                 "用逗号或分号分隔标签；标签内部可含空格，留空将清除全部标签：",
                 current);
+            dialog.AllowEmpty = true;
             dialog.Title = "编辑本地标签";
             dialog.Width = 480;
             if (dialog.ShowDialog() != true)

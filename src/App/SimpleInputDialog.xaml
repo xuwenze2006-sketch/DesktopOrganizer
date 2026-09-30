@@ -7,12 +7,16 @@
         WindowStyle="ToolWindow">
     <StackPanel Margin="16">
         <TextBlock x:Name="PromptText" Text="请输入名称：" Margin="0,0,0,8"/>
-        <TextBox x:Name="InputBox" Height="26" VerticalContentAlignment="Center"/>
+        <TextBox x:Name="InputBox" Height="26" VerticalContentAlignment="Center"
+                 TextChanged="InputBox_TextChanged"/>
+        <TextBlock x:Name="ValidationText" Margin="0,6,0,0" Foreground="#A33A2B"
+                   TextWrapping="Wrap" Visibility="Collapsed"
+                   Text="内容不能为空，请输入后再确认。"/>
         <CheckBox x:Name="OptionCheckBox" Visibility="Collapsed" Margin="0,12,0,0"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="取消" Width="70" Margin="0,0,8,0"
                     IsCancel="True" Click="Cancel_Click"/>
-            <Button Content="确定" Width="70" Click="Ok_Click" IsDefault="True"/>
+            <Button x:Name="OkButton" Content="确定" Width="70" Click="Ok_Click" IsDefault="True"/>
         </StackPanel>
     </StackPanel>
 </Window>
