@@ -546,7 +546,7 @@ public sealed class DesktopPetTests
             Window.RootGrid.UpdateLayout();
         }
 
-        public void Render(string name, double scale, [System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "")
+        public void Render(string name, double scale)
         {
             Window.RootGrid.UpdateLayout();
             var bitmap = new RenderTargetBitmap((int)(1000 * scale), (int)(700 * scale),
@@ -556,7 +556,7 @@ public sealed class DesktopPetTests
             bitmap.CopyPixels(new Int32Rect((int)(556 * scale), (int)(340 * scale), 1, 1), pixel, 4, 0);
             Assert.IsTrue(pixel[0] < 150, "打包的真实猫图应绘制到桌面上，不能只是空控件。");
             if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_PET_QA") != "1") return;
-            string directory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourcePath)!, "../../artifacts/desktop-pet"));
+            string directory = Path.Combine(TestProjectFiles.Root, "artifacts/desktop-pet");
             Directory.CreateDirectory(directory);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -564,7 +564,7 @@ public sealed class DesktopPetTests
             encoder.Save(stream);
         }
 
-        public void RenderVPet(double scale, [System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "")
+        public void RenderVPet(double scale)
         {
             Window.RootGrid.UpdateLayout();
             var bitmap = new RenderTargetBitmap((int)(1000 * scale), (int)(700 * scale),
@@ -576,7 +576,7 @@ public sealed class DesktopPetTests
             crop.CopyPixels(pixels, crop.PixelWidth * 4, 0);
             Assert.IsTrue(pixels.Where((value, index) => index % 4 == 0).Any(value => value < 80), "真实角色应绘制出深色轮廓。");
             if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_PET_QA") != "1") return;
-            string directory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourcePath)!, "../../artifacts/vpet-adaptation/render"));
+            string directory = Path.Combine(TestProjectFiles.Root, "artifacts/vpet-adaptation/render");
             Directory.CreateDirectory(directory);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(crop));
@@ -584,7 +584,7 @@ public sealed class DesktopPetTests
             encoder.Save(stream);
         }
 
-        public void RenderScene(double scale, [System.Runtime.CompilerServices.CallerFilePath] string sourcePath = "")
+        public void RenderScene(double scale)
         {
             Brush background = Window.RootGrid.Background;
             Window.RootGrid.Background = null;
@@ -604,7 +604,7 @@ public sealed class DesktopPetTests
             bitmap.CopyPixels(new Int32Rect((int)(175 * scale), (int)(316 * scale), 1, 1), pixel, 4, 0);
             Assert.IsTrue(pixel[2] > pixel[1], "前景粉色小花必须显示在草地上。");
             if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_PET_QA") != "1") return;
-            string directory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourcePath)!, "../../artifacts/scene-integration/render"));
+            string directory = Path.Combine(TestProjectFiles.Root, "artifacts/scene-integration/render");
             Directory.CreateDirectory(directory);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));

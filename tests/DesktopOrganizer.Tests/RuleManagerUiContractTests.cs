@@ -1,7 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -510,12 +509,9 @@ public sealed class RuleManagerUiContractTests
         (window.RuleList.SelectedItem as UserRuleSummary)?.Id
         ?? throw new AssertFailedException("规则列表未选中项目。");
 
-    private static XDocument LoadRuleManagerXaml(
-        [CallerFilePath] string sourceFilePath = "")
+    private static XDocument LoadRuleManagerXaml()
     {
-        string testDirectory = Path.GetDirectoryName(sourceFilePath)
-            ?? throw new InvalidOperationException("Cannot resolve the test source directory.");
-        string projectRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+        string projectRoot = TestProjectFiles.Root;
         return XDocument.Load(Path.Combine(projectRoot, "RuleManagerWindow.xaml"));
     }
 }

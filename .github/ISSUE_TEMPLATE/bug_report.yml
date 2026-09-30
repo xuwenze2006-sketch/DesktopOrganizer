@@ -1,0 +1,56 @@
+name: 报告问题
+description: 提供可复现的异常现象，帮助定位问题。
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先查看是否已有相同问题。Issue 和附件公开可见，请隐藏用户名、私人路径、邮箱和文件内容；无需上传完整布局或个人日志。
+  - type: input
+    id: version
+    attributes:
+      label: 版本与获取来源
+      placeholder: "例如：v1.12.16-preview.1（Releases），或提交哈希（Actions / 源码运行）；不清楚可注明。"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 环境
+      placeholder: "Windows 10 / 11；能提供时请补充系统版本或内部版本号。"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤
+      description: 描述从哪个界面开始、做了什么，以及出现频率。不要为复现而操作重要文件。
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 出现……（每次 / 偶发）
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 实际与预期结果
+      placeholder: |
+        实际发生：
+        期望发生：
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 相关环境或已经尝试的操作（可选）
+      description: 桌面显示问题可补充显示器数量、分辨率、缩放、桌面重定向（如 OneDrive）及相关桌面软件；如果已经尝试暂停或退出，说明现象是否恢复，无需专门重试。
+    validations:
+      required: false
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 脱敏截图或相关日志片段（可选）
+      description: 可粘贴文字或拖入附件。只提供与问题相关的内容，并检查是否包含私人信息。
+    validations:
+      required: false

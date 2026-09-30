@@ -11,8 +11,8 @@
     <ApplicationIcon>Assets\DesktopOrganizer.ico</ApplicationIcon>
     <AssemblyName>DesktopOrganizer</AssemblyName>
     <RootNamespace>DesktopOrganizer</RootNamespace>
-    <Version>1.12.15</Version>
-    <FileVersion>1.12.15.0</FileVersion>
+    <Version>1.12.16-preview.1</Version>
+    <FileVersion>1.12.16.0</FileVersion>
     <DefaultItemExcludes>$(DefaultItemExcludes);tests\**</DefaultItemExcludes>
   </PropertyGroup>
 

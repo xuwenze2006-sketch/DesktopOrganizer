@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Windows.Media;
 using System.Xml.Linq;
 
@@ -103,11 +102,9 @@ public sealed class WarmPaperThemeTests
                0.0722 * Linearize(color.B);
     }
 
-    private static XDocument LoadMainWindowXaml([CallerFilePath] string sourceFilePath = "")
+    private static XDocument LoadMainWindowXaml()
     {
-        string testDirectory = Path.GetDirectoryName(sourceFilePath)
-            ?? throw new InvalidOperationException("Cannot resolve the test source directory.");
-        string projectRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+        string projectRoot = TestProjectFiles.Root;
         return XDocument.Load(Path.Combine(projectRoot, "MainWindow.xaml"));
     }
 }
