@@ -97,6 +97,7 @@ public sealed class GroupReleasePlacementTests
     public void ClearAutoClassification_SnapDisabled_AvoidsBottomClampAndExistingFreeIcon()
     {
         var window = new MainWindow(startQuietly: false);
+        SetField(window, "_desktopSnapshotInitialized", true);
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {
@@ -162,6 +163,7 @@ public sealed class GroupReleasePlacementTests
     public void ClearAutoClassification_SnapDisabled_NoCapacityKeepsAllStateUnchanged()
     {
         var window = new MainWindow(startQuietly: false);
+        SetField(window, "_desktopSnapshotInitialized", true);
         DispatcherTimer layoutSaveTimer = GetField<DispatcherTimer>(window, "_layoutSaveTimer");
         try
         {

@@ -1,7 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Globalization;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -360,11 +359,9 @@ public sealed class ControlPanelUiContractTests
             .Single(element => string.Equals((string?)element.Attribute(xaml + "Key"), key, StringComparison.Ordinal));
     }
 
-    private static XDocument LoadMainWindowXaml([CallerFilePath] string sourceFilePath = "")
+    private static XDocument LoadMainWindowXaml()
     {
-        string testDirectory = Path.GetDirectoryName(sourceFilePath)
-            ?? throw new InvalidOperationException("Cannot resolve the test source directory.");
-        string projectRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+        string projectRoot = TestProjectFiles.Root;
         return XDocument.Load(Path.Combine(projectRoot, "MainWindow.xaml"));
     }
 }

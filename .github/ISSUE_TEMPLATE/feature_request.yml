@@ -1,0 +1,28 @@
+name: 提出建议
+description: 说明实际使用需求与期望行为。
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: 请先查看是否已有相同建议。内容公开可见，请使用虚构文件名或脱敏示例说明需求。
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景与当前困难
+      placeholder: "我在……时，希望完成……，目前遇到的困难是……"
+    validations:
+      required: true
+  - type: textarea
+    id: desired
+    attributes:
+      label: 期望行为
+      description: 说明你希望如何操作、看到什么结果；无需提供技术实现方案。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方法或补充说明（可选）
+      description: 可以描述当前的处理方式；若建议涉及真实文件操作或联网，也请说明使用需求。
+    validations:
+      required: false

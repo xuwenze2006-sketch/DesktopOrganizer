@@ -498,7 +498,8 @@ namespace DesktopOrganizer
             {
                 IconCanvas.Visibility = Visibility.Visible;
                 UpdateRecycleBinWidgetVisibility();
-                bool newlyHidden = NativeMethods.EnsureNativeDesktopIconsHidden();
+                bool newlyHidden = _desktopSnapshotInitialized &&
+                    NativeMethods.EnsureNativeDesktopIconsHidden();
                 if (newlyHidden && !_nativeIconsWereVisible)
                 {
                     _nativeIconsWereVisible = true;
