@@ -51,8 +51,8 @@ public sealed class WarmPaperThemeTests
 
         XElement panel = FindNamedElement(document, "ControlPanel");
         XElement recycleWidget = FindNamedElement(document, "RecycleBinWidget");
-        Assert.AreEqual("#EEF0F6F6", panel.Attribute("Background")?.Value);
-        Assert.AreEqual("#20708088", panel.Attribute("BorderBrush")?.Value);
+        Assert.AreEqual("{StaticResource PanelSurfaceBrush}", panel.Attribute("Background")?.Value);
+        Assert.AreEqual("{StaticResource PanelBorderBrush}", panel.Attribute("BorderBrush")?.Value);
         Assert.AreEqual("#E8F0F6F6", recycleWidget.Attribute("Background")?.Value);
         Assert.AreEqual("#20708088", recycleWidget.Attribute("BorderBrush")?.Value);
     }

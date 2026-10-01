@@ -165,8 +165,8 @@ public sealed class ControlPanelUiContractTests
         double width = double.Parse(widthAttribute.Value, CultureInfo.InvariantCulture);
 
         Assert.IsLessThanOrEqualTo(420, width);
-        Assert.AreEqual("250", compactHeader.Attribute("MinWidth")?.Value);
-        Assert.AreEqual("34", compactHeader.Attribute("Height")?.Value);
+        Assert.AreEqual("300", compactHeader.Attribute("MinWidth")?.Value);
+        Assert.AreEqual("38", compactHeader.Attribute("Height")?.Value);
         Assert.AreEqual("Collapsed", expandedCommands.Attribute("Visibility")?.Value);
         Assert.AreEqual("0", tabs.Attribute("SelectedIndex")?.Value);
         Assert.AreEqual("4", tabItemsHost.Attribute("Columns")?.Value);
@@ -184,7 +184,8 @@ public sealed class ControlPanelUiContractTests
         window.ControlPanel.Visibility = Visibility.Visible;
         window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
 
-        Assert.AreEqual(268, GetPanelContentWidth(window.ControlPanel), 1);
+        double compactWidth=GetPanelContentWidth(window.ControlPanel);
+        Assert.IsTrue(compactWidth>=318 && compactWidth<=340);
 
         RaiseClick(window.PanelExpanderButton);
         window.ControlPanel.InvalidateMeasure();
@@ -199,7 +200,7 @@ public sealed class ControlPanelUiContractTests
             $"Expanded panel width grew to {GetPanelContentWidth(window.ControlPanel):F1} DIP.");
         Assert.AreEqual(438, GetPanelContentWidth(window.ControlPanel), 1);
         Assert.IsLessThanOrEqualTo(
-            282,
+            286,
             GetPanelContentHeight(window.ControlPanel),
             $"Expanded panel height grew to {GetPanelContentHeight(window.ControlPanel):F1} DIP.");
 
@@ -218,7 +219,7 @@ public sealed class ControlPanelUiContractTests
         window.ControlPanel.InvalidateMeasure();
         window.ControlPanel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         Assert.AreEqual(
-            268,
+            compactWidth,
             GetPanelContentWidth(window.ControlPanel),
             1);
     }

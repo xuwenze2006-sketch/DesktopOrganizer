@@ -51,6 +51,27 @@
         <SolidColorBrush x:Key="IconSurfaceBrush" Color="#FFF0E8DD"/>
         <SolidColorBrush x:Key="SwitchTrackBrush" Color="#FFCFC7BC"/>
 
+        <Style x:Key="StatusDetailToolTipStyle" TargetType="ToolTip">
+            <Setter Property="Background" Value="{StaticResource PanelSurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Height" Value="32"/>
             <Setter Property="MinWidth" Value="0"/>
@@ -720,16 +741,16 @@
                 Visibility="Hidden"
                 Padding="8"
                 CornerRadius="12"
-                Background="#EEF0F6F6"
-                BorderBrush="#20708088"
+                Background="{StaticResource PanelSurfaceBrush}"
+                BorderBrush="{StaticResource PanelBorderBrush}"
                 BorderThickness="1"
                 PreviewMouseDown="ControlPanel_PreviewMouseDown"
                 MouseEnter="ControlPanel_MouseEnter"
                 MouseLeave="ControlPanel_MouseLeave">
             <StackPanel>
                 <Grid x:Name="CompactControlPanelHeader"
-                          MinWidth="250"
-                          Height="34"
+                          MinWidth="300"
+                          Height="38"
                           Background="Transparent">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -755,8 +776,8 @@
                                 Grid.Column="1"
                                 HorizontalAlignment="Stretch"
                                 VerticalAlignment="Center"
-                                Margin="8,0"
-                                Padding="2,0"
+                                Margin="10,0"
+                                Padding="4,0"
                                 Background="Transparent"
                                 Cursor="SizeAll"
                                 ToolTip="{Binding ToolTip, ElementName=StatusText}"
@@ -784,15 +805,19 @@
                                            VerticalAlignment="Center"
                                            HorizontalAlignment="Left"
                                            FontFamily="Microsoft YaHei UI"
-                                           FontSize="11.5"
-                                           MaxWidth="112"
+                                           FontSize="12.5"
+                                           MaxWidth="132"
                                            TextTrimming="CharacterEllipsis"
                                            IsHitTestVisible="False"/>
                             </Grid>
                         </Border>
 
+                        <Border Grid.Column="2" Width="1" HorizontalAlignment="Left"
+                                Margin="0,8" Background="{StaticResource PanelBorderBrush}"
+                                IsHitTestVisible="False"/>
                         <Button x:Name="QuickPauseButton"
                                 Grid.Column="2"
+                                Margin="8,0,4,0"
                                 Content="暂停"
                                 Style="{StaticResource CompactButton}"
                                 Focusable="False"
