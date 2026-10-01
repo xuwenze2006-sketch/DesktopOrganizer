@@ -79,7 +79,7 @@ namespace DesktopOrganizer
             StatusText.Text = _appLayout.Groups.Any(IsLightDesktopEntry)
                 ? collapse ? "已收起主要分组；其他分类入口仍保留" : "已展开主要分组；其他分类可点击入口查看"
                 : collapse ? "已收起全部分组" : "已展开全部分组";
-            if (skipped > 0) StatusText.Text += $"；{skipped} 个分组空间不足，保持收起；可退出编辑模式后悬停查看";
+            if (skipped > 0) ReportGroupExpansionFailure($"已展开可用分组；{skipped} 个分组空间不足，保持收起");
         }
 
         private void UpdateCollapseGroupsButton()

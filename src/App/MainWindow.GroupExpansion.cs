@@ -29,6 +29,13 @@ namespace DesktopOrganizer
         }
 
         private void ReportGroupExpansionNoSpace(string name) =>
-            StatusText.Text=$"空间不足，未展开“{name}”；请先腾出空白区域，或退出编辑模式后悬停查看内容";
+            ReportGroupExpansionFailure($"空间不足，未展开“{name}”");
+
+        private void ReportGroupExpansionFailure(string reason)
+        {
+            string message=$"{reason}；请先腾出空白区域。临时查看内容需退出编辑模式、确认程序未暂停，再悬停折叠分组标题";
+            StatusText.Text=message;
+            StatusText.SetBinding(FrameworkElement.ToolTipProperty, new System.Windows.Data.Binding(nameof(TextBlock.Text)) { Source=StatusText });
+        }
     }
 }
