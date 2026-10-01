@@ -82,6 +82,7 @@ namespace DesktopOrganizer
 
         private void RefreshResults()
         {
+            ClearLocateFeedback();
             DesktopSmartView view = (ViewSelector.SelectedItem as SmartViewChoice)?.View ??
                                     DesktopSmartView.All;
             List<SearchListItem> items = _mainWindow
@@ -160,6 +161,7 @@ namespace DesktopOrganizer
         {
             if (!_isRefreshingResults)
             {
+                ClearLocateFeedback();
                 _explicitSelectionDisplayName = Selected?.DisplayName;
             }
             if (ResultActionPanel is not null)
@@ -225,7 +227,13 @@ namespace DesktopOrganizer
             switch (action)
             {
                 case DesktopSearchKeyboardAction.Locate:
-                    _mainWindow.LocateDesktopSearchResult(selected.Result.DisplayName);
+                    if (!_mainWindow.LocateDesktopSearchResult(selected.Result.DisplayName, out string? failureMessage))
+                    {
+                        LocateFeedbackText.Text = failureMessage;
+                        LocateFeedbackCard.Visibility = Visibility.Visible;
+                        return true;
+                    }
+                    ClearLocateFeedback();
                     break;
                 case DesktopSearchKeyboardAction.Open:
                     _mainWindow.OpenDesktopSearchResult(selected.Result.Location);
@@ -241,6 +249,15 @@ namespace DesktopOrganizer
                 Close();
             }
             return true;
+        }
+
+        private void ClearLocateFeedback()
+        {
+            if (LocateFeedbackCard is not null)
+            {
+                LocateFeedbackCard.Visibility = Visibility.Collapsed;
+                LocateFeedbackText.Text = string.Empty;
+            }
         }
 
         internal static bool ShouldCloseAfterAction(DesktopSearchKeyboardAction action) =>

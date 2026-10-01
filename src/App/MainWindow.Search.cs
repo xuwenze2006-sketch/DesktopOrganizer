@@ -71,12 +71,22 @@ namespace DesktopOrganizer
                 DateTimeOffset.UtcNow));
         }
 
-        internal void LocateDesktopSearchResult(string displayName)
+        internal bool LocateDesktopSearchResult(string displayName) =>
+            LocateDesktopSearchResult(displayName, out _);
+
+        internal bool LocateDesktopSearchResult(string displayName, out string? failureMessage)
         {
+            failureMessage = null;
+            if (_organizerPaused)
+            {
+                failureMessage = "整理已暂停，无法在桌面定位。\n可先打开文件或在资源管理器中查看；要定位，请关闭搜索，点击工具条“继续”，再打开搜索重试。";
+                return false;
+            }
             if (!_desktopItems.ContainsKey(displayName))
             {
+                failureMessage = $"“{displayName}”已不在当前桌面。\n请更换搜索条件，或关闭搜索并刷新桌面后重试。";
                 StatusText.Text = $"“{displayName}”已不在当前桌面，请刷新后重试";
-                return;
+                return false;
             }
 
             GroupInfo? group = _appLayout.Groups.FirstOrDefault(candidate =>
@@ -88,7 +98,8 @@ namespace DesktopOrganizer
                 if (!TryExpandGroupWithoutOverlap(group))
                 {
                     ReportGroupExpansionNoSpace(group.Name);
-                    return;
+                    failureMessage = $"桌面空间不足，无法展开“{group.Name}”。\n请先腾出空白区域，再尝试定位。";
+                    return false;
                 }
             }
 
@@ -124,6 +135,7 @@ namespace DesktopOrganizer
             StatusText.Text = group == null
                 ? $"已在桌面高亮“{displayName}”"
                 : $"已展开“{group.Name}”并高亮“{displayName}”";
+            return true;
         }
 
         private double GetGroupSearchVerticalOffset(GroupInfo group, int itemIndex)

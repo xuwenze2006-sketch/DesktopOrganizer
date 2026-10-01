@@ -13,6 +13,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -37,7 +38,18 @@
                       DisplayMemberPath="Name" SelectionChanged="ViewSelector_SelectionChanged"/>
         </Grid>
 
-        <ListBox x:Name="ResultsList" Grid.Row="2"
+        <Border x:Name="LocateFeedbackCard" Grid.Row="2" Visibility="Collapsed"
+                Padding="12" Margin="0,0,0,10" CornerRadius="8"
+                Background="#FFF0F7FF" BorderBrush="#FF9CC8F2" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="暂时无法定位" FontSize="14" FontWeight="SemiBold"
+                           Foreground="#FF334155" Margin="0,0,0,6"/>
+                <TextBlock x:Name="LocateFeedbackText" FontSize="12.5" LineHeight="19"
+                           Foreground="#FF334155" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <ListBox x:Name="ResultsList" Grid.Row="3"
                  MouseDoubleClick="ResultsList_MouseDoubleClick"
                  SelectionChanged="ResultsList_SelectionChanged"
                  PreviewKeyDown="ResultsList_PreviewKeyDown"
@@ -57,7 +69,7 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <Grid Grid.Row="3" Margin="0,12,0,0">
+        <Grid Grid.Row="4" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
