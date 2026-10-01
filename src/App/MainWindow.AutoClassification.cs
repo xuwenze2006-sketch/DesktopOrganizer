@@ -680,11 +680,9 @@ namespace DesktopOrganizer
             }
         }
 
-        private bool TryFindAvailableAutoGroupPosition(double width, double height, out Point position)
+        private List<Rect> GetGroupPlacementObstacles(GroupInfo? excluded = null)
         {
-            const double margin = 14;
-            const double step = 36;
-            var obstacles = _appLayout.Groups.Select(GetGroupBounds).ToList();
+            var obstacles = _appLayout.Groups.Where(group => !ReferenceEquals(group, excluded)).Select(GetGroupBounds).ToList();
             obstacles.AddRange(_appLayout.FolderPortals.Select(portal =>
                 new Rect(portal.X, portal.Y, portal.Width, portal.Height)));
             Rect? recycle = GetRecycleBinWidgetObstacle();
@@ -709,6 +707,15 @@ namespace DesktopOrganizer
                     obstacles.Add(new Rect(saved.X, saved.Y, IconCellWidth, IconCellHeight));
                 }
             }
+
+            return obstacles;
+        }
+
+        private bool TryFindAvailableAutoGroupPosition(double width, double height, out Point position)
+        {
+            const double margin = 14;
+            const double step = 36;
+            var obstacles = GetGroupPlacementObstacles();
 
             bool Fits(double x, double y, Rect area, IReadOnlyList<Rect> regionObstacles)
             {

@@ -85,7 +85,11 @@ namespace DesktopOrganizer
             bool layoutChanged = group?.IsCollapsed == true && !isEntry;
             if (group != null && !isEntry)
             {
-                group.IsCollapsed = false;
+                if (!TryExpandGroupWithoutOverlap(group))
+                {
+                    ReportGroupExpansionNoSpace(group.Name);
+                    return;
+                }
             }
 
             _selectedItemNames.Clear();

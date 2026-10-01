@@ -20,7 +20,15 @@ namespace DesktopOrganizer
                 ToggleLightDesktopDrawer(group);
                 return;
             }
-            group.IsCollapsed = !group.IsCollapsed;
+            if (group.IsCollapsed)
+            {
+                if (!TryExpandGroupWithoutOverlap(group))
+                {
+                    ReportGroupExpansionNoSpace(group.Name);
+                    return;
+                }
+            }
+            else group.IsCollapsed = true;
             ClampGroupToCanvas(group);
             _lastSmartLayoutSnapshot = null;
             UndoSmartLayoutButton.IsEnabled = false;
@@ -56,10 +64,12 @@ namespace DesktopOrganizer
             }
 
             StopGroupPeek();
-            bool collapse = ShouldCollapseAllGroups(_appLayout.Groups);
+            bool collapse = ShouldCollapseAllGroups(_appLayout.Groups.Where(group => !IsLightDesktopEntry(group)));
+            int skipped = 0;
             foreach (GroupInfo group in _appLayout.Groups)
             {
-                group.IsCollapsed = collapse || IsLightDesktopEntry(group);
+                if (collapse || IsLightDesktopEntry(group)) group.IsCollapsed = true;
+                else if (!TryExpandGroupWithoutOverlap(group)) { skipped++; continue; }
                 ClampGroupToCanvas(group);
             }
 
@@ -69,6 +79,7 @@ namespace DesktopOrganizer
             StatusText.Text = _appLayout.Groups.Any(IsLightDesktopEntry)
                 ? collapse ? "已收起主要分组；其他分类入口仍保留" : "已展开主要分组；其他分类可点击入口查看"
                 : collapse ? "已收起全部分组" : "已展开全部分组";
+            if (skipped > 0) StatusText.Text += $"；{skipped} 个分组空间不足，保持收起；可退出编辑模式后悬停查看";
         }
 
         private void UpdateCollapseGroupsButton()
