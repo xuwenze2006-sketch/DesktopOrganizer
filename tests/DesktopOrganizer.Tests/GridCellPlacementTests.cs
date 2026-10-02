@@ -5,6 +5,74 @@ namespace DesktopOrganizer.Tests;
 [TestClass]
 public sealed class GridCellPlacementTests
 {
+    public TestContext TestContext { get; set; } = null!;
+
+    [TestMethod]
+    [DataRow(40, 30, 40, 30)]
+    [DataRow(-4, -8, 0, 0)]
+    [DataRow(90, 80, 79, 59)]
+    public void FindNearest_AvailablePreferenceNeedsOnlyOneAvailabilityCheck(
+        int preferredColumn, int preferredRow, int expectedColumn, int expectedRow)
+    {
+        int checks = 0;
+        GridCell? result = GridCellSearch.FindNearest(80, 60, preferredColumn, preferredRow,
+            (_, _) => { checks++; return true; });
+
+        Assert.AreEqual(new GridCell(expectedColumn, expectedRow), result);
+        Assert.AreEqual(1, checks,
+            "首选格可用时已经找到距离为零的最优位置，不应继续查询整个网格。");
+    }
+
+    [TestMethod]
+    public void FindNearest_BlockedPreferenceAvoidsRepeatedChecksAndPreservesTieOrder()
+    {
+        var visits = new Dictionary<GridCell, int>();
+        GridCell? result = GridCellSearch.FindNearest(8, 6, 3, 2, (column, row) =>
+        {
+            var cell = new GridCell(column, row);
+            visits[cell] = visits.GetValueOrDefault(cell) + 1;
+            return cell != new GridCell(3, 2);
+        });
+
+        Assert.AreEqual(new GridCell(3, 1), result);
+        Assert.IsLessThanOrEqualTo(48, visits.Count);
+        Assert.IsTrue(visits.Values.All(count => count == 1),
+            "首选格不可用时，回退搜索不应重复执行同一格的几何检查。");
+    }
+
+    [TestMethod]
+    [DataRow(0, 10)]
+    [DataRow(10, 0)]
+    [DataRow(-1, 10)]
+    [DataRow(10, -1)]
+    public void FindNearest_InvalidDimensionsDoNotCheckAvailability(int columns, int rows)
+    {
+        int checks = 0;
+        GridCell? result = GridCellSearch.FindNearest(columns, rows, 0, 0,
+            (_, _) => { checks++; return true; });
+
+        Assert.IsNull(result);
+        Assert.AreEqual(0, checks);
+    }
+
+    [TestMethod]
+    public void RefreshPlan_FreePreferredCellsNeedOnlyOneGeometryCheckPerItem()
+    {
+        List<GridPlacementRequest> requests = Enumerable.Range(0, 120)
+            .Select(index => new GridPlacementRequest($"item-{index}", index % 20, index / 20))
+            .ToList();
+        int checks = 0;
+        Dictionary<string, GridCell?> result = GridRefreshPlacementPlanner.Plan(
+            20, 12, requests, [], (_, _) => { checks++; return true; });
+
+        Assert.HasCount(120, result);
+        foreach (GridPlacementRequest request in requests)
+            Assert.AreEqual(new GridCell(request.PreferredColumn, request.PreferredRow), result[request.Key]);
+        TestContext.WriteLine($"20×12 网格放置 120 个项目的几何检查次数：{checks}");
+        Assert.AreEqual(120, checks,
+            "默认位置全部可用时，批量刷新不应为每个新项目重查整个网格。");
+    }
+
     [TestMethod]
     public void FindNearest_PreferredCellAvailable_ReturnsPreferredCell()
     {

@@ -25,13 +25,20 @@ namespace DesktopOrganizer
             preferredColumn = Math.Clamp(preferredColumn, 0, columns - 1);
             preferredRow = Math.Clamp(preferredRow, 0, rows - 1);
 
+            // 首选格可用时距离为零，已是唯一最优解，无需再检查整张网格。
+            if (isAvailable(preferredColumn, preferredRow))
+            {
+                return new GridCell(preferredColumn, preferredRow);
+            }
+
             GridCell? nearest = null;
             long nearestDistance = long.MaxValue;
             for (int row = 0; row < rows; row++)
             {
                 for (int column = 0; column < columns; column++)
                 {
-                    if (!isAvailable(column, row))
+                    if ((column == preferredColumn && row == preferredRow) ||
+                        !isAvailable(column, row))
                     {
                         continue;
                     }
