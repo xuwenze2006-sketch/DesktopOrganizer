@@ -77,12 +77,20 @@ public sealed class DesktopSearchIndexTests
             metadata);
         tags[0] = "修改后标签";
         items["Later.txt"] = @"?:\invalid\Later.txt";
+        categories["Current.txt"] = Category("images", "修改后类型");
+        metadata["Current.txt"] = Metadata(["替换后标签"], firstSeenUtc: Now, pending: true);
 
         IReadOnlyList<DesktopSearchResult> all = index.Search(Request(null, DesktopSmartView.All));
 
         Assert.HasCount(1, all);
         Assert.AreEqual("Current.txt", all[0].DisplayName);
+        Assert.AreEqual("文档", all[0].TypeDisplayName);
+        Assert.IsNull(all[0].FirstSeenUtc);
+        Assert.IsFalse(all[0].IsPendingConfirmation);
         CollectionAssert.AreEqual(new[] { "原始标签" }, all[0].Tags.ToArray());
+        ((string[])all[0].Tags)[0] = "修改结果标签";
+        CollectionAssert.AreEqual(new[] { "原始标签" },
+            index.Search(Request(null, DesktopSmartView.All))[0].Tags.ToArray());
         Assert.IsEmpty(index.Search(Request("幽灵", DesktopSmartView.All)));
         Assert.IsEmpty(index.Search(Request("Later", DesktopSmartView.All)));
     }
@@ -317,6 +325,107 @@ public sealed class DesktopSearchIndexTests
                 Now,
                 Limit: 50,
                 RecentWindow: TimeSpan.Zero)));
+    }
+
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void Build_ConflictingCaseSensitiveMetadataUsesFirstNonNullOrdinalKey(bool firstIsNull)
+    {
+        foreach (bool reverse in new[] { false, true })
+        {
+            var categories = new Dictionary<string, DesktopCategoryDefinition>(StringComparer.Ordinal);
+            var metadata = new Dictionary<string, DesktopSearchItemMetadata>(StringComparer.Ordinal);
+            string[] names = reverse ? ["report.txt", "REPORT.txt"] : ["REPORT.txt", "report.txt"];
+            foreach (string name in names)
+            {
+                bool upper = name == "REPORT.txt";
+                categories.Add(name, upper && firstIsNull ? null! : Category(
+                    upper ? "upper" : "lower", upper ? "大写键类型" : "小写键类型"));
+                metadata.Add(name, upper && firstIsNull ? null! : Metadata(
+                    upper ? ["大写键标签"] : ["小写键标签"]));
+            }
+            DesktopSearchIndex index = DesktopSearchIndex.Build(
+                new Dictionary<string, string> { ["Report.txt"] = "report" }, categories, [], metadata);
+
+            DesktopSearchResult result = AssertExactlyOne(index.Search(Request(null, DesktopSmartView.All)));
+
+            Assert.AreEqual(firstIsNull ? "小写键类型" : "大写键类型", result.TypeDisplayName);
+            CollectionAssert.AreEqual(firstIsNull ? new[] { "小写键标签" } : new[] { "大写键标签" },
+                result.Tags.ToArray());
+        }
+    }
+
+    [TestMethod]
+    [DataRow(null)]
+    [DataRow("")]
+    [DataRow(" \t\r\n")]
+    public void Search_BlankQueryAppliesViewBeforeLimit(string? text)
+    {
+        DesktopSearchIndex index = BuildIndex(
+            items: [("C.txt", "c"), ("B.txt", "b"), ("A.txt", "a")],
+            categories: [], groups: [],
+            metadata: [("B.txt", Metadata(pending: true)), ("C.txt", Metadata(pending: true))]);
+
+        DesktopSearchResult result = AssertExactlyOne(index.Search(new DesktopSearchRequest(
+            text, DesktopSmartView.PendingConfirmation, Now, Limit: 1)));
+
+        Assert.AreEqual("B.txt", result.DisplayName);
+    }
+
+    [TestMethod]
+    [DataRow(false, 1, false)]
+    [DataRow(true, 1, true)]
+    [DataRow(false, 0, false)]
+    [DataRow(true, 0, false)]
+    public void Search_UnknownViewPreservesEmptyAndLimitBehavior(bool populated, int limit, bool throws)
+    {
+        DesktopSearchIndex index = BuildIndex(
+            items: populated ? [("One.txt", "one")] : [], categories: [], groups: [], metadata: []);
+        var request = new DesktopSearchRequest(null, (DesktopSmartView)999, Now, limit);
+
+        if (throws)
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => index.Search(request));
+        else
+            Assert.IsEmpty(index.Search(request));
+    }
+
+    [TestMethod]
+    public void Search_PreservesFieldWeightBoundariesAndBestMatchWithinEachField()
+    {
+        DesktopSearchIndex index = BuildIndex(
+            items:
+            [
+                ("Alpha type prefix", "type-prefix"), ("Zulu type exact", "type-exact"),
+                ("Group prefix", "group-prefix"), ("Group exact", "group-exact"),
+                ("Tag prefix", "tag-prefix"), ("Tag exact", "tag-exact"),
+                ("Tag contains", "tag-contains"), ("Group contains", "group-contains"),
+                ("Zulu needle notes", "name-contains")
+            ],
+            categories:
+            [
+                ("Alpha type prefix", Category("other", "needle documents")),
+                ("Zulu type exact", Category("needle", "A-needle"))
+            ],
+            groups:
+            [
+                new GroupInfo { Id = "contains", Name = "A-needle", ItemNames = ["Group exact", "Group contains"] },
+                new GroupInfo { Id = "exact", Name = "needle", ItemNames = ["Group exact"] },
+                new GroupInfo { Id = "prefix", Name = "needle files", ItemNames = ["Group prefix"] }
+            ],
+            metadata:
+            [
+                ("Tag exact", Metadata(["A-needle", "needle"])),
+                ("Tag prefix", Metadata(["needle notes"])),
+                ("Tag contains", Metadata(["A-needle"]))
+            ]);
+
+        CollectionAssert.AreEqual(new[]
+            {
+                "Zulu needle notes", "Tag exact", "Tag prefix", "Tag contains",
+                "Group exact", "Group prefix", "Group contains", "Zulu type exact", "Alpha type prefix"
+            },
+            index.Search(Request("needle", DesktopSmartView.All)).Select(result => result.DisplayName).ToArray());
     }
 
     private static DesktopSearchIndex BuildIndex(

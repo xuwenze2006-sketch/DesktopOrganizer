@@ -64,26 +64,10 @@ namespace DesktopOrganizer
             ArgumentNullException.ThrowIfNull(metadataByItem);
 
             Dictionary<string, List<DesktopSearchGroup>> groupsByItem = BuildGroupLookup(groups);
-            Dictionary<string, DesktopCategoryDefinition> normalizedClassifications = classifications
-                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null)
-                .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    group => group.Key,
-                    group => group
-                        .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                        .Select(pair => pair.Value)
-                        .First(),
-                    StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, DesktopSearchItemMetadata> normalizedMetadata = metadataByItem
-                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null)
-                .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    group => group.Key,
-                    group => group
-                        .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                        .Select(pair => pair.Value)
-                        .First(),
-                    StringComparer.OrdinalIgnoreCase);
+            IReadOnlyDictionary<string, DesktopCategoryDefinition> normalizedClassifications =
+                GetCaseInsensitiveLookup(classifications);
+            IReadOnlyDictionary<string, DesktopSearchItemMetadata> normalizedMetadata =
+                GetCaseInsensitiveLookup(metadataByItem);
 
             var indexedItems = new List<IndexedDesktopItem>(currentDesktopItems.Count);
             IEnumerable<KeyValuePair<string, string>> orderedItems = currentDesktopItems
@@ -148,6 +132,16 @@ namespace DesktopOrganizer
             DateTimeOffset utcNow = request.UtcNow.ToUniversalTime();
             DateTimeOffset recentThreshold = utcNow - recentWindow;
 
+            // Build 已按相同的名称/路径顺序排序；空查询没有相关度差异。
+            if (tokens.Count == 0)
+            {
+                return _items
+                    .Where(item => MatchesView(item, request.View, recentThreshold, utcNow))
+                    .Take(request.Limit)
+                    .Select(item => item.ToResult())
+                    .ToList();
+            }
+
             return _items
                 .Where(item => MatchesView(item, request.View, recentThreshold, utcNow))
                 .Select(item => TryScore(item, tokens, out int score)
@@ -162,6 +156,28 @@ namespace DesktopOrganizer
                 .Take(request.Limit)
                 .Select(result => result.Item.ToResult())
                 .ToList();
+        }
+
+        private static IReadOnlyDictionary<string, TValue> GetCaseInsensitiveLookup<TValue>(
+            IReadOnlyDictionary<string, TValue> source) where TValue : class
+        {
+            // 只在构建期间复用查找；索引仍复制字段，不持有调用方的可变字典。
+            if (source is Dictionary<string, TValue> dictionary &&
+                ReferenceEquals(dictionary.Comparer, StringComparer.OrdinalIgnoreCase))
+            {
+                return source;
+            }
+
+            return source
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null)
+                .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                        .Select(pair => pair.Value)
+                        .First(),
+                    StringComparer.OrdinalIgnoreCase);
         }
 
         private static Dictionary<string, List<DesktopSearchGroup>> BuildGroupLookup(
@@ -303,23 +319,26 @@ namespace DesktopOrganizer
             foreach (string token in tokens)
             {
                 int tokenScore = ScoreField(item.DisplayName, token, exact: 400, prefix: 300, contains: 200);
-                tokenScore = Math.Max(
-                    tokenScore,
-                    ScoreFields(item.Tags, token, exact: 160, prefix: 150, contains: 140));
-                tokenScore = Math.Max(
-                    tokenScore,
-                    ScoreFields(
+                // 各类字段分数区间不重叠，高权重字段命中后无需扫描较低权重字段。
+                if (tokenScore == 0)
+                {
+                    tokenScore = ScoreFields(item.Tags, token, exact: 160, prefix: 150, contains: 140);
+                }
+                if (tokenScore == 0)
+                {
+                    tokenScore = ScoreFields(
                         item.Groups.Select(group => group.Name),
                         token,
                         exact: 130,
                         prefix: 120,
-                        contains: 110));
-                tokenScore = Math.Max(
-                    tokenScore,
-                    ScoreField(item.TypeDisplayName, token, exact: 100, prefix: 90, contains: 80));
-                tokenScore = Math.Max(
-                    tokenScore,
-                    ScoreField(item.TypeKey, token, exact: 100, prefix: 90, contains: 80));
+                        contains: 110);
+                }
+                if (tokenScore == 0)
+                {
+                    tokenScore = Math.Max(
+                        ScoreField(item.TypeDisplayName, token, exact: 100, prefix: 90, contains: 80),
+                        ScoreField(item.TypeKey, token, exact: 100, prefix: 90, contains: 80));
+                }
 
                 if (tokenScore == 0)
                 {
@@ -344,6 +363,10 @@ namespace DesktopOrganizer
             foreach (string value in values)
             {
                 score = Math.Max(score, ScoreField(value, token, exact, prefix, contains));
+                if (score == exact)
+                {
+                    break;
+                }
             }
             return score;
         }
