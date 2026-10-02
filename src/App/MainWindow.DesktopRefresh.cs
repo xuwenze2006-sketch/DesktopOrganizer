@@ -62,11 +62,12 @@ namespace DesktopOrganizer
                 return false;
             }
 
+            // 一次建立名称查找表，避免未变化快照对每个项目遍历全部旧名称。
+            // TryGetValue 保留旧名称的原始大小写，让仅大小写变化的改名仍触发刷新。
+            var currentNames = new HashSet<string>(currentItems.Keys, StringComparer.OrdinalIgnoreCase);
             foreach ((string name, string path) in next.Items)
             {
-                string? currentActualName = currentItems.Keys.FirstOrDefault(currentName =>
-                    currentName.Equals(name, StringComparison.OrdinalIgnoreCase));
-                if (currentActualName == null ||
+                if (!currentNames.TryGetValue(name, out string? currentActualName) ||
                     !string.Equals(currentActualName, name, StringComparison.Ordinal) ||
                     !currentItems.TryGetValue(name, out string? currentPath) ||
                     !ShellItemLocation.AreEquivalent(currentPath, path))
