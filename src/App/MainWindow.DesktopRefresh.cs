@@ -278,6 +278,7 @@ namespace DesktopOrganizer
 
             var groupedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var targetGroupFingerprints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var targetGroupItems = new Dictionary<string, IReadOnlyList<GroupVirtualItem>>(StringComparer.OrdinalIgnoreCase);
             foreach (GroupInfo group in _appLayout.Groups)
             {
                 foreach (string itemName in group.ItemNames)
@@ -291,7 +292,10 @@ namespace DesktopOrganizer
                 }
 
                 ClampGroupToCanvas(group);
-                targetGroupFingerprints[group.Id] = BuildGroupVisualFingerprint(group, existing);
+                // 本轮指纹、复用检查和面板创建共用排序快照；下轮重新读取文件属性。
+                List<GroupVirtualItem> items = BuildGroupVirtualItems(group, existing);
+                targetGroupItems[group.Id] = items;
+                targetGroupFingerprints[group.Id] = BuildGroupVisualFingerprint(group, items);
             }
             if (layoutChanged)
             {
@@ -441,7 +445,7 @@ namespace DesktopOrganizer
                     targetGroupFingerprints.TryGetValue(groupId, out string? targetFingerprint) &&
                     _groupVisualFingerprints.TryGetValue(groupId, out string? currentFingerprint) &&
                     string.Equals(currentFingerprint, targetFingerprint, StringComparison.Ordinal) &&
-                    IsReusableGroupVisual(targetGroup, existing, _groupVisuals[groupId]);
+                    IsReusableGroupVisual(targetGroup, targetGroupItems[groupId], _groupVisuals[groupId]);
                 if (!reusable)
                 {
                     RemoveGroupVisual(groupId);
@@ -481,7 +485,7 @@ namespace DesktopOrganizer
                 }
                 else
                 {
-                    groupVisual = CreateGroupVisual(group, existing);
+                    groupVisual = CreateGroupVisualWithItems(group, targetGroupItems[group.Id]);
                     _groupVisuals[group.Id] = groupVisual;
                     _groupVisualFingerprints[group.Id] = targetGroupFingerprints[group.Id];
                     IconCanvas.Children.Add(groupVisual);
@@ -570,9 +574,9 @@ namespace DesktopOrganizer
 
         private string BuildGroupVisualFingerprint(
             GroupInfo group,
-            Dictionary<string, string> existing)
+            IReadOnlyList<GroupVirtualItem> items)
         {
-            var builder = new StringBuilder(256 + group.ItemNames.Count * 80);
+            var builder = new StringBuilder(256 + items.Count * 80);
             AppendFingerprintPart(builder, group.Id);
             AppendFingerprintPart(builder, group.Name);
             AppendFingerprintPart(builder, group.AutoCategoryKey ?? string.Empty);
@@ -588,12 +592,11 @@ namespace DesktopOrganizer
             builder.Append('|').Append(_appLayout.CompactGroupLayout ? '1' : '0');
             builder.Append('|').Append(_iconVisualGeneration);
 
-            foreach (string itemName in GetSortedGroupItemNames(group, existing))
+            foreach (GroupVirtualItem item in items)
             {
+                string itemName = item.DisplayName;
+                string fullPath = item.FullPath;
                 AppendFingerprintPart(builder, itemName);
-                string fullPath = existing.TryGetValue(itemName, out string? itemPath)
-                    ? itemPath
-                    : string.Empty;
                 AppendFingerprintPart(builder, fullPath);
                 AppendFingerprintPart(builder, GetDesktopItemVisualKind(itemName, fullPath));
                 builder.Append('|').Append(GetIconCacheVersion(GetIconCacheKey(fullPath)));
@@ -643,7 +646,7 @@ namespace DesktopOrganizer
 
         private bool IsReusableGroupVisual(
             GroupInfo group,
-            IReadOnlyDictionary<string, string> existing,
+            IReadOnlyList<GroupVirtualItem> expectedItems,
             FrameworkElement visual)
         {
             if (!IconCanvas.Children.Contains(visual) ||
@@ -659,7 +662,6 @@ namespace DesktopOrganizer
                 return false;
             }
 
-            List<GroupVirtualItem> expectedItems = BuildGroupVirtualItems(group, existing);
             return itemsPanel.MatchesItems(expectedItems);
         }
 

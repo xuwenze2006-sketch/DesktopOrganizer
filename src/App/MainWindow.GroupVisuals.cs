@@ -243,6 +243,11 @@ namespace DesktopOrganizer
 
         private FrameworkElement CreateGroupVisual(GroupInfo group, Dictionary<string, string> existing)
         {
+            return CreateGroupVisualWithItems(group, BuildGroupVirtualItems(group, existing));
+        }
+
+        private FrameworkElement CreateGroupVisualWithItems(GroupInfo group, IReadOnlyList<GroupVirtualItem> virtualItems)
+        {
             double displayHeight = GetGroupDisplayHeight(group);
             Color accentColor = GetGroupAccentColor(group);
             Color paperSurface = WarmPaperTheme.PanelSurfaceColor;
@@ -551,7 +556,6 @@ namespace DesktopOrganizer
             header.LostMouseCapture += GroupHeader_LostMouseCapture;
             header.ContextMenu = groupMenu;
 
-            List<GroupVirtualItem> virtualItems = BuildGroupVirtualItems(group, existing);
             double groupedTileWidth = GetGroupedIconTileWidth(group);
             double groupedTileMargin = _appLayout.CompactGroupLayout ? 1.5 : 2;
             int groupedColumns = GetDesiredGroupColumnCount(group);
