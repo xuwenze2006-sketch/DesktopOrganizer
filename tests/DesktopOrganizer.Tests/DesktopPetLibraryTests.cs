@@ -486,15 +486,15 @@ public sealed class DesktopPetLibraryTests
         Assert.AreEqual(Visibility.Collapsed, picker.LibraryPanel.Visibility);
         Assert.IsTrue(picker.CompositionScroll.ScrollableHeight > 0);
         picker.CompositionScroll.ScrollToBottom(); picker.UpdateLayout();
-        var restorePoint = picker.RestoreCompositionButton.TranslatePoint(new Point(0, 0), picker.CompositionScroll);
+        var restorePoint = picker.ResetPlacementButton.TranslatePoint(new Point(0, 0), picker.CompositionScroll);
         Assert.IsTrue(restorePoint.Y >= 0 && restorePoint.Y < picker.CompositionScroll.ActualHeight);
         var narrow = new RenderTargetBitmap(410, 360, 96, 96, PixelFormats.Pbgra32); narrow.Render(picker);
         var narrowEncoder = new PngBitmapEncoder(); narrowEncoder.Frames.Add(BitmapFrame.Create(narrow));
         using (var output = File.Create(Path.Combine(directory, "picker-narrow.png"))) narrowEncoder.Save(output);
         picker.Measure(new Size(920, 360)); picker.Arrange(new Rect(0, 0, 920, 360)); picker.UpdateLayout();
-        Assert.IsTrue(picker.CompositionScroll.ScrollableHeight > 0, "宽而矮的窗口必须能滚到参数和恢复入口。");
+        Assert.IsTrue(picker.CompositionScroll.ScrollableHeight > 0, "宽而矮的窗口必须能滚到参数和重置入口。");
         picker.CompositionScroll.ScrollToBottom(); picker.UpdateLayout();
-        restorePoint = picker.RestoreCompositionButton.TranslatePoint(new Point(0, 0), picker.CompositionScroll);
+        restorePoint = picker.ResetPlacementButton.TranslatePoint(new Point(0, 0), picker.CompositionScroll);
         Assert.IsTrue(restorePoint.Y >= 0 && restorePoint.Y < picker.CompositionScroll.ActualHeight);
         picker.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
     }
@@ -599,6 +599,137 @@ public sealed class DesktopPetLibraryTests
             Assert.AreEqual(1, picker.Characters.Items.Count);
         }
         finally { shared.SetValue(null, original); }
+    }
+
+    [STATestMethod]
+    public void Picker_SearchRecoveryAndPlacementReadouts_KeepDraftAndExplainDisabledControls()
+    {
+        var picker = new DesktopPetPicker("black-haired", true, true,
+            new DesktopPetLayoutInfo { SceneId = "tiananmen", CharacterScale = .8, CharacterShiftX = -24, CharacterShiftY = 16 });
+        using var source = new OffscreenSource(picker);
+        picker.Measure(new Size(920, 690)); picker.Arrange(new Rect(0, 0, 920, 690)); picker.UpdateLayout();
+        var clear = picker.FindName("ClearSearchButton") as System.Windows.Controls.Button;
+        Assert.IsNotNull(clear, "搜索应提供一键清空入口。");
+        Assert.AreEqual(Visibility.Collapsed, clear.Visibility);
+        picker.SearchBox.Text = "找不到";
+        Assert.AreEqual(Visibility.Visible, clear.Visibility);
+        Assert.AreEqual(0, picker.Characters.Items.Count);
+        Assert.AreEqual("角色 · 0", picker.CharactersTab.Header);
+        Assert.AreEqual("背景 · 0", picker.ScenesTab.Header);
+        clear.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Assert.AreEqual("", picker.SearchBox.Text);
+        Assert.AreEqual("black-haired", picker.SelectedCharacterId);
+        Assert.IsFalse(picker.HasUnappliedChanges);
+        var scale = (System.Windows.Controls.TextBlock)picker.FindName("ScaleReadout");
+        var horizontal = (System.Windows.Controls.TextBlock)picker.FindName("HorizontalReadout");
+        var vertical = (System.Windows.Controls.TextBlock)picker.FindName("VerticalReadout");
+        Assert.AreEqual("80%", scale.Text);
+        StringAssert.Contains(horizontal.Text, "左 24");
+        StringAssert.Contains(vertical.Text, "下 16");
+        picker.CharacterScale.Value = 1.25; picker.CharacterX.Value = 32; picker.CharacterY.Value = -20;
+        Assert.AreEqual("125%", scale.Text);
+        StringAssert.Contains(horizontal.Text, "右 32");
+        StringAssert.Contains(vertical.Text, "上 20");
+        picker.ShowScene.IsChecked = false;
+        var hint = (System.Windows.Controls.TextBlock)picker.FindName("PlacementHint");
+        Assert.AreEqual(Visibility.Visible, hint.Visibility);
+        StringAssert.Contains(hint.Text, "开启背景");
+        picker.ShowScene.IsChecked = true;
+        Assert.AreEqual(Visibility.Collapsed, hint.Visibility);
+        picker.ResetPlacementButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Assert.AreEqual("100%", scale.Text);
+        Assert.AreEqual("默认", horizontal.Text, "零偏移代表角色原始锚点，不代表场景几何中心。");
+        Assert.AreEqual("默认", vertical.Text);
+    }
+
+    [STATestMethod]
+    public void Picker_DirtyStatusRemainsVisibleFromNarrowLibrary_AndCanRestoreWithoutSwitchingViews()
+    {
+        var picker = new DesktopPetPicker("black-haired", true, true, new DesktopPetLayoutInfo { SceneId = "tiananmen" });
+        using var source = new OffscreenSource(picker);
+        picker.Measure(new Size(410, 360)); picker.Arrange(new Rect(0, 0, 410, 360)); picker.UpdateLayout();
+        picker.Characters.SelectedValue = "vpet"; picker.UpdateLayout();
+        Assert.IsTrue(picker.DraftStatus.IsVisible, "未应用提示不能藏在窄窗的另一页。");
+        Assert.IsTrue(picker.RestoreCompositionButton.IsVisible, "恢复原搭配应能直接从素材页操作。");
+        Assert.IsTrue(picker.RestoreCompositionButton.IsEnabled);
+        var point = picker.RestoreCompositionButton.TranslatePoint(new Point(0, picker.RestoreCompositionButton.ActualHeight), picker);
+        Assert.IsTrue(point.Y <= 360);
+        picker.RestoreCompositionButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        Assert.AreEqual("black-haired", picker.SelectedCharacterId);
+        Assert.IsFalse(picker.HasUnappliedChanges);
+    }
+
+    [STATestMethod]
+    public void Picker_MetadataActionsKeepScrollPosition_AndUnchangedDoneDoesNotApply()
+    {
+        var library = DesktopPetLibrary.Shared;
+        bool favorite = library.IsFavorite("sunset-duo");
+        var picker = new DesktopPetPicker("pixelpaws", true, false);
+        using var source = new OffscreenSource(picker);
+        try
+        {
+            picker.Measure(new Size(600, 550)); picker.Arrange(new Rect(0, 0, 600, 550)); picker.UpdateLayout();
+            var scroll = Descendants<System.Windows.Controls.ScrollViewer>(picker.Characters).First();
+            scroll.ScrollToBottom(); picker.UpdateLayout();
+            double before = scroll.VerticalOffset;
+            Assert.IsTrue(before > 0);
+            var card = picker.Characters.Items.Cast<DesktopPetPicker.Card>().Single(c => c.Id == "sunset-duo");
+            ClickMenu(picker.CreateCardMenu(card), card.FavoriteHint);
+            picker.UpdateLayout();
+            Assert.AreEqual(before, scroll.VerticalOffset, 1, "收藏操作不应把当前浏览位置带回顶部。");
+            Assert.IsFalse(picker.HasUnappliedChanges);
+            int applied = 0, closed = 0;
+            picker.ApplyRequested += () => applied++;
+            picker.CancelRequested += () => closed++;
+            picker.ApplyButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Assert.AreEqual(0, applied, "仅管理素材后点击完成，无需再保存未改变的桌面布局。");
+            Assert.AreEqual(1, closed);
+        }
+        finally { library.SetFavorite("sunset-duo", favorite); }
+    }
+
+    [STATestMethod]
+    public void Picker_HiddenCardRestoresDirectly_WithoutChangingDraftOrOtherHiddenItems()
+    {
+        var library = DesktopPetLibrary.Shared;
+        bool vpetHidden = library.IsRemoved("vpet"), pinkHidden = library.IsRemoved("pink-haired");
+        try
+        {
+            library.SetRemoved("vpet", true); library.SetRemoved("pink-haired", true);
+            var picker = new DesktopPetPicker("black-haired", true, false);
+            using var source = new OffscreenSource(picker);
+            picker.LibraryFilter.SelectedIndex = 2;
+            picker.Measure(new Size(410, 360)); picker.Arrange(new Rect(0, 0, 410, 360)); picker.UpdateLayout();
+            var restore = Descendants<System.Windows.Controls.Button>(picker.Characters).FirstOrDefault(b =>
+                b.Content is "恢复" && b.DataContext is DesktopPetPicker.Card { Id: "vpet" });
+            Assert.IsNotNull(restore, "隐藏卡片应直接提供恢复入口。");
+            Assert.IsTrue(restore.IsVisible);
+            restore.BringIntoView(); picker.UpdateLayout();
+            var scroll = Descendants<System.Windows.Controls.ScrollViewer>(picker.Characters).First();
+            var top = restore.TranslatePoint(new Point(0, 0), scroll);
+            Assert.IsTrue(top.Y >= 0 && top.Y + restore.ActualHeight <= scroll.ActualHeight);
+            var image = new RenderTargetBitmap(410, 360, 96, 96, PixelFormats.Pbgra32); image.Render(picker);
+            var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+            string directory = Path.Combine(TestProjectFiles.Root, "artifacts", "material-library-qa");
+            Directory.CreateDirectory(directory);
+            using (var output = File.Create(Path.Combine(directory, "picker-hidden.png"))) encoder.Save(output);
+            restore.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Assert.IsFalse(library.IsRemoved("vpet"));
+            Assert.IsTrue(library.IsRemoved("pink-haired"));
+            Assert.AreEqual("black-haired", picker.SelectedCharacterId);
+            Assert.IsFalse(picker.HasUnappliedChanges);
+        }
+        finally { library.SetRemoved("vpet", vpetHidden); library.SetRemoved("pink-haired", pinkHidden); }
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) yield return match;
+            foreach (T descendant in Descendants<T>(child)) yield return descendant;
+        }
     }
 
     private static void ClickMenu(System.Windows.Controls.ContextMenu menu, string header) =>

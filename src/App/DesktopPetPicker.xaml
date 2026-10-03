@@ -3,6 +3,7 @@
  Background="#F6F5F1" Foreground="#302F2B" UseLayoutRounding="True" MinWidth="360" SizeChanged="Picker_SizeChanged">
  <UserControl.Resources>
   <Style TargetType="Button">
+   <Setter Property="MinHeight" Value="28"/>
    <Setter Property="Padding" Value="10,6"/><Setter Property="Margin" Value="0,0,6,0"/>
    <Setter Property="Background" Value="White"/><Setter Property="BorderBrush" Value="#CDD4C8"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
@@ -17,6 +18,36 @@
     </ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
+  <Style TargetType="TabItem">
+   <Setter Property="Padding" Value="14,6"/><Setter Property="Margin" Value="0,0,5,0"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
+    <Border x:Name="TabSurface" CornerRadius="7" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" Padding="{TemplateBinding Padding}">
+     <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsSelected" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="White"/><Setter TargetName="TabSurface" Property="BorderBrush" Value="#B3C6AF"/></Trigger>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="#EDF2E9"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="TabSurface" Property="BorderBrush" Value="#375D3E"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="ViewSwitch" TargetType="RadioButton">
+   <Setter Property="Padding" Value="12,5"/><Setter Property="Margin" Value="0,0,6,0"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+    <Border x:Name="SwitchSurface" Background="#ECEEE8" BorderBrush="Transparent" BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
+     <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
+    </Border>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsChecked" Value="True"><Setter TargetName="SwitchSurface" Property="Background" Value="White"/><Setter TargetName="SwitchSurface" Property="BorderBrush" Value="#587F5F"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
+     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="SwitchSurface" Property="Background" Value="#E0EBDE"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SwitchSurface" Property="BorderBrush" Value="#304C35"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="Readout" TargetType="TextBlock">
+   <Setter Property="HorizontalAlignment" Value="Right"/><Setter Property="Foreground" Value="#416A48"/>
+   <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
   <Style TargetType="ListBoxItem">
    <Setter Property="AutomationProperties.Name" Value="{Binding Name}"/>
    <Setter Property="Margin" Value="4"/><Setter Property="Padding" Value="8"/>
@@ -28,34 +59,44 @@
     <ControlTemplate.Triggers>
      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Card" Property="BorderBrush" Value="#9BAC96"/></Trigger>
      <Trigger Property="IsSelected" Value="True"><Setter TargetName="Card" Property="Background" Value="#E7EFE3"/><Setter TargetName="Card" Property="BorderBrush" Value="#587F5F"/></Trigger>
+     <DataTrigger Binding="{Binding Hidden}" Value="True"><Setter TargetName="Card" Property="Background" Value="#F0F1ED"/><Setter TargetName="Card" Property="BorderBrush" Value="#D0D6CA"/></DataTrigger>
      <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Card" Property="BorderBrush" Value="#304C35"/></Trigger>
     </ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
   <DataTemplate x:Key="CardTemplate">
-   <Grid Height="150">
-    <Grid.RowDefinitions><RowDefinition Height="80"/><RowDefinition Height="30"/><RowDefinition Height="24"/><RowDefinition Height="16"/></Grid.RowDefinitions>
+   <Grid Height="156">
+    <Grid.RowDefinitions><RowDefinition Height="80"/><RowDefinition Height="30"/><RowDefinition Height="20"/><RowDefinition Height="26"/></Grid.RowDefinitions>
     <Image Source="{Binding Preview}" Stretch="Uniform"/>
     <Button Content="{Binding FavoriteGlyph}" ToolTip="{Binding FavoriteHint}" AutomationProperties.Name="{Binding FavoriteHint}"
-     HorizontalAlignment="Right" VerticalAlignment="Top" Padding="5,1" Margin="0" FontSize="17" Click="Favorite_Click"/>
+     HorizontalAlignment="Right" VerticalAlignment="Top" Padding="5,1" Margin="0" MinWidth="28" FontSize="17" Click="Favorite_Click"/>
     <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
      <TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-     <Button Grid.Column="1" Content="⋯" Padding="5,1" Margin="3,0,0,0" VerticalAlignment="Center"
+     <Button Grid.Column="1" Content="⋯" Padding="5,1" Margin="3,0,0,0" MinWidth="28" VerticalAlignment="Center"
       ToolTip="改名、收藏、隐藏或恢复" AutomationProperties.Name="素材操作" Click="CardMenu_Click"/>
     </Grid>
     <TextBlock Grid.Row="2" Text="{Binding Description}" ToolTip="{Binding Description}" FontSize="11" Foreground="#666D62" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-    <TextBlock Grid.Row="3" Text="{Binding Badge}" FontSize="10" Foreground="#416A48"/>
+    <Grid Grid.Row="3">
+     <TextBlock Text="{Binding Badge}" ToolTip="{Binding Badge}" FontSize="10" Foreground="#416A48" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+      <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding Hidden}" Value="True"><Setter Property="Margin" Value="0,0,60,0"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+     </TextBlock>
+     <Button Content="恢复" HorizontalAlignment="Right" Margin="0" Padding="9,1" MinHeight="24" FontSize="11" Click="RestoreCard_Click" ToolTip="恢复到素材库，保持当前搭配" AutomationProperties.Name="恢复素材">
+      <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Visibility" Value="Collapsed"/>
+       <Style.Triggers><DataTrigger Binding="{Binding Hidden}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+      </Style></Button.Style>
+     </Button>
+    </Grid>
    </Grid>
   </DataTemplate>
  </UserControl.Resources>
  <Grid Margin="18,14">
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
   <StackPanel Margin="4,0,0,10">
-   <TextBlock Text="桌宠作坊" FontSize="24" FontWeight="SemiBold"/>
+   <TextBlock x:Name="WorkshopTitle" Text="桌宠作坊" FontSize="24" FontWeight="SemiBold"/>
    <TextBlock x:Name="IntroText" Text="管理喜欢的素材，搭配你的桌面伙伴" Foreground="#666D62" Margin="0,3,0,0"/>
    <StackPanel x:Name="NarrowNavigation" Orientation="Horizontal" Visibility="Collapsed" Margin="0,8,0,0">
-    <RadioButton x:Name="LibraryView" GroupName="PickerView" Content="素材库" IsChecked="True" Margin="0,0,24,0" Click="NarrowView_Click"/>
-    <RadioButton x:Name="PreviewView" GroupName="PickerView" Content="预览与调整" Click="NarrowView_Click"/>
+    <RadioButton x:Name="LibraryView" Style="{StaticResource ViewSwitch}" GroupName="PickerView" Content="素材库" IsChecked="True" Click="NarrowView_Click"/>
+    <RadioButton x:Name="PreviewView" Style="{StaticResource ViewSwitch}" GroupName="PickerView" Content="预览与调整" Click="NarrowView_Click"/>
    </StackPanel>
   </StackPanel>
   <Grid Grid.Row="1">
@@ -69,12 +110,14 @@
      </DockPanel>
      <Grid Margin="4,0,4,6">
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
-      <TextBox x:Name="SearchBox" Padding="7,5" Margin="0,0,8,0" MaxLength="100" TextChanged="Search_Changed" ToolTip="按名称或原名搜索" AutomationProperties.Name="搜索素材名称"/>
+      <TextBox x:Name="SearchBox" Padding="7,5,32,5" Margin="0,0,8,0" BorderBrush="#B8C4B3" MaxLength="100" TextChanged="Search_Changed" ToolTip="按名称或原名搜索" AutomationProperties.Name="搜索素材名称"/>
       <TextBlock Text="搜索名称或原名" Foreground="#8A8F86" Margin="8,0,8,0" VerticalAlignment="Center" IsHitTestVisible="False">
        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/>
         <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
        </Style></TextBlock.Style>
       </TextBlock>
+      <Button x:Name="ClearSearchButton" Content="×" HorizontalAlignment="Right" Margin="0,1,9,1" Padding="6,0" MinHeight="24" MinWidth="28" Visibility="Collapsed"
+       BorderBrush="Transparent" ToolTip="清空搜索" AutomationProperties.Name="清空搜索" Click="ClearSearch_Click"/>
       <ComboBox x:Name="LibraryFilter" Grid.Column="1" SelectedIndex="0" Padding="6,5" SelectionChanged="Filter_Changed" AutomationProperties.Name="素材筛选">
        <ComboBoxItem Content="全部素材"/><ComboBoxItem Content="★ 收藏"/><ComboBoxItem Content="已隐藏"/>
       </ComboBox>
@@ -83,13 +126,20 @@
     <TextBlock x:Name="LibraryNotice" Grid.Row="1" Text="点卡片试选，点 ⋯ 或按 F2 管理素材" FontSize="11" Foreground="#666D62" Margin="4,0,4,7"
      TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
     <TabControl x:Name="LibraryTabs" Grid.Row="2" Background="Transparent" BorderThickness="0" SelectionChanged="LibraryTab_Changed">
-     <TabItem Header="  角色  ">
+     <TabControl.Template><ControlTemplate TargetType="TabControl">
+      <Grid KeyboardNavigation.TabNavigation="Local">
+       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+       <TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1" Margin="0,0,0,6"/>
+       <ContentPresenter x:Name="PART_SelectedContentHost" Grid.Row="1" ContentSource="SelectedContent"/>
+      </Grid>
+     </ControlTemplate></TabControl.Template>
+     <TabItem x:Name="CharactersTab" Header="角色">
       <ListBox x:Name="Characters" Background="Transparent" BorderThickness="0" ItemTemplate="{StaticResource CardTemplate}"
        ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="Characters_SelectionChanged" KeyDown="Card_KeyDown" AutomationProperties.Name="角色素材库">
        <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" VerticalAlignment="Top"/></ItemsPanelTemplate></ListBox.ItemsPanel>
       </ListBox>
      </TabItem>
-     <TabItem Header="  背景  ">
+     <TabItem x:Name="ScenesTab" Header="背景">
       <ListBox x:Name="Scenes" Background="Transparent" BorderThickness="0" ItemTemplate="{StaticResource CardTemplate}"
        ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="Scenes_SelectionChanged" KeyDown="Card_KeyDown" AutomationProperties.Name="背景素材库">
        <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" VerticalAlignment="Top"/></ItemsPanelTemplate></ListBox.ItemsPanel>
@@ -103,20 +153,23 @@
     <ScrollViewer x:Name="CompositionScroll" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
      <Grid x:Name="CompositionContent" Margin="12">
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-      <DockPanel><TextBlock Text="组合预览" FontWeight="SemiBold" FontSize="16"/><TextBlock x:Name="DraftStatus" FontSize="11" Foreground="#4B6750" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel>
+      <TextBlock Text="组合预览" FontWeight="SemiBold" FontSize="16"/>
       <Border Grid.Row="1" Background="#DDE7E5" CornerRadius="10" Margin="0,9,0,8">
        <Viewbox x:Name="PreviewViewbox" Height="230" Stretch="Uniform"><Grid x:Name="PreviewStage" Width="360" Height="360"/></Viewbox>
       </Border>
       <WrapPanel Grid.Row="2" HorizontalAlignment="Center"><Button Content="挥手" Click="Wave_Click"/><Button Content="摸头" Click="Touch_Click"/><Button Content="休息" Click="Rest_Click"/><Button Content="唤醒" Click="Wake_Click"/></WrapPanel>
       <ScrollViewer x:Name="PlacementScroll" Grid.Row="3" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
        <StackPanel>
+        <TextBlock x:Name="PlacementHint" Text="开启背景后，可调整人物在场景中的大小和位置。" Foreground="#74796F" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
         <StackPanel x:Name="PlacementControls">
-         <TextBlock Text="人物大小"/><Slider x:Name="CharacterScale" Minimum="0.5" Maximum="1.6" Value="1" ValueChanged="Placement_Changed" AutomationProperties.Name="人物大小"/>
-         <TextBlock Text="左右位置" Margin="0,5,0,0"/><Slider x:Name="CharacterX" Minimum="-240" Maximum="240" ValueChanged="Placement_Changed" AutomationProperties.Name="人物左右位置"/>
-         <TextBlock Text="上下位置" Margin="0,5,0,0"/><Slider x:Name="CharacterY" Minimum="-240" Maximum="240" ValueChanged="Placement_Changed" AutomationProperties.Name="人物上下位置"/>
-         <Button Content="重置人物位置" HorizontalAlignment="Left" Margin="0,6,0,0" Click="ResetPlacement_Click"/>
+         <Grid><TextBlock Text="人物大小"/><TextBlock x:Name="ScaleReadout" Style="{StaticResource Readout}"/></Grid>
+         <Slider x:Name="CharacterScale" Minimum="0.5" Maximum="1.6" Value="1" SmallChange="0.01" LargeChange="0.1" ValueChanged="Placement_Changed" AutomationProperties.Name="人物大小"/>
+         <Grid Margin="0,7,0,0"><TextBlock Text="左右位置"/><TextBlock x:Name="HorizontalReadout" Style="{StaticResource Readout}"/></Grid>
+         <Slider x:Name="CharacterX" Minimum="-240" Maximum="240" SmallChange="1" LargeChange="10" ValueChanged="Placement_Changed" AutomationProperties.Name="人物左右位置"/>
+         <Grid Margin="0,7,0,0"><TextBlock Text="上下位置"/><TextBlock x:Name="VerticalReadout" Style="{StaticResource Readout}"/></Grid>
+         <Slider x:Name="CharacterY" Minimum="-240" Maximum="240" SmallChange="1" LargeChange="10" ValueChanged="Placement_Changed" AutomationProperties.Name="人物上下位置"/>
+         <Button x:Name="ResetPlacementButton" Content="重置大小和位置" HorizontalAlignment="Left" Margin="0,6,0,0" Click="ResetPlacement_Click"/>
         </StackPanel>
-        <Button x:Name="RestoreCompositionButton" Content="恢复当前桌面搭配" HorizontalAlignment="Left" Margin="0,8,0,0" Click="RestoreComposition_Click"/>
         <TextBlock Text="搭配调整需点击「应用到桌面」；取消不会撤回已保存的素材名称、收藏或隐藏操作。" TextWrapping="Wrap" Foreground="#74796F" FontSize="11" Margin="0,10,0,0"/>
         <TextBlock Text="支持 PNG 或现有动画 manifest.json。静态图片不会自动生成动作。" TextWrapping="Wrap" Foreground="#74796F" FontSize="11" Margin="0,6,0,0"/>
        </StackPanel>
@@ -125,10 +178,21 @@
     </ScrollViewer>
    </Border>
   </Grid>
-  <StackPanel Grid.Row="2" Margin="4,10,0,0">
-   <WrapPanel><CheckBox x:Name="ShowPet" Content="显示在桌面" Margin="0,0,20,5" Checked="Visibility_Changed" Unchecked="Visibility_Changed"/><CheckBox x:Name="ShowScene" Content="显示背景" Margin="0,0,0,5" Checked="Visibility_Changed" Unchecked="Visibility_Changed"/></WrapPanel>
+  <StackPanel Grid.Row="2" Margin="4,8,0,0">
+   <Grid Margin="0,0,0,5">
+    <WrapPanel VerticalAlignment="Center" Margin="0,0,88,0"><CheckBox x:Name="ShowPet" Content="显示在桌面" Margin="0,0,20,0" Checked="Visibility_Changed" Unchecked="Visibility_Changed"/><CheckBox x:Name="ShowScene" Content="显示背景" Checked="Visibility_Changed" Unchecked="Visibility_Changed"/></WrapPanel>
+    <Button x:Name="RestoreCompositionButton" Content="恢复搭配" HorizontalAlignment="Right" ToolTip="恢复当前桌面的角色、背景、大小与位置" Margin="0,0,6,0" Padding="8,3" Click="RestoreComposition_Click"/>
+   </Grid>
    <TextBlock x:Name="DesktopStatus" TextTrimming="CharacterEllipsis" Foreground="#74796F" FontSize="11" Margin="0,0,0,3"/>
-   <TextBlock x:Name="SelectedDescription" TextTrimming="CharacterEllipsis" Foreground="#4B6750" Margin="0,0,0,7"/>
+   <Grid Margin="0,0,6,7"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <TextBlock x:Name="SelectedDescription" TextTrimming="CharacterEllipsis" Foreground="#4B6750" VerticalAlignment="Center" Margin="0,0,8,0"/>
+    <Border Grid.Column="1" Padding="7,3" CornerRadius="5">
+     <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#E8EEE4"/>
+      <Style.Triggers><DataTrigger Binding="{Binding IsEnabled, ElementName=RestoreCompositionButton}" Value="True"><Setter Property="Background" Value="#FFF0CF"/></DataTrigger></Style.Triggers>
+     </Style></Border.Style>
+     <TextBlock x:Name="DraftStatus" FontSize="11" Foreground="#625336"/>
+    </Border>
+   </Grid>
    <DockPanel LastChildFill="False">
     <Button x:Name="PreviewButton" DockPanel.Dock="Left" Content="预览全部动作" Click="Preview_Click"/>
     <Button x:Name="ApplyButton" DockPanel.Dock="Right" Content="应用到桌面" Background="#E0EBDE" IsDefault="True" Click="Apply_Click"/>

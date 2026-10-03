@@ -100,11 +100,19 @@ namespace DesktopOrganizer
         }
         private void UpdateEmptyState()
         {
+            CharactersTab.Header = $"角色 · {Characters.Items.Count}";
+            ScenesTab.Header = $"背景 · {Scenes.Items.Count}";
+            ClearSearchButton.Visibility = SearchBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             var list = LibraryTabs.SelectedIndex == 1 ? Scenes : Characters;
             EmptyLibrary.Visibility = list.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             EmptyLibrary.Text = SearchBox.Text.Trim().Length > 0 ? "没有匹配的素材\n试试原名，或清空搜索"
                 : LibraryFilter.SelectedIndex == 2 ? "没有隐藏的素材" : LibraryFilter.SelectedIndex == 1
                 ? "还没有收藏\n点击卡片上的 ☆ 即可收藏" : "素材库为空\n可添加素材，或在「已隐藏」中恢复";
+        }
+        private void ClearSearch_Click(object sender, RoutedEventArgs e)
+        {
+            SearchBox.Clear();
+            SearchBox.Focus();
         }
         private void Characters_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -144,6 +152,10 @@ namespace DesktopOrganizer
             _preview.SetComposition(_sceneId, CharacterScale.Value, CharacterX.Value, CharacterY.Value);
             _preview.SetSceneEnabled(SceneSelected && _sceneId is not null);
             PlacementControls.IsEnabled = _preview.SceneEnabled;
+            PlacementHint.Visibility = _preview.SceneEnabled ? Visibility.Collapsed : Visibility.Visible;
+            ScaleReadout.Text = CharacterScale.Value.ToString("0%", System.Globalization.CultureInfo.InvariantCulture);
+            HorizontalReadout.Text = OffsetReadout(CharacterX.Value, "左", "右");
+            VerticalReadout.Text = OffsetReadout(CharacterY.Value, "上", "下");
             ShowScene.IsEnabled = _sceneId is not null;
             string character = DesktopPetCatalog.Find(SelectedCharacterId).Name;
             string scene = _sceneId is null ? "背景" : DesktopPetLibrary.Shared.GetDisplayName(_sceneId);
@@ -152,8 +164,10 @@ namespace DesktopOrganizer
             SelectedDescription.Text = selected ? "正在试选：" + character +
                 (_preview.SceneEnabled ? " ＋ " + scene : " · 无背景") : "请选择桌面伙伴";
             SelectedDescription.ToolTip = SelectedDescription.Text;
-            DraftStatus.Text = HasUnappliedChanges ? "搭配尚未应用" : "与当前桌面设置一致";
+            DraftStatus.Text = HasUnappliedChanges ? "搭配尚未应用" : "当前桌面搭配";
+            ApplyButton.Content = HasUnappliedChanges ? "应用到桌面" : "完成";
             RestoreCompositionButton.IsEnabled = HasUnappliedChanges;
+            DesktopStatus.Visibility = HasUnappliedChanges && ActualHeight >= 500 ? Visibility.Visible : Visibility.Collapsed;
             if (_initial is not null)
             {
                 DesktopStatus.Text = (_initial.Visible ? "桌面正在使用：" : "桌宠已关闭：") +
@@ -162,6 +176,8 @@ namespace DesktopOrganizer
                 DesktopStatus.ToolTip = DesktopStatus.Text;
             }
         }
+        private static string OffsetReadout(double value, string negative, string positive) => Math.Abs(value) < .5 ? "默认"
+            : (value < 0 ? negative : positive) + " " + Math.Abs(value).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
         internal void CopyCompositionTo(DesktopPetLayoutInfo layout)
         {
             layout.SceneId = _sceneId;
@@ -199,8 +215,9 @@ namespace DesktopOrganizer
             if (!_ready) return;
             bool wide = ActualWidth >= 720;
             bool compact = ActualHeight < 500;
+            WorkshopTitle.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
             IntroText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-            DesktopStatus.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            DesktopStatus.Visibility = !compact && HasUnappliedChanges ? Visibility.Visible : Visibility.Collapsed;
             NarrowNavigation.Visibility = wide ? Visibility.Collapsed : Visibility.Visible;
             bool preview = wide || PreviewView.IsChecked == true;
             LibraryPanel.Visibility = wide || !preview ? Visibility.Visible : Visibility.Collapsed;
@@ -216,7 +233,9 @@ namespace DesktopOrganizer
         }
         private void Apply_Click(object sender, RoutedEventArgs e)
         {
-            if (_importCancellation is null) ApplyRequested?.Invoke();
+            if (_importCancellation is not null) return;
+            if (HasUnappliedChanges) ApplyRequested?.Invoke();
+            else CancelRequested?.Invoke();
         }
         private void Cancel_Click(object sender, RoutedEventArgs e) => CancelRequested?.Invoke();
 

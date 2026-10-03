@@ -43,6 +43,15 @@ public partial class DesktopPetPicker
         ChangeLibrary(() => DesktopPetLibrary.Shared.SetFavorite(card.Id, !card.Favorite),
             card.Favorite ? "已取消收藏。" : "已收藏，可在「收藏」中找到。");
     }
+    private void SetCardHidden(Card card, bool hidden) => ChangeLibrary(
+        () => DesktopPetLibrary.Shared.SetRemoved(card.Id, hidden),
+        hidden ? "已隐藏“" + card.Name + "”；可在「已隐藏」中恢复，当前搭配保持不变。" : "已恢复“" + card.Name + "”。");
+    private void RestoreCard_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: Card card }) return;
+        e.Handled = true;
+        SetCardHidden(card, false);
+    }
     internal ContextMenu CreateCardMenu(Card card)
     {
         var menu = new ContextMenu();
@@ -58,9 +67,7 @@ public partial class DesktopPetPicker
         Add(card.FavoriteHint, () => ChangeLibrary(() => DesktopPetLibrary.Shared.SetFavorite(card.Id, !card.Favorite),
             card.Favorite ? "已取消收藏。" : "已收藏。"));
         menu.Items.Add(new Separator());
-        Add(card.Hidden ? "恢复到素材库" : "隐藏素材", () => ChangeLibrary(
-            () => DesktopPetLibrary.Shared.SetRemoved(card.Id, !card.Hidden),
-            card.Hidden ? "已恢复“" + card.Name + "”。" : "已隐藏“" + card.Name + "”；可在「已隐藏」中恢复，当前搭配保持不变。"));
+        Add(card.Hidden ? "恢复到素材库" : "隐藏素材", () => SetCardHidden(card, !card.Hidden));
         return menu;
     }
     private void CardMenu_Click(object sender, RoutedEventArgs e)
