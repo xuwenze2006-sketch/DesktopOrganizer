@@ -1061,6 +1061,49 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
+    public void BlackWave_MaintainsHeadAndLegVolumeAndNeckHeightThroughoutGreeting()
+    {
+        using var f = new Fixture(); f.Enable("black-haired");
+        var wave = VPetAnimation.GetClip("black-haired", "wave");
+        var legAreas = new List<int>();
+        var hairAreas = new List<int>();
+        foreach (var frame in wave.Frames)
+        {
+            byte[] pixels = BgraPixels(frame.Image);
+            int legs = 0, hair = 0, collarPixels = 0;
+            double collarY = 0;
+            for (int y = 0; y < 256; y++)
+            for (int x = 0; x < 256; x++)
+            {
+                int p = (y * 256 + x) * 4;
+                if (pixels[p + 3] <= 128) continue;
+                // This band excludes hands, jacket and shoes: a gentle wave
+                // must not inflate the trouser legs when the hand comes down.
+                if (y is >= 182 and < 226) legs++;
+                // Brown hair excludes the raised hand and tolerates head tilt.
+                // This catches the small-head entry and large-head return in v5.
+                if (y < 89 && pixels[p + 2] is > 35 and < 120
+                    && pixels[p + 2] > pixels[p + 1] * 1.05 && pixels[p + 1] > pixels[p]) hair++;
+                if (y is >= 88 and < 115 && x is >= 110 and < 155
+                    && pixels[p + 2] > 100 && pixels[p + 2] > pixels[p + 1] * 1.5)
+                { collarPixels++; collarY += y; }
+            }
+            legAreas.Add(legs);
+            hairAreas.Add(hair);
+            Assert.IsTrue(collarPixels > 5, "领口必须保持清晰可见。");
+            Assert.IsTrue(collarY / collarPixels is >= 92 and <= 98.5,
+                "轻微侧身不能让脖颈突然下沉、上身变短。");
+        }
+        Assert.IsTrue(hairAreas.Min() > 1500 && hairAreas.Max() <= hairAreas.Min() * 1.12,
+            $"头发轮廓体积漂移过大：{hairAreas.Min()}..{hairAreas.Max()} 像素。");
+        Assert.IsTrue(legAreas.Max() <= legAreas.Min() * 1.05,
+            $"裤腿体积漂移过大：{legAreas.Min()}..{legAreas.Max()} 像素。");
+        for (int i = 1; i < legAreas.Count; i++)
+            Assert.IsTrue(Math.Abs(legAreas[i] - legAreas[i - 1]) <= legAreas[i - 1] * .045,
+                "相邻姿势的裤腿不能突然变粗或变细。");
+    }
+
+    [STATestMethod]
     public void BlackWave_SoftensExpressionDuringGreeting()
     {
         using var f = new Fixture(); f.Enable("black-haired");
@@ -1188,7 +1231,7 @@ public sealed class DesktopPetTests
         if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_MOTION_QA") == "1")
         {
             preview.Add((Capture(), 800));
-            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-wave-v5");
+            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-wave-v6");
         }
     }
 
