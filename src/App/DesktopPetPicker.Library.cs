@@ -99,6 +99,7 @@ public partial class DesktopPetPicker
         if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
         using var cancellation = new CancellationTokenSource();
         _importCancellation = cancellation;
+        UpdatePresetState();
         LibraryActions.IsEnabled = LibraryTabs.IsEnabled = ApplyButton.IsEnabled = false;
         PreviewButton.IsEnabled = false;
         LibraryNotice.Text = "正在导入素材…关闭窗口可取消尚未完成的导入。";

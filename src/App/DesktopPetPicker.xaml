@@ -153,7 +153,20 @@
     <ScrollViewer x:Name="CompositionScroll" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled">
      <Grid x:Name="CompositionContent" Margin="12">
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-      <TextBlock Text="组合预览" FontWeight="SemiBold" FontSize="16"/>
+      <StackPanel>
+       <TextBlock Text="搭配与预览" FontWeight="SemiBold" FontSize="16"/>
+       <Grid x:Name="PresetControls" Margin="0,8,0,0">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <ComboBox x:Name="PresetsCombo" SelectedValuePath="Id" Padding="5,4" Margin="0,0,5,0" MaxDropDownHeight="240" SelectionChanged="Preset_SelectionChanged" AutomationProperties.Name="我的搭配">
+         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock x:Name="PresetPlaceholder" Text="我的搭配" FontSize="11" Foreground="#74796F" Margin="7,0,25,0" VerticalAlignment="Center" IsHitTestVisible="False" TextTrimming="CharacterEllipsis"/>
+        <Button x:Name="LoadPresetButton" Grid.Column="1" Content="载入" Padding="7,4" Click="LoadPreset_Click" ToolTip="载入到试选，点击应用才更新桌面"/>
+        <Button x:Name="SavePresetButton" Grid.Column="2" Content="存为新搭配" Padding="7,4" Click="SavePreset_Click"/>
+        <Button x:Name="PresetMenuButton" Grid.Column="3" Content="⋯" Margin="0" Padding="5,4" MinWidth="28" Click="PresetMenu_Click" ToolTip="更新、改名或删除所选搭配" AutomationProperties.Name="搭配操作"/>
+       </Grid>
+       <TextBlock x:Name="PresetNotice" FontSize="11" Foreground="#666D62" Margin="0,5,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+      </StackPanel>
       <Border Grid.Row="1" Background="#DDE7E5" CornerRadius="10" Margin="0,9,0,8">
        <Viewbox x:Name="PreviewViewbox" Height="230" Stretch="Uniform"><Grid x:Name="PreviewStage" Width="360" Height="360"/></Viewbox>
       </Border>
@@ -170,7 +183,7 @@
          <Slider x:Name="CharacterY" Minimum="-240" Maximum="240" SmallChange="1" LargeChange="10" ValueChanged="Placement_Changed" AutomationProperties.Name="人物上下位置"/>
          <Button x:Name="ResetPlacementButton" Content="重置大小和位置" HorizontalAlignment="Left" Margin="0,6,0,0" Click="ResetPlacement_Click"/>
         </StackPanel>
-        <TextBlock Text="搭配调整需点击「应用到桌面」；取消不会撤回已保存的素材名称、收藏或隐藏操作。" TextWrapping="Wrap" Foreground="#74796F" FontSize="11" Margin="0,10,0,0"/>
+        <TextBlock Text="试选需点击「应用到桌面」才生效；取消不会撤回已保存的搭配或素材管理操作。" TextWrapping="Wrap" Foreground="#74796F" FontSize="11" Margin="0,10,0,0"/>
         <TextBlock Text="支持 PNG 或现有动画 manifest.json。静态图片不会自动生成动作。" TextWrapping="Wrap" Foreground="#74796F" FontSize="11" Margin="0,6,0,0"/>
        </StackPanel>
       </ScrollViewer>

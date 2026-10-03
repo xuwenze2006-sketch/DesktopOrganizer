@@ -1,7 +1,7 @@
 namespace DesktopOrganizer;
 
 /// <summary>用户素材只复制到应用自己的素材目录；移除不删除原图、动画或许可。</summary>
-internal sealed class DesktopPetLibrary
+internal sealed partial class DesktopPetLibrary
 {
     private static readonly object SharedGate = new();
     private static DesktopPetLibrary? _shared;
@@ -41,12 +41,14 @@ internal sealed class DesktopPetLibrary
         public HashSet<string> Removed { get; set; } = [];
         public Dictionary<string, string> DisplayNames { get; set; } = [];
         public HashSet<string> Favorites { get; set; } = [];
+        public List<Preset> Presets { get; set; } = [];
     }
     internal sealed record Snapshot(IReadOnlyList<Asset> Assets,
         System.Collections.Frozen.FrozenDictionary<string, Asset> ById,
         System.Collections.Frozen.FrozenSet<string> Removed,
         System.Collections.Frozen.FrozenDictionary<string, string> DisplayNames,
-        System.Collections.Frozen.FrozenSet<string> Favorites)
+        System.Collections.Frozen.FrozenSet<string> Favorites,
+        IReadOnlyList<Preset> Presets)
     {
         internal string DisplayName(string id, string original) => DisplayNames.GetValueOrDefault(id) ?? original;
     }
@@ -74,7 +76,8 @@ internal sealed class DesktopPetLibrary
         System.Collections.Frozen.FrozenDictionary.ToFrozenDictionary(index.Assets, a => a.Id, StringComparer.Ordinal),
         System.Collections.Frozen.FrozenSet.ToFrozenSet(index.Removed, StringComparer.Ordinal),
         System.Collections.Frozen.FrozenDictionary.ToFrozenDictionary(index.DisplayNames, StringComparer.Ordinal),
-        System.Collections.Frozen.FrozenSet.ToFrozenSet(index.Favorites, StringComparer.Ordinal));
+        System.Collections.Frozen.FrozenSet.ToFrozenSet(index.Favorites, StringComparer.Ordinal),
+        Array.AsReadOnly(index.Presets.ToArray()));
 
     internal DesktopPetLibrary(string root)
     {
@@ -85,7 +88,7 @@ internal sealed class DesktopPetLibrary
         {
             if (new FileInfo(path).Length > 1024 * 1024) throw new InvalidDataException("素材索引过大。");
             _index = JsonSerializer.Deserialize<Index>(File.ReadAllText(path)) ?? throw new InvalidDataException();
-            if (_index.Assets is null || _index.Removed is null || _index.DisplayNames is null || _index.Favorites is null ||
+            if (_index.Assets is null || _index.Removed is null || _index.DisplayNames is null || _index.Favorites is null || !ValidPresets(_index.Presets) ||
                 _index.DisplayNames.Any(p => string.IsNullOrWhiteSpace(p.Key) || !ValidDisplayName(p.Value)) ||
                 _index.Favorites.Any(string.IsNullOrWhiteSpace) || _index.Assets.Any(a =>
                 a is null || !ValidId(a.Id) || string.IsNullOrWhiteSpace(a.Name) || a.Kind is not ("character" or "scene")) ||
@@ -155,7 +158,8 @@ internal sealed class DesktopPetLibrary
     private Index CopyIndex() => new()
     {
         Assets = [.. _index.Assets], Removed = new(_index.Removed),
-        DisplayNames = new(_index.DisplayNames, StringComparer.Ordinal), Favorites = new(_index.Favorites)
+        DisplayNames = new(_index.DisplayNames, StringComparer.Ordinal), Favorites = new(_index.Favorites),
+        Presets = [.. _index.Presets]
     };
     private static bool ValidDisplayName(string? name) => !string.IsNullOrWhiteSpace(name) &&
         name.Trim().Length <= 40 && !name.Any(char.IsControl);

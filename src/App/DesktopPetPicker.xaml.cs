@@ -46,6 +46,7 @@ namespace DesktopOrganizer
             _preview.VerticalAlignment = VerticalAlignment.Bottom;
             PreviewStage.Children.Add(_preview);
             _ready = true;
+            RefreshPresets();
             RefreshCards();
             Loaded += (_, _) => { _preview.SetActive(true); UpdatePreview(); };
             Unloaded += (_, _) => { _preview.SetActive(false); CancelImport(); };
@@ -143,6 +144,7 @@ namespace DesktopOrganizer
         private void UpdatePreview()
         {
             if (!_ready || _refreshing) return;
+            UpdatePresetState();
             bool selected = _characterId is not null;
             ApplyButton.IsEnabled = _importCancellation is null;
             PreviewButton.IsEnabled = selected && _importCancellation is null;
@@ -229,7 +231,7 @@ namespace DesktopOrganizer
             CompositionScroll.VerticalScrollBarVisibility = scrollWhole ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
             PlacementScroll.VerticalScrollBarVisibility = scrollWhole ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
             CompositionContent.MinHeight = scrollWhole ? 390 : 0;
-            PreviewViewbox.Height = wide ? Math.Clamp(ActualHeight - 410, 95, 230) : 150;
+            PreviewViewbox.Height = wide ? Math.Clamp(ActualHeight - 465, 95, 230) : 150;
         }
         private void Apply_Click(object sender, RoutedEventArgs e)
         {
