@@ -1061,7 +1061,7 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
-    public void BlackWave_MovesOnlyTheArmAndReturnsToTheOriginalStandingPose()
+    public void BlackWave_EngagesHeadAndTorso_WithStableFeetAndOriginalStandingEndpoints()
     {
         using var f = new Fixture(); f.Enable("black-haired");
         var idle = VPetAnimation.GetClip("black-haired", "idle").Frames[0];
@@ -1070,22 +1070,90 @@ public sealed class DesktopPetTests
         CollectionAssert.AreEqual(original, BgraPixels(wave.Frames[0].Image), "挥手应从原来的站姿起手。");
         CollectionAssert.AreEqual(original, BgraPixels(wave.Frames[^1].Image), "收手后应回到同一站姿。");
         var armPoses = new HashSet<string>();
+        var headPoses = new HashSet<string>();
+        var torsoPoses = new HashSet<string>();
+        var headCenters = new List<double>();
         foreach (var frame in wave.Frames)
         {
             byte[] pixels = BgraPixels(frame.Image);
             var arm = new List<byte>();
+            var head = new List<byte>();
+            var torso = new List<byte>();
+            int footLeft = 256, footRight = 0, footBottom = 0;
+            double headMass = 0, headMoment = 0;
             for (int y = 0; y < 256; y++)
             for (int x = 0; x < 256; x++)
             {
                 int pixel = (y * 256 + x) * 4;
                 if (x < 116 && y >= 66 && y < 177) arm.AddRange(pixels.AsSpan(pixel, 4).ToArray());
-                else for (int channel = 0; channel < 4; channel++)
-                    Assert.AreEqual(original[pixel + channel], pixels[pixel + channel], "挥手不能靠摇晃整个人模拟，脸、身体和脚底必须固定。");
+                if (x >= 116 && x < 146 && y >= 35 && y < 80) head.AddRange(pixels.AsSpan(pixel, 4).ToArray());
+                if (x >= 118 && x < 146 && y >= 103 && y < 148) torso.AddRange(pixels.AsSpan(pixel, 4).ToArray());
+                if (y is >= 35 and < 65) { headMass += pixels[pixel + 3]; headMoment += x * pixels[pixel + 3]; }
+                if (y >= 228 && pixels[pixel + 3] > 128)
+                { footLeft = Math.Min(footLeft, x); footRight = Math.Max(footRight, x); footBottom = Math.Max(footBottom, y); }
             }
             armPoses.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(arm.ToArray())));
+            headPoses.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(head.ToArray())));
+            torsoPoses.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(torso.ToArray())));
+            Assert.IsTrue(headMass > 0);
+            headCenters.Add(headMoment / headMass);
+            CollectionAssert.AreEqual(original.AsSpan(228 * 1024).ToArray(), pixels.AsSpan(228 * 1024).ToArray(),
+                "脚底必须保持原像素，不能随腰肩晃动滑移。");
+            Assert.IsTrue(footBottom is >= 239 and <= 243, "身体参与挥手时仍需站稳，不上下漂浮。");
+            Assert.IsTrue((footLeft + footRight) / 2.0 is >= 124 and <= 134, "重心变化不能让脚底随身体整体横移。");
+            Assert.AreEqual(0, frame.Alpha[0], "挥手素材保持真正透明，不引入预览底色方块。");
         }
         Assert.IsTrue(armPoses.Count >= 10, "挥手需要连续的抬臂、摆腕和收手姿势。");
-        Assert.IsTrue(wave.Milliseconds.Sum() is >= 1000 and <= 2000, "动作应有清晰节奏，不急促闪动或拖得太慢。");
+        Assert.IsTrue(headPoses.Count >= 6, "头部应跟随招手，不能像旧版一样固定原图。");
+        Assert.IsTrue(torsoPoses.Count >= 6, "肩膀和躯干应参与挥手，不能只贴一条活动手臂。");
+        Assert.IsTrue(headCenters.Max() - headCenters.Min() is >= 4 and <= 10, "头部跟随需实际可见，也不能夸张摇摆。");
+        Assert.IsTrue(headCenters.Zip(headCenters.Skip(1), (a, b) => Math.Abs(a - b)).Max() <= 2,
+            "相邻头部位置应平滑衔接，不能突然跳位。");
+        Assert.IsTrue(wave.Milliseconds.Sum() is >= 1500 and <= 2400, "给起手、重心变化和收手留出自然节奏。");
+    }
+
+    [STATestMethod]
+    [DataRow(false, 1)]
+    [DataRow(false, 2)]
+    [DataRow(true, 1)]
+    public void BlackWave_ActualControlRendersWholeBodyAndReturnsWithoutOffset(bool scene, int scale)
+    {
+        using var f = new Fixture(); f.Enable("black-haired");
+        f.Invoke("SetDesktopPetScene", scene);
+        f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true);
+        f.Measure(scale);
+        int size = (int)f.Pet.Width;
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget).GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+        BitmapSource Capture()
+        {
+            f.Window.RootGrid.UpdateLayout();
+            var image = new RenderTargetBitmap(1000 * scale, 700 * scale, 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            Brush background = f.Window.RootGrid.Background;
+            try { f.Window.RootGrid.Background = null; f.Window.RootGrid.UpdateLayout(); image.Render(f.Window.RootGrid); }
+            finally { f.Window.RootGrid.Background = background; }
+            return new CroppedBitmap(image, new Int32Rect(300 * scale, 200 * scale, size * scale, size * scale));
+        }
+        byte[] idle = BgraPixels(Capture());
+        Assert.IsTrue(Enumerable.Range(0, idle.Length / 4).Count(i => idle[i * 4 + 3] > 128) > 1000,
+            "控件预览必须实际显示角色，空白截图不能通过首尾一致检查。");
+        var preview = new List<(BitmapSource Image, int Milliseconds)> { (Capture(), 450) };
+        f.Pet.Wave();
+        while (f.Pet.CurrentClip == "wave" && preview.Count < 40)
+        {
+            var frame = Capture();
+            Assert.AreEqual(0, BgraPixels(frame)[3], "实际渲染仍需保留透明背景。");
+            preview.Add((frame, (int)timer.Interval.TotalMilliseconds));
+            f.Pet.AdvanceAnimation();
+        }
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+        Assert.IsTrue(preview.Skip(1).Any(frame => !BgraPixels(frame.Image).SequenceEqual(idle)), "必须实际绘制挥手变化。");
+        CollectionAssert.AreEqual(idle, BgraPixels(Capture()), "收手后不能留下缩放、身体偏移或表情跳变。");
+        Assert.IsTrue(f.Pet.CharacterMotionTransform.IsIdentity, "挥手依靠真实姿势，不通过摇晃整个控件模拟。");
+        if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_MOTION_QA") == "1")
+        {
+            preview.Add((Capture(), 800));
+            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-wave-v4");
+        }
     }
 
     [STATestMethod]

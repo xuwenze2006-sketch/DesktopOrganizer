@@ -28,7 +28,7 @@
       ]
     },
     "wave": {
-      "sheet": "wave-v3.png",
+      "sheet": "wave-v4.png",
       "frames": [
         {
           "index": 0,
@@ -36,62 +36,82 @@
         },
         {
           "index": 1,
-          "milliseconds": 100
-        },
-        {
-          "index": 2,
-          "milliseconds": 80
-        },
-        {
-          "index": 3,
-          "milliseconds": 65
-        },
-        {
-          "index": 4,
-          "milliseconds": 65
-        },
-        {
-          "index": 5,
-          "milliseconds": 70
-        },
-        {
-          "index": 6,
-          "milliseconds": 110
-        },
-        {
-          "index": 7,
-          "milliseconds": 70
-        },
-        {
-          "index": 8,
-          "milliseconds": 110
-        },
-        {
-          "index": 9,
-          "milliseconds": 70
-        },
-        {
-          "index": 10,
-          "milliseconds": 100
-        },
-        {
-          "index": 11,
-          "milliseconds": 70
-        },
-        {
-          "index": 12,
           "milliseconds": 90
         },
         {
+          "index": 2,
+          "milliseconds": 85
+        },
+        {
+          "index": 3,
+          "milliseconds": 85
+        },
+        {
+          "index": 4,
+          "milliseconds": 90
+        },
+        {
+          "index": 5,
+          "milliseconds": 90
+        },
+        {
+          "index": 6,
+          "milliseconds": 70
+        },
+        {
+          "index": 7,
+          "milliseconds": 80
+        },
+        {
+          "index": 8,
+          "milliseconds": 80
+        },
+        {
+          "index": 9,
+          "milliseconds": 120
+        },
+        {
+          "index": 10,
+          "milliseconds": 80
+        },
+        {
+          "index": 11,
+          "milliseconds": 120
+        },
+        {
+          "index": 12,
+          "milliseconds": 80
+        },
+        {
           "index": 13,
-          "milliseconds": 100
+          "milliseconds": 120
         },
         {
           "index": 14,
-          "milliseconds": 100
+          "milliseconds": 85
         },
         {
           "index": 15,
+          "milliseconds": 85
+        },
+        {
+          "index": 16,
+          "milliseconds": 90
+        },
+        {
+          "index": 17,
+          "milliseconds": 90
+        },
+        {
+          "index": 18,
+          "milliseconds": 100
+        },
+        {
+          "index": 19,
+          "milliseconds": 110
+        },
+        {
+          "index": 20,
           "milliseconds": 130
         }
       ]
