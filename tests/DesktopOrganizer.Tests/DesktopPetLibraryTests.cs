@@ -11,6 +11,47 @@ namespace DesktopOrganizer.Tests;
 public sealed class DesktopPetLibraryTests
 {
     [STATestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void ImportedActions_SwitchImmediatelyWithoutWaitingForMissingOrLongClips(bool hasTouch)
+    {
+        using var f = new Files();
+        f.Image("actions.png", 64, 32);
+        var clips = new Dictionary<string, object>
+        {
+            ["idle"] = new { sheet = "actions.png", frames = new[] { new { index = 0, milliseconds = 30000 } } }
+        };
+        if (hasTouch) clips["touchStart"] = new { sheet = "actions.png", frames = new[] { new { index = 1, milliseconds = 30000 } } };
+        string manifest = Path.Combine(f.Source, "manifest.json");
+        File.WriteAllText(manifest, JsonSerializer.Serialize(new { cellSize = 32, columns = 2, clips }));
+        var library = new DesktopPetLibrary(f.Library);
+        var asset = library.Import(manifest, "character");
+        var original = DesktopPetLibrary.Shared;
+        // 全套测试禁用并行；临时库只在本用例内替换，结束恢复，不触碰真实用户目录。
+        var shared = typeof(DesktopPetLibrary).GetField("_shared",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var pet = new DesktopPetWidget();
+        using var source = new OffscreenSource(pet);
+        try
+        {
+            shared.SetValue(null, library);
+            pet.SetCharacter(asset.Id); pet.SetActive(true);
+            pet.ReactToTouch();
+            pet.Wave();
+            Assert.AreEqual("wave", pet.CurrentClip, "自定义素材缺动作或动作很长时，不能排队等待收尾。");
+            pet.Rest();
+            Assert.AreEqual("sleepStart", pet.CurrentClip);
+            pet.WakeUp();
+            Assert.AreEqual("idle", pet.CurrentClip, "缺少睡眠素材时，无需等待待机帧模拟唤醒。");
+        }
+        finally
+        {
+            pet.SetActive(false);
+            shared.SetValue(null, original);
+        }
+    }
+
+    [STATestMethod]
     public void ImportFailure_RollsBackFilesAndSnapshot_WhenLicenseCopyFails()
     {
         using var f = new Files();

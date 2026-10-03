@@ -297,6 +297,211 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
+    [DataRow("pixelpaws")]
+    [DataRow("vpet")]
+    [DataRow("black-haired")]
+    [DataRow("pink-haired")]
+    [DataRow("sunset-duo")]
+    public void RepeatedPetActions_PreserveProgressAndStillFinish(string character)
+    {
+        using var f = new Fixture(); f.Enable(character);
+        f.Pet.ReactToTouch();
+        if (character != "pixelpaws") AdvanceUntil(f.Pet, "touchLoop");
+        f.Pet.AdvanceAnimation();
+        string clip = f.Pet.CurrentClip;
+        int frame = f.Pet.CurrentFrame;
+        f.Pet.ReactToTouch();
+        Assert.AreEqual(clip, f.Pet.CurrentClip);
+        Assert.AreEqual(frame, f.Pet.CurrentFrame, "连续摸头不能把正在播放的动作拉回起点。");
+        for (int i = 0; i < 100 && f.Pet.CurrentClip != "idle"; i++)
+        { f.Pet.ReactToTouch(); f.Pet.AdvanceAnimation(); }
+        Assert.AreEqual("idle", f.Pet.CurrentClip, "持续点击也应允许当前动作自然收尾。");
+
+        f.Pet.Rest(); AdvanceUntil(f.Pet, "sleepLoop"); f.Pet.AdvanceAnimation();
+        frame = f.Pet.CurrentFrame;
+        f.Pet.Rest();
+        Assert.AreEqual("sleepLoop", f.Pet.CurrentClip);
+        Assert.AreEqual(frame, f.Pet.CurrentFrame, "已经休息时不能再次播放入睡动作。");
+        f.Pet.WakeUp(); AdvanceUntil(f.Pet, "idle"); f.Pet.AdvanceAnimation();
+        frame = f.Pet.CurrentFrame;
+        f.Pet.WakeUp();
+        Assert.AreEqual(frame, f.Pet.CurrentFrame, "清醒时的唤醒请求不应打断待机。");
+    }
+
+    [STATestMethod]
+    [DataRow("vpet")]
+    [DataRow("black-haired")]
+    [DataRow("pink-haired")]
+    [DataRow("sunset-duo")]
+    public void PetWake_ContinuesFromCurrentFrameAndUsesLatestRequest(string character)
+    {
+        using var f = new Fixture(); f.Enable(character);
+        f.Pet.Rest(); AdvanceUntil(f.Pet, "sleepLoop");
+        f.Pet.ReactToTouch(); f.Pet.AdvanceAnimation();
+        int frame = f.Pet.CurrentFrame;
+        f.Pet.ReactToTouch();
+        Assert.AreEqual("sleepEnd", f.Pet.CurrentClip);
+        Assert.AreEqual(frame, f.Pet.CurrentFrame, "唤醒中再次触摸只能更新后续动作，不能重播唤醒。");
+        f.Pet.WakeUp();
+        Assert.AreEqual(frame, f.Pet.CurrentFrame);
+        if (character == "sunset-duo") f.Pet.LookAtPartner(); else f.Pet.Wave();
+        Assert.AreEqual(frame, f.Pet.CurrentFrame);
+        string expected = character == "sunset-duo" ? "look" : character == "vpet" ? "touchStart" : "wave";
+        AdvanceUntil(f.Pet, expected); AdvanceUntil(f.Pet, "idle");
+        f.Pet.Rest(); AdvanceUntil(f.Pet, "sleepLoop");
+        f.Pet.ReactToTouch(); f.Pet.AdvanceAnimation();
+        f.Pet.WakeUp(); AdvanceUntil(f.Pet, "idle");
+        Assert.AreEqual("idle", f.Pet.CurrentClip, "最后一次唤醒应取消先前预约的互动。");
+    }
+
+    [STATestMethod]
+    public void PetActionSwitch_FinishesTouchEndingAndKeepsOnlyLatestRequest()
+    {
+        using var f = new Fixture(); f.Enable(DesktopPetCatalog.SunsetDuoId);
+        f.Pet.ReactToTouch(); AdvanceUntil(f.Pet, "touchLoop");
+        int frame = f.Pet.CurrentFrame;
+        f.Pet.Wave(); f.Pet.LookAtPartner(); f.Pet.SwayHands();
+        Assert.AreEqual("touchLoop", f.Pet.CurrentClip);
+        Assert.AreEqual(frame, f.Pet.CurrentFrame, "不同动作应等当前动作收尾，避免姿势突然切换。");
+        AdvanceUntil(f.Pet, "touchEnd");
+        AdvanceUntil(f.Pet, "sway"); f.Pet.AdvanceAnimation();
+        frame = f.Pet.CurrentFrame;
+        f.Pet.SwayHands();
+        Assert.AreEqual(frame, f.Pet.CurrentFrame);
+        AdvanceUntil(f.Pet, "idle");
+        f.Pet.AdvanceAnimation();
+        Assert.AreEqual("idle", f.Pet.CurrentClip, "不能积压并继续执行已被替代的挥手、相视请求。");
+
+        f.Pet.Wave(); f.Pet.AdvanceAnimation();
+        f.Pet.Rest();
+        Assert.AreEqual("wave", f.Pet.CurrentClip);
+        AdvanceUntil(f.Pet, "sleepStart"); AdvanceUntil(f.Pet, "sleepLoop");
+    }
+
+    [STATestMethod]
+    [DataRow("drag")]
+    [DataRow("hide")]
+    [DataRow("character")]
+    public void PetPendingAction_IsDiscardedWhenInteractionContextChanges(string change)
+    {
+        using var f = new Fixture(); f.Enable("black-haired");
+        f.Pet.ReactToTouch(); AdvanceUntil(f.Pet, "touchLoop");
+        f.Pet.Rest();
+        Assert.AreEqual("touchLoop", f.Pet.CurrentClip);
+        if (change == "drag")
+        {
+            f.Pet.SetDragging(true);
+            Assert.AreEqual("raisedStart", f.Pet.CurrentClip, "拖动始终立即响应。");
+            f.Pet.SetDragging(false);
+        }
+        else if (change == "hide") { f.Pet.SetActive(false); f.Pet.SetActive(true); }
+        else { f.Pet.SetCharacter("vpet"); f.Pet.SetCharacter("black-haired"); }
+        AdvanceUntil(f.Pet, "idle");
+        for (int i = 0; i < 10; i++)
+        { f.Pet.AdvanceAnimation(); Assert.AreEqual("idle", f.Pet.CurrentClip); }
+    }
+
+    [STATestMethod]
+    public void PetActionSwitch_RepeatingCurrentActionOrWakingCancelsAnOlderRequest()
+    {
+        using var f = new Fixture(); f.Enable(DesktopPetCatalog.SunsetDuoId);
+        f.Pet.Wave(); f.Pet.AdvanceAnimation();
+        int frame = f.Pet.CurrentFrame;
+        f.Pet.LookAtPartner(); f.Pet.Wave();
+        Assert.AreEqual("wave", f.Pet.CurrentClip);
+        Assert.AreEqual(frame, f.Pet.CurrentFrame);
+        for (int i = 0; i < 30 && f.Pet.CurrentClip != "idle"; i++)
+        { Assert.AreEqual("wave", f.Pet.CurrentClip); f.Pet.AdvanceAnimation(); }
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+
+        f.Pet.ReactToTouch(); f.Pet.Rest(); f.Pet.WakeUp();
+        for (int i = 0; i < 30 && f.Pet.CurrentClip != "idle"; i++)
+        { Assert.IsFalse(f.Pet.CurrentClip.StartsWith("sleep", StringComparison.Ordinal)); f.Pet.AdvanceAnimation(); }
+        Assert.AreEqual("idle", f.Pet.CurrentClip);
+    }
+
+    [STATestMethod]
+    [DataRow("black-haired")]
+    [DataRow("sunset-duo")]
+    public void PetActionSwitch_RenderedPoseRemainsStableWhileNextActionWaits(string character)
+    {
+        using var f = new Fixture(); f.Enable(character);
+        f.Invoke("SetDesktopPetPosition", 300.0, 200.0, true); f.Measure(1);
+        bool export = Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_MOTION_QA") == "1";
+        var preview = new List<(BitmapSource Image, int Milliseconds)>();
+        var timer = (DispatcherTimer)typeof(DesktopPetWidget).GetField("_timer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(f.Pet)!;
+        BitmapSource Capture()
+        {
+            f.Window.RootGrid.UpdateLayout();
+            int size = (int)f.Pet.Width;
+            var image = new RenderTargetBitmap(1000, 700, 96, 96, PixelFormats.Pbgra32);
+            image.Render(f.Window.RootGrid);
+            return new CroppedBitmap(image, new Int32Rect(300, 200, size, size));
+        }
+        void PlayUntil(string target)
+        {
+            for (int i = 0; i < 100 && f.Pet.CurrentClip != target; i++)
+            {
+                if (export) preview.Add((Capture(), (int)timer.Interval.TotalMilliseconds));
+                f.Pet.AdvanceAnimation();
+            }
+            Assert.AreEqual(target, f.Pet.CurrentClip);
+        }
+        f.Pet.ReactToTouch(); PlayUntil("touchLoop");
+        byte[] touching = BgraPixels(Capture());
+        f.Pet.Wave();
+        CollectionAssert.AreEqual(touching, BgraPixels(Capture()), "排队切换不得提前更换正在绘制的姿势。");
+        PlayUntil("wave");
+        if (export) preview.Add((Capture(), (int)timer.Interval.TotalMilliseconds));
+        f.Pet.AdvanceAnimation();
+        byte[] waving = BgraPixels(Capture());
+        Assert.IsFalse(touching.SequenceEqual(waving), "必须绘制真实动作，不能让空白图像通过稳定性检查。");
+        f.Pet.Wave(); f.Pet.Rest();
+        CollectionAssert.AreEqual(waving, BgraPixels(Capture()));
+        PlayUntil("sleepLoop");
+        if (export) preview.Add((Capture(), 800));
+        f.Pet.WakeUp();
+        if (export) preview.Add((Capture(), (int)timer.Interval.TotalMilliseconds));
+        f.Pet.AdvanceAnimation();
+        byte[] waking = BgraPixels(Capture());
+        f.Pet.ReactToTouch(); f.Pet.WakeUp();
+        CollectionAssert.AreEqual(waking, BgraPixels(Capture()), "重复唤醒也必须保持实际控件的当前姿势。");
+        PlayUntil("idle");
+        if (export)
+        {
+            preview.Add((Capture(), 1000));
+            SaveFallPreview(preview, character + "-transitions", "artifacts/pet-motion-qa");
+        }
+    }
+
+    [STATestMethod]
+    public void SunsetDuo_ManualInteractionRestartsQuietIntervalWithoutResettingAmbientOrder()
+    {
+        using var f = new Fixture(); f.Enable(DesktopPetCatalog.SunsetDuoId);
+        AdvanceUntil(f.Pet, "wave"); AdvanceUntil(f.Pet, "idle");
+        int idleFrames = VPetAnimation.GetClip(DesktopPetCatalog.SunsetDuoId, "idle").Frames.Length;
+        for (int i = 0; i < 2 * idleFrames; i++) f.Pet.AdvanceAnimation();
+        f.Pet.ReactToTouch(); AdvanceUntil(f.Pet, "idle");
+        for (int i = 0; i < 3 * idleFrames - 1; i++)
+        { f.Pet.AdvanceAnimation(); Assert.AreEqual("idle", f.Pet.CurrentClip, "互动之后应保留完整的安静待机间隔。"); }
+        f.Pet.AdvanceAnimation();
+        Assert.AreEqual("look", f.Pet.CurrentClip, "显式互动不应让自动动作总从挥手重新轮换。");
+    }
+
+    [STATestMethod]
+    public void SunsetDuo_ManualRestKeepsAutomaticSleepPoseAndPreventsAutomaticWake()
+    {
+        using var f = new Fixture(); f.Enable(DesktopPetCatalog.SunsetDuoId);
+        AdvanceUntil(f.Pet, "sleepLoop", 200); f.Pet.AdvanceAnimation();
+        int frame = f.Pet.CurrentFrame;
+        f.Pet.Rest();
+        Assert.AreEqual("sleepLoop", f.Pet.CurrentClip);
+        Assert.AreEqual(frame, f.Pet.CurrentFrame);
+        for (int i = 0; i < 30; i++) f.Pet.AdvanceAnimation();
+        Assert.AreEqual("sleepLoop", f.Pet.CurrentClip, "手动休息应延续自动休息的姿势，并持续到用户唤醒。");
+    }
+
+    [STATestMethod]
     public void VPetLanding_PlaysImpactThenRecovery_WithAQuickerUnevenRhythm()
     {
         using var f = new Fixture();
@@ -734,10 +939,11 @@ public sealed class DesktopPetTests
         Directory.CreateDirectory(directory);
         var encoder = new GifBitmapEncoder();
         int size = frames[0].Image.PixelWidth;
+        int rows = Math.Max(4, (frames.Count + 5) / 6);
         var contact = new DrawingVisual();
         using (DrawingContext grid = contact.RenderOpen())
         {
-            grid.DrawRectangle(Brushes.WhiteSmoke, null, new Rect(0, 0, size * 6, size * 4));
+            grid.DrawRectangle(Brushes.WhiteSmoke, null, new Rect(0, 0, size * 6, size * rows));
             for (int i = 0; i < frames.Count; i++)
             {
                 var canvas = new DrawingVisual();
@@ -809,7 +1015,7 @@ public sealed class DesktopPetTests
         int decodedTime = decoded.Frames.Sum(frame => Convert.ToInt32(((BitmapMetadata)frame.Metadata).GetQuery("/grctlext/Delay")) * 10);
         Assert.IsTrue(Math.Abs(decodedTime - frames.Sum(frame => frame.Milliseconds)) <= 5,
             "GIF 总时长须与实际控件一致，仅允许厘秒精度误差。");
-        var sheet = new RenderTargetBitmap(size * 6, size * 4, 96, 96, PixelFormats.Pbgra32);
+        var sheet = new RenderTargetBitmap(size * 6, size * rows, 96, 96, PixelFormats.Pbgra32);
         sheet.Render(contact);
         var png = new PngBitmapEncoder();
         png.Frames.Add(BitmapFrame.Create(sheet));

@@ -29,6 +29,7 @@ namespace DesktopOrganizer
         private bool _duoAutomaticRest;
         private int _duoRestCycles;
         private string _afterWake = "idle";
+        private string? _pendingClip;
         private static readonly int[] FallMilliseconds = [32, 24, 24, 24, 24, 24];
         private VPetAnimation.Frame? _fallFrame;
 
@@ -135,6 +136,7 @@ namespace DesktopOrganizer
             _duoAutomaticRest = false;
             _duoRestCycles = 0;
             _afterWake = "idle";
+            _pendingClip = null;
             _clipName = "idle";
             _sequence = Idle;
             _step = 0;
@@ -146,6 +148,9 @@ namespace DesktopOrganizer
         {
             if (_dragging == dragging) return;
             _dragging = dragging;
+            ResetInteractionPacing();
+            _pendingClip = null;
+            _afterWake = "idle";
             if (UsesClips && _active)
             {
                 // 双人作为一个整体移动，不套用单人悬挂和摔落动作，保持牵手与脚底衔接。
@@ -169,14 +174,10 @@ namespace DesktopOrganizer
             if (!_active || _dragging) return;
             if (UsesClips)
             {
-                if (_clipName.StartsWith("sleep", StringComparison.Ordinal))
-                {
-                    _afterWake = "touchStart";
-                    StartClip("sleepEnd");
-                }
-                else StartClip("touchStart");
+                RequestClip("touchStart");
                 return;
             }
+            if (ReferenceEquals(_sequence, React)) return;
             _sequence = React;
             _step = 0;
             InvalidateVisual();
@@ -207,11 +208,11 @@ namespace DesktopOrganizer
                         "idle" => NextIdleClip(),
                         "touchStart" => "touchLoop",
                         "touchLoop" => "touchEnd",
-                        "touchEnd" or "raisedEnd" or "wave" or "look" or "sway" => "idle",
+                        "touchEnd" or "raisedEnd" or "wave" or "look" or "sway" => TakePendingClip(),
                         "raisedStart" => "raisedLoop",
                         "sleepStart" => "sleepLoop",
                         "sleepLoop" when IsSunsetDuo && _duoAutomaticRest && ++_duoRestCycles >= 2 => "sleepEnd",
-                        "sleepEnd" => _afterWake,
+                        "sleepEnd" => TakeAfterWake(),
                         _ => _clipName
                     };
                     if (next == _clipName)
@@ -258,21 +259,17 @@ namespace DesktopOrganizer
         private void PlayDuoInteraction(string clip)
         {
             if (!IsSunsetDuo || !_active || _dragging) return;
-            if (_clipName.StartsWith("sleep", StringComparison.Ordinal))
-            {
-                _afterWake = clip;
-                StartClip("sleepEnd");
-            }
-            else StartClip(clip);
+            RequestClip(clip);
         }
 
         internal void Rest()
         {
             if (!_active || _dragging) return;
             _duoAutomaticRest = false;
-            if (UsesClips) StartClip("sleepStart");
+            if (UsesClips) RequestClip("sleepStart");
             else
             {
+                if (ReferenceEquals(_sequence, Sleep)) return;
                 _sequence = Sleep;
                 _step = 0;
                 InvalidateVisual();
@@ -284,20 +281,73 @@ namespace DesktopOrganizer
         {
             if (!_active || _dragging) return;
             if (!DesktopPetCatalog.IsImported(_characterId)) { ReactToTouch(); return; }
-            if (_clipName.StartsWith("sleep", StringComparison.Ordinal))
-            {
-                _afterWake = "wave";
-                StartClip("sleepEnd");
-            }
-            else StartClip("wave");
+            RequestClip("wave");
         }
 
         internal void WakeUp()
         {
             if (!_active || _dragging) return;
+            if (UsesClips) RequestClip("idle");
+            else if (ReferenceEquals(_sequence, Sleep)) ResetIdle();
+        }
+
+        private void ResetInteractionPacing()
+        {
+            _idleMilliseconds = 0;
+            _duoIdleCycles = 0;
+            _duoAutomaticRest = false;
+        }
+
+        private void RequestClip(string name)
+        {
+            ResetInteractionPacing();
+            bool custom = _characterId.StartsWith("user-", StringComparison.Ordinal);
+            if (custom && _clipName != "idle" && ReferenceEquals(
+                VPetAnimation.GetClip(_characterId, _clipName), VPetAnimation.GetClip(_characterId, "idle")))
+            {
+                // 缺失动作只是待机素材的别名，不能让用户等它模拟起身或收尾。
+                _pendingClip = null;
+                _afterWake = "idle";
+                if (_clipName != name) StartClip(name);
+                return;
+            }
+            // 唤醒只播一次；连续输入更新下一动作，不重置帧或重新启动计时器。
+            if (_clipName == "sleepEnd")
+            {
+                _afterWake = name;
+                return;
+            }
+            if (_clipName is "sleepStart" or "sleepLoop")
+            {
+                if (name == "sleepStart") return;
+                _afterWake = name;
+                StartClip("sleepEnd");
+                return;
+            }
+            bool touching = _clipName is "touchStart" or "touchLoop" or "touchEnd";
+            if (touching || _clipName is "wave" or "look" or "sway")
+            {
+                // 保留当前动作的收尾，只记最后一个请求，避免快速点击积压动作。
+                _pendingClip = name == _clipName || (touching && name == "touchStart") ? null : name;
+                // 自定义动画时长由素材决定，切换仍即时响应，避免等待数十秒。
+                if (custom && _pendingClip is not null) StartClip(TakePendingClip());
+                return;
+            }
+            if (_clipName != name) StartClip(name);
+        }
+
+        private string TakePendingClip()
+        {
+            string next = _pendingClip ?? "idle";
+            _pendingClip = null;
+            return next;
+        }
+
+        private string TakeAfterWake()
+        {
+            string next = _afterWake;
             _afterWake = "idle";
-            if (UsesClips && _clipName.StartsWith("sleep", StringComparison.Ordinal)) StartClip("sleepEnd");
-            else ResetIdle();
+            return next;
         }
 
         private void StartClip(string name)
