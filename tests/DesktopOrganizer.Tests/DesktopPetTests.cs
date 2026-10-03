@@ -1061,6 +1061,33 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
+    public void BlackWave_SoftensExpressionDuringGreeting()
+    {
+        using var f = new Fixture(); f.Enable("black-haired");
+        var wave = VPetAnimation.GetClip("black-haired", "wave");
+        var visibleIrisPixels = new List<int>();
+        foreach (var frame in wave.Frames)
+        {
+            byte[] pixels = BgraPixels(frame.Image);
+            int count = 0;
+            for (int y = 45; y < 87; y++)
+            for (int x = 90; x < 169; x++)
+            {
+                int p = (y * 256 + x) * 4;
+                // The character's red-brown irises disappear when the greeting
+                // softens into a closed-eye smile. Moving the same face cannot pass.
+                if (pixels[p + 3] > 128 && pixels[p + 2] > 90
+                    && pixels[p + 2] > pixels[p + 1] * 1.5 && pixels[p + 2] > pixels[p] * 1.3)
+                    count++;
+            }
+            visibleIrisPixels.Add(count);
+        }
+        Assert.IsTrue(visibleIrisPixels.Max() >= 20, "睁眼姿势必须实际显示原角色的双眼。");
+        Assert.IsTrue(visibleIrisPixels.Min() < visibleIrisPixels.Max() * .4,
+            "招手中应出现放松的闭眼笑，不能一直平移同一张面无表情的脸。");
+    }
+
+    [STATestMethod]
     public void BlackWave_EngagesHeadAndTorso_WithStableFeetAndOriginalStandingEndpoints()
     {
         using var f = new Fixture(); f.Enable("black-haired");
@@ -1081,6 +1108,7 @@ public sealed class DesktopPetTests
             var torso = new List<byte>();
             int footLeft = 256, footRight = 0, footBottom = 0;
             double headMass = 0, headMoment = 0;
+            double leftFootMass = 0, leftFootMoment = 0, rightFootMass = 0, rightFootMoment = 0;
             for (int y = 0; y < 256; y++)
             for (int x = 0; x < 256; x++)
             {
@@ -1091,24 +1119,32 @@ public sealed class DesktopPetTests
                 if (y is >= 35 and < 65) { headMass += pixels[pixel + 3]; headMoment += x * pixels[pixel + 3]; }
                 if (y >= 228 && pixels[pixel + 3] > 128)
                 { footLeft = Math.Min(footLeft, x); footRight = Math.Max(footRight, x); footBottom = Math.Max(footBottom, y); }
+                if (y is >= 230 and < 242 && x is >= 80 and < 180)
+                {
+                    if (x < 129) { leftFootMass += pixels[pixel + 3]; leftFootMoment += x * pixels[pixel + 3]; }
+                    else { rightFootMass += pixels[pixel + 3]; rightFootMoment += x * pixels[pixel + 3]; }
+                }
             }
             armPoses.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(arm.ToArray())));
             headPoses.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(head.ToArray())));
             torsoPoses.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(torso.ToArray())));
             Assert.IsTrue(headMass > 0);
             headCenters.Add(headMoment / headMass);
-            CollectionAssert.AreEqual(original.AsSpan(228 * 1024).ToArray(), pixels.AsSpan(228 * 1024).ToArray(),
-                "脚底必须保持原像素，不能随腰肩晃动滑移。");
             Assert.IsTrue(footBottom is >= 239 and <= 243, "身体参与挥手时仍需站稳，不上下漂浮。");
             Assert.IsTrue((footLeft + footRight) / 2.0 is >= 124 and <= 134, "重心变化不能让脚底随身体整体横移。");
+            Assert.IsTrue(leftFootMass > 0 && rightFootMass > 0, "侧身时双脚仍应落地。");
+            Assert.IsTrue(leftFootMoment / leftFootMass is >= 111 and <= 117
+                && rightFootMoment / rightFootMass is >= 143 and <= 150,
+                "鞋子可以随重心转向，但两个落点不能向相反方向滑开。");
             Assert.AreEqual(0, frame.Alpha[0], "挥手素材保持真正透明，不引入预览底色方块。");
         }
         Assert.IsTrue(armPoses.Count >= 10, "挥手需要连续的抬臂、摆腕和收手姿势。");
         Assert.IsTrue(headPoses.Count >= 6, "头部应跟随招手，不能像旧版一样固定原图。");
         Assert.IsTrue(torsoPoses.Count >= 6, "肩膀和躯干应参与挥手，不能只贴一条活动手臂。");
         Assert.IsTrue(headCenters.Max() - headCenters.Min() is >= 4 and <= 10, "头部跟随需实际可见，也不能夸张摇摆。");
-        Assert.IsTrue(headCenters.Zip(headCenters.Skip(1), (a, b) => Math.Abs(a - b)).Max() <= 2,
-            "相邻头部位置应平滑衔接，不能突然跳位。");
+        for (int i = 1; i < headCenters.Count; i++)
+            Assert.IsTrue(Math.Abs(headCenters[i] - headCenters[i - 1]) / wave.Milliseconds[i - 1] <= .06,
+                "侧身时头部可以转移重心，但相邻姿势位移不能超过每秒 60 个源像素。");
         Assert.IsTrue(wave.Milliseconds.Sum() is >= 1500 and <= 2400, "给起手、重心变化和收手留出自然节奏。");
     }
 
@@ -1152,7 +1188,7 @@ public sealed class DesktopPetTests
         if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_MOTION_QA") == "1")
         {
             preview.Add((Capture(), 800));
-            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-wave-v4");
+            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-wave-v5");
         }
     }
 
