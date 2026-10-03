@@ -6,6 +6,10 @@
 参考图中的下半身未展示，长裤及鞋子为设计补全。
 原图及设计工作文件由项目维护者另行保留在被 Git 忽略的 artifacts 目录。
 
+黑发伙伴的 wave-v3.png 使用内置官方生图绘制连续抬臂、摆腕、收手姿势，
+只将手臂局部接回原角色，保留头部、身体、腿部及脚底像素；不再旋转整人模拟挥手。
+生成原图、提示词、对齐与拼接工具保留于 artifacts/black-wave-v3。
+
 粉发伙伴的新版挥手使用内置官方生图重画连续手臂关键姿势，保留原有其他动作。
 运动参考为 Ludo Wave 预览和 Nick Kinteris 的 Hand Waving 动作分析：
 https://ludo.ai/tools/animation-presets/social

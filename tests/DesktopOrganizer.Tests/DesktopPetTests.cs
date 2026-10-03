@@ -435,7 +435,9 @@ public sealed class DesktopPetTests
             f.Window.RootGrid.UpdateLayout();
             int size = (int)f.Pet.Width;
             var image = new RenderTargetBitmap(1000, 700, 96, 96, PixelFormats.Pbgra32);
-            image.Render(f.Window.RootGrid);
+            Brush background = f.Window.RootGrid.Background;
+            try { f.Window.RootGrid.Background = null; f.Window.RootGrid.UpdateLayout(); image.Render(f.Window.RootGrid); }
+            finally { f.Window.RootGrid.Background = background; }
             return new CroppedBitmap(image, new Int32Rect(300, 200, size, size));
         }
         void PlayUntil(string target)
@@ -449,6 +451,7 @@ public sealed class DesktopPetTests
         }
         f.Pet.ReactToTouch(); PlayUntil("touchLoop");
         byte[] touching = BgraPixels(Capture());
+        Assert.AreEqual(0, touching[3], "实际控件预览的角落应透明，不能带入测试窗口底色。");
         f.Pet.Wave();
         CollectionAssert.AreEqual(touching, BgraPixels(Capture()), "排队切换不得提前更换正在绘制的姿势。");
         PlayUntil("wave");
@@ -943,22 +946,14 @@ public sealed class DesktopPetTests
         var contact = new DrawingVisual();
         using (DrawingContext grid = contact.RenderOpen())
         {
-            grid.DrawRectangle(Brushes.WhiteSmoke, null, new Rect(0, 0, size * 6, size * rows));
             for (int i = 0; i < frames.Count; i++)
             {
-                var canvas = new DrawingVisual();
-                using (DrawingContext drawing = canvas.RenderOpen())
-                {
-                    drawing.DrawRectangle(Brushes.WhiteSmoke, null, new Rect(0, 0, size, size));
-                    drawing.DrawImage(frames[i].Image, new Rect(0, 0, size, size));
-                }
-                var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
-                bitmap.Render(canvas);
+                var bitmap = TransparentGifFrame(frames[i].Image);
                 var metadata = new BitmapMetadata("gif");
                 metadata.SetQuery("/grctlext/Delay", (ushort)Math.Max(1, Math.Round(frames[i].Milliseconds / 10.0)));
                 metadata.SetQuery("/grctlext/Disposal", (byte)2);
                 encoder.Frames.Add(BitmapFrame.Create(bitmap, null, metadata, null));
-                grid.DrawImage(bitmap, new Rect(i % 6 * size, i / 6 * size, size, size));
+                grid.DrawImage(frames[i].Image, new Rect(i % 6 * size, i / 6 * size, size, size));
             }
         }
         using var encoded = new MemoryStream();
@@ -994,7 +989,8 @@ public sealed class DesktopPetTests
                     int nextTime = (int)Math.Round(elapsed / 10.0, MidpointRounding.AwayFromZero);
                     int delay = Math.Max(1, nextTime - encodedTime);
                     encodedTime += delay;
-                    output.Write([0x21, 0xf9, 4, 8, (byte)(delay & 255), (byte)(delay >> 8), 0, 0]);
+                    // Disposal=2 清除前帧，同时明确使用调色板 0 号透明色，避免预览方块。
+                    output.Write([0x21, 0xf9, 4, 9, (byte)(delay & 255), (byte)(delay >> 8), 0, 0]);
                     byte flags = gif[offset + 9];
                     offset += 10 + ((flags & 0x80) != 0 ? 3 * (1 << ((flags & 7) + 1)) : 0);
                     offset = EndSubBlocks(offset + 1);
@@ -1012,6 +1008,9 @@ public sealed class DesktopPetTests
         var decoded = new GifBitmapDecoder(new Uri(Path.Combine(directory, name + ".gif")),
             BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
         Assert.AreEqual(frames.Count, decoded.Frames.Count);
+        for (int i = 0; i < frames.Count; i++)
+            if (BgraPixels(frames[i].Image)[3] < 128)
+                Assert.AreEqual(0, BgraPixels(decoded.Frames[i])[3], "透明预览经过 GIF 编码后不能变成不透明方块。");
         int decodedTime = decoded.Frames.Sum(frame => Convert.ToInt32(((BitmapMetadata)frame.Metadata).GetQuery("/grctlext/Delay")) * 10);
         Assert.IsTrue(Math.Abs(decodedTime - frames.Sum(frame => frame.Milliseconds)) <= 5,
             "GIF 总时长须与实际控件一致，仅允许厘秒精度误差。");
@@ -1023,12 +1022,90 @@ public sealed class DesktopPetTests
         png.Save(stream);
     }
 
+    private static BitmapSource TransparentGifFrame(BitmapSource image)
+    {
+        var colors = new List<Color> { Colors.Transparent };
+        colors.AddRange(new BitmapPalette(image, 255).Colors.Where(c => c.A > 0)
+            .Select(c => Color.FromRgb(c.R, c.G, c.B)).Distinct().Take(255));
+        if (colors.Count == 1) colors.Add(Colors.Black);
+        byte[] pixels = BgraPixels(image), indices = new byte[image.PixelWidth * image.PixelHeight];
+        var cache = new Dictionary<int, byte>();
+        for (int i = 0; i < indices.Length; i++)
+        {
+            int p = i * 4;
+            if (pixels[p + 3] < 128) continue;
+            int rgb = pixels[p + 2] << 16 | pixels[p + 1] << 8 | pixels[p];
+            if (!cache.TryGetValue(rgb, out byte closest))
+            {
+                int distance = int.MaxValue;
+                for (int c = 1; c < colors.Count; c++)
+                {
+                    int r = pixels[p + 2] - colors[c].R, g = pixels[p + 1] - colors[c].G, b = pixels[p] - colors[c].B;
+                    int candidate = r * r + g * g + b * b;
+                    if (candidate < distance) { distance = candidate; closest = (byte)c; }
+                }
+                cache[rgb] = closest;
+            }
+            indices[i] = closest;
+        }
+        return BitmapSource.Create(image.PixelWidth, image.PixelHeight, 96, 96, PixelFormats.Indexed8,
+            new BitmapPalette(colors), indices, image.PixelWidth);
+    }
+
     private static byte[] BgraPixels(BitmapSource image)
     {
         var converted = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
         var pixels = new byte[image.PixelWidth * image.PixelHeight * 4];
         converted.CopyPixels(pixels, image.PixelWidth * 4, 0);
         return pixels;
+    }
+
+    [STATestMethod]
+    public void BlackWave_MovesOnlyTheArmAndReturnsToTheOriginalStandingPose()
+    {
+        using var f = new Fixture(); f.Enable("black-haired");
+        var idle = VPetAnimation.GetClip("black-haired", "idle").Frames[0];
+        var wave = VPetAnimation.GetClip("black-haired", "wave");
+        byte[] original = BgraPixels(idle.Image);
+        CollectionAssert.AreEqual(original, BgraPixels(wave.Frames[0].Image), "挥手应从原来的站姿起手。");
+        CollectionAssert.AreEqual(original, BgraPixels(wave.Frames[^1].Image), "收手后应回到同一站姿。");
+        var armPoses = new HashSet<string>();
+        foreach (var frame in wave.Frames)
+        {
+            byte[] pixels = BgraPixels(frame.Image);
+            var arm = new List<byte>();
+            for (int y = 0; y < 256; y++)
+            for (int x = 0; x < 256; x++)
+            {
+                int pixel = (y * 256 + x) * 4;
+                if (x < 116 && y >= 66 && y < 177) arm.AddRange(pixels.AsSpan(pixel, 4).ToArray());
+                else for (int channel = 0; channel < 4; channel++)
+                    Assert.AreEqual(original[pixel + channel], pixels[pixel + channel], "挥手不能靠摇晃整个人模拟，脸、身体和脚底必须固定。");
+            }
+            armPoses.Add(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(arm.ToArray())));
+        }
+        Assert.IsTrue(armPoses.Count >= 10, "挥手需要连续的抬臂、摆腕和收手姿势。");
+        Assert.IsTrue(wave.Milliseconds.Sum() is >= 1000 and <= 2000, "动作应有清晰节奏，不急促闪动或拖得太慢。");
+    }
+
+    [STATestMethod]
+    public void PetPreviewExport_PreservesTransparentBackgroundAndEmptyContactCells()
+    {
+        var pixels = new byte[4 * 4 * 4];
+        pixels[5 * 4 + 2] = 255; pixels[5 * 4 + 3] = 255;
+        var image = BitmapSource.Create(4, 4, 96, 96, PixelFormats.Bgra32, null, pixels, 16);
+        string folder = "artifacts/pet-motion-qa/transparent-encoder-test";
+        SaveFallPreview([(image, 70), (image, 130)], "alpha", folder);
+        var gif = new GifBitmapDecoder(new Uri(Path.Combine(TestProjectFiles.Root, folder, "alpha.gif")),
+            BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        foreach (var frame in gif.Frames)
+        {
+            byte[] decoded = BgraPixels(frame);
+            Assert.AreEqual(0, decoded[3], "透明角落不能被预览底色填满。");
+            Assert.AreEqual(255, decoded[5 * 4 + 3], "去掉底色不能同时抹掉角色。");
+        }
+        var contact = BitmapFrame.Create(new Uri(Path.Combine(TestProjectFiles.Root, folder, "alpha.png")));
+        Assert.AreEqual(0, BgraPixels(contact)[^1], "联系表未占用格子应透明，不能出现白块。");
     }
 
     [STATestMethod]

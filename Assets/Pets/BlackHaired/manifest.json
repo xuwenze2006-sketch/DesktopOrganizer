@@ -28,31 +28,71 @@
       ]
     },
     "wave": {
-      "sheet": "actions.png",
+      "sheet": "wave-v3.png",
       "frames": [
         {
+          "index": 0,
+          "milliseconds": 80
+        },
+        {
+          "index": 1,
+          "milliseconds": 100
+        },
+        {
           "index": 2,
-          "milliseconds": 120
+          "milliseconds": 80
+        },
+        {
+          "index": 3,
+          "milliseconds": 65
+        },
+        {
+          "index": 4,
+          "milliseconds": 65
+        },
+        {
+          "index": 5,
+          "milliseconds": 70
+        },
+        {
+          "index": 6,
+          "milliseconds": 110
+        },
+        {
+          "index": 7,
+          "milliseconds": 70
+        },
+        {
+          "index": 8,
+          "milliseconds": 110
+        },
+        {
+          "index": 9,
+          "milliseconds": 70
+        },
+        {
+          "index": 10,
+          "milliseconds": 100
+        },
+        {
+          "index": 11,
+          "milliseconds": 70
+        },
+        {
+          "index": 12,
+          "milliseconds": 90
         },
         {
           "index": 13,
-          "milliseconds": 160
+          "milliseconds": 100
         },
         {
           "index": 14,
-          "milliseconds": 160
+          "milliseconds": 100
         },
         {
-          "index": 13,
-          "milliseconds": 160
-        },
-        {
-          "index": 2,
-          "milliseconds": 180
-        },
-        {
-          "index": 0,
-          "milliseconds": 120
+          "index": 15,
+          "milliseconds": 130
         }
       ]
     },
