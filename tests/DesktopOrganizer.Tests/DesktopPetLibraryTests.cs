@@ -11,6 +11,115 @@ namespace DesktopOrganizer.Tests;
 public sealed class DesktopPetLibraryTests
 {
     [STATestMethod]
+    public void PersonalMetadata_SurvivesImportHideRestoreAndRestart_WithoutReloadingFrames()
+    {
+        using var f = new Files();
+        var library = new DesktopPetLibrary(f.Library);
+        var asset = library.Import(f.Image("first.png", 32, 32), "character");
+        var clip = library.GetClip(asset.Id, "idle");
+        library.SetDisplayName(asset.Id, "  我的伙伴  ");
+        library.SetDisplayName("tiananmen", "我的背景");
+        library.SetFavorite(asset.Id, true);
+        library.SetFavorite("tiananmen", true);
+        library.SetRemoved(asset.Id, true);
+        library.SetRemoved("tiananmen", true);
+        library.SetRemoved(asset.Id, false);
+        library.Import(f.Image("second.png", 32, 32), "scene");
+        Assert.AreSame(clip, library.GetClip(asset.Id, "idle"));
+        var restarted = new DesktopPetLibrary(f.Library);
+        Assert.IsNull(restarted.LoadWarning);
+        Assert.AreEqual("我的伙伴", restarted.GetDisplayName(asset.Id));
+        Assert.AreEqual("我的背景", restarted.GetDisplayName("tiananmen"));
+        Assert.IsTrue(restarted.IsFavorite(asset.Id) && restarted.IsFavorite("tiananmen"));
+        Assert.IsFalse(restarted.IsRemoved(asset.Id));
+        Assert.IsTrue(restarted.IsRemoved("tiananmen"));
+        restarted.RestoreAll();
+        restarted.SetDisplayName(asset.Id, null);
+        restarted = new DesktopPetLibrary(f.Library);
+        Assert.AreEqual("first", restarted.GetDisplayName(asset.Id));
+        Assert.AreEqual("我的背景", restarted.GetDisplayName("tiananmen"));
+        Assert.IsTrue(restarted.IsFavorite(asset.Id));
+        Assert.IsFalse(restarted.IsRemoved("tiananmen"));
+    }
+
+    [STATestMethod]
+    public void PersonalMetadata_InvalidNameOrFailedSavePreservesDiskAndSnapshot()
+    {
+        using var f = new Files();
+        var library = new DesktopPetLibrary(f.Library);
+        library.SetDisplayName("vpet", "小萝");
+        string path = Path.Combine(f.Library, "library.json");
+        string before = File.ReadAllText(path);
+        var snapshot = library.ReadSnapshot();
+        foreach (string invalid in new[] { " ", new string('名', 41), "换\n行" })
+            Assert.Throws<ArgumentException>(() => library.SetDisplayName("vpet", invalid));
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            foreach (Action write in new Action[] { () => library.SetDisplayName("vpet", "新名称"),
+                () => library.SetFavorite("vpet", true), () => library.SetRemoved("vpet", true) })
+            {
+                try { write(); Assert.Fail("被锁定的索引不得发布更改。"); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+        }
+        Assert.AreSame(snapshot, library.ReadSnapshot());
+        Assert.AreEqual(before, File.ReadAllText(path));
+        Assert.AreEqual("小萝", library.GetDisplayName("vpet"));
+        Assert.IsFalse(library.IsFavorite("vpet") || library.IsRemoved("vpet"));
+    }
+
+    [STATestMethod]
+    public void PersonalMetadata_OldIndexLoadsAndCorruptNewFieldsAreProtected()
+    {
+        using var f = new Files();
+        Directory.CreateDirectory(f.Library);
+        string path = Path.Combine(f.Library, "library.json");
+        File.WriteAllText(path, "{\"Assets\":[],\"Removed\":[\"vpet\"]}");
+        var library = new DesktopPetLibrary(f.Library);
+        Assert.IsNull(library.LoadWarning);
+        Assert.IsTrue(library.IsRemoved("vpet"));
+        library.SetDisplayName("vpet", "小萝");
+        foreach (string invalid in new[] { "{\"DisplayNames\":null}", "{\"Favorites\":null}", "{\"DisplayNames\":{\"vpet\":\" \"}}" })
+        {
+            File.WriteAllText(path, invalid);
+            library = new DesktopPetLibrary(f.Library);
+            Assert.IsNotNull(library.LoadWarning);
+            Assert.Throws<IOException>(() => library.SetDisplayName("vpet", "小萝"));
+            Assert.AreEqual(invalid, File.ReadAllText(path));
+        }
+    }
+
+    [STATestMethod]
+    public void PersonalNames_LoadForBuiltInAndImportedCatalogs_WithoutChangingIdentity()
+    {
+        using var f = new Files();
+        var library = new DesktopPetLibrary(f.Library);
+        var imported = library.Import(f.Image("original.png", 32, 32), "character");
+        string path = Path.Combine(f.Library, "library.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(new
+        {
+            Assets = library.Assets, Removed = Array.Empty<string>(),
+            DisplayNames = new Dictionary<string, string>
+            { ["vpet"] = "小萝", ["tiananmen"] = "我的背景", [imported.Id] = "我的伙伴" },
+            Favorites = new[] { "vpet", imported.Id }
+        }));
+        var original = DesktopPetLibrary.Shared;
+        var shared = typeof(DesktopPetLibrary).GetField("_shared",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        try
+        {
+            shared.SetValue(null, new DesktopPetLibrary(f.Library));
+            Assert.AreEqual("小萝", DesktopPetCatalog.Find("vpet").Name);
+            Assert.AreEqual("小萝", DesktopPetCatalog.Characters.Single(c => c.Id == "vpet").Name);
+            Assert.AreEqual("我的伙伴", DesktopPetCatalog.Find(imported.Id).Name);
+            Assert.AreEqual("我的背景", DesktopPetScene.NameFor("pink-haired"));
+            Assert.AreEqual("original", DesktopPetLibrary.Shared.FindAsset(imported.Id)!.Name);
+            Assert.IsTrue(Directory.Exists(Path.Combine(f.Library, imported.Id)));
+        }
+        finally { shared.SetValue(null, original); }
+    }
+
+    [STATestMethod]
     [DataRow(false)]
     [DataRow(true)]
     public void ImportedActions_SwitchImmediatelyWithoutWaitingForMissingOrLongClips(bool hasTouch)
@@ -334,12 +443,22 @@ public sealed class DesktopPetLibraryTests
     [STATestMethod]
     public void Picker_MissingBackgroundCannotBeReenabledByCharacterDefault()
     {
-        var picker = new DesktopPetPicker("black-haired", true, false);
-        picker.Scenes.ItemsSource = Array.Empty<DesktopPetPicker.Card>();
-        picker.Characters.SelectedValue = "pink-haired";
-        Assert.IsNull(picker.SelectedSceneId);
-        Assert.IsFalse(picker.SceneSelected, "移除全部背景后，角色默认值不得重新开启已移除的背景。");
-        Assert.IsFalse(picker.ShowScene.IsEnabled);
+        using var f = new Files();
+        var original = DesktopPetLibrary.Shared;
+        var shared = typeof(DesktopPetLibrary).GetField("_shared",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var library = new DesktopPetLibrary(f.Library);
+        shared.SetValue(null, library);
+        try
+        {
+            foreach (var scene in DesktopPetScene.Scenes) library.SetRemoved(scene.Id, true);
+            var picker = new DesktopPetPicker("black-haired", true, false);
+            picker.Characters.SelectedValue = "pink-haired";
+            Assert.AreEqual("tree-grass", picker.SelectedSceneId, "隐藏只影响素材库，保留原来的搭配。");
+            Assert.IsFalse(picker.SceneSelected, "隐藏的默认背景不得被换角色操作自动开启。");
+            Assert.AreEqual(0, picker.Scenes.Items.Count);
+        }
+        finally { shared.SetValue(null, original); }
     }
 
     [STATestMethod]
@@ -360,8 +479,131 @@ public sealed class DesktopPetLibraryTests
         picker.Measure(new Size(410, 360)); picker.Arrange(new Rect(0, 0, 410, 360)); picker.UpdateLayout();
         Assert.AreEqual(Visibility.Collapsed, picker.CompositionPanel.Visibility);
         Assert.IsTrue(picker.ApplyButton.TranslatePoint(new Point(0, picker.ApplyButton.ActualHeight), picker).Y <= 360);
+        picker.PreviewView.IsChecked = true;
+        picker.PreviewView.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        picker.UpdateLayout();
+        Assert.AreEqual(Visibility.Visible, picker.CompositionPanel.Visibility, "窄窗口也要能访问预览和参数。");
+        Assert.AreEqual(Visibility.Collapsed, picker.LibraryPanel.Visibility);
+        Assert.IsTrue(picker.CompositionScroll.ScrollableHeight > 0);
+        picker.CompositionScroll.ScrollToBottom(); picker.UpdateLayout();
+        var restorePoint = picker.RestoreCompositionButton.TranslatePoint(new Point(0, 0), picker.CompositionScroll);
+        Assert.IsTrue(restorePoint.Y >= 0 && restorePoint.Y < picker.CompositionScroll.ActualHeight);
+        var narrow = new RenderTargetBitmap(410, 360, 96, 96, PixelFormats.Pbgra32); narrow.Render(picker);
+        var narrowEncoder = new PngBitmapEncoder(); narrowEncoder.Frames.Add(BitmapFrame.Create(narrow));
+        using (var output = File.Create(Path.Combine(directory, "picker-narrow.png"))) narrowEncoder.Save(output);
+        picker.Measure(new Size(920, 360)); picker.Arrange(new Rect(0, 0, 920, 360)); picker.UpdateLayout();
+        Assert.IsTrue(picker.CompositionScroll.ScrollableHeight > 0, "宽而矮的窗口必须能滚到参数和恢复入口。");
+        picker.CompositionScroll.ScrollToBottom(); picker.UpdateLayout();
+        restorePoint = picker.RestoreCompositionButton.TranslatePoint(new Point(0, 0), picker.CompositionScroll);
+        Assert.IsTrue(restorePoint.Y >= 0 && restorePoint.Y < picker.CompositionScroll.ActualHeight);
         picker.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
     }
+
+    [STATestMethod]
+    public void Picker_SearchAndLibraryFiltersPreserveDraft_AndHiddenItemCanBeRestoredAlone()
+    {
+        using var f = new Files();
+        var original = DesktopPetLibrary.Shared;
+        var shared = typeof(DesktopPetLibrary).GetField("_shared",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var library = new DesktopPetLibrary(f.Library);
+        shared.SetValue(null, library);
+        try
+        {
+            var picker = new DesktopPetPicker("black-haired", true, true,
+                new DesktopPetLayoutInfo { SceneId = "tiananmen" });
+            var search = (System.Windows.Controls.TextBox)picker.FindName("SearchBox");
+            Assert.IsNotNull(search, "作坊应提供名称搜索。");
+            search.Text = "找不到的名字";
+            Assert.AreEqual(0, picker.Characters.Items.Count);
+            Assert.AreEqual("black-haired", picker.SelectedCharacterId);
+            Assert.AreEqual("tiananmen", picker.SelectedSceneId);
+            Assert.IsTrue(picker.ShowOnDesktop && picker.SceneSelected);
+            search.Text = "";
+            var filters = (System.Windows.Controls.ComboBox)picker.FindName("LibraryFilter");
+            filters.SelectedIndex = 1;
+            Assert.AreEqual(0, picker.Characters.Items.Count);
+            Assert.AreEqual("black-haired", picker.SelectedCharacterId);
+            filters.SelectedIndex = 0;
+            var card = (DesktopPetPicker.Card)picker.Characters.SelectedItem;
+            var menuMethod = typeof(DesktopPetPicker).GetMethod("CreateCardMenu",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            Assert.IsNotNull(menuMethod, "每张卡片应提供独立操作菜单。");
+            var menu = (System.Windows.Controls.ContextMenu)menuMethod.Invoke(picker, [card])!;
+            ((System.Windows.Controls.MenuItem)menu.Items.Cast<object>().Single(i => i is System.Windows.Controls.MenuItem { Header: "隐藏素材" }))
+                .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+            Assert.IsTrue(library.IsRemoved("black-haired"));
+            Assert.AreEqual("black-haired", picker.SelectedCharacterId, "隐藏素材不应偷偷替换桌面草稿。");
+            library.SetRemoved("vpet", true);
+            filters.SelectedIndex = 2;
+            picker.Characters.SelectedValue = "black-haired";
+            card = (DesktopPetPicker.Card)picker.Characters.SelectedItem;
+            menu = (System.Windows.Controls.ContextMenu)menuMethod.Invoke(picker, [card])!;
+            ((System.Windows.Controls.MenuItem)menu.Items.Cast<object>().Single(i => i is System.Windows.Controls.MenuItem { Header: "恢复到素材库" }))
+                .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
+            Assert.IsFalse(library.IsRemoved("black-haired"));
+            Assert.IsTrue(library.IsRemoved("vpet"), "逐项恢复不能顺带恢复其它素材。");
+            Assert.AreEqual("black-haired", picker.SelectedCharacterId);
+        }
+        finally { shared.SetValue(null, original); }
+    }
+
+    [STATestMethod]
+    public void Picker_CardActionsTargetTheirOwnCard_AndRestoringDraftKeepsLibraryChanges()
+    {
+        using var f = new Files();
+        var original = DesktopPetLibrary.Shared;
+        var shared = typeof(DesktopPetLibrary).GetField("_shared",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var library = new DesktopPetLibrary(f.Library);
+        library.SetDisplayName("vpet", "小萝");
+        shared.SetValue(null, library);
+        try
+        {
+            var saved = new DesktopPetLayoutInfo { CharacterId = "black-haired", SceneId = "tiananmen",
+                ShowScene = true, IsVisible = true, CharacterScale = .8, CharacterShiftX = -12 };
+            var picker = new DesktopPetPicker(saved.CharacterId, true, true, saved);
+            Assert.IsFalse(picker.HasUnappliedChanges);
+            var target = picker.Characters.Items.Cast<DesktopPetPicker.Card>().Single(c => c.Id == "vpet");
+            Assert.AreEqual(target, DesktopPetPicker.KeyboardCard(picker.Characters,
+                new System.Windows.Controls.Button { DataContext = target }), "F2应作用于键盘所在卡片。");
+            ClickMenu(picker.CreateCardMenu(target), "收藏素材");
+            Assert.IsTrue(library.IsFavorite("vpet"));
+            Assert.IsFalse(library.IsFavorite("black-haired"));
+            Assert.AreEqual("black-haired", picker.SelectedCharacterId);
+            Assert.IsFalse(picker.HasUnappliedChanges, "收藏不属于桌面搭配更改。");
+            picker.LibraryFilter.SelectedIndex = 1;
+            Assert.AreEqual(1, picker.Characters.Items.Count);
+            picker.Characters.SelectedValue = "vpet";
+            picker.CharacterScale.Value = 1.3;
+            picker.CharacterX.Value = 56;
+            picker.ShowPet.IsChecked = false;
+            Assert.IsTrue(picker.HasUnappliedChanges);
+            Assert.AreEqual("搭配尚未应用", picker.DraftStatus.Text);
+            Assert.AreEqual(.8, saved.CharacterScale);
+            Assert.AreEqual("black-haired", saved.CharacterId);
+            picker.RestoreCompositionButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Assert.AreEqual("black-haired", picker.SelectedCharacterId);
+            Assert.AreEqual("tiananmen", picker.SelectedSceneId);
+            Assert.AreEqual(.8, picker.CharacterScale.Value);
+            Assert.AreEqual(-12, picker.CharacterX.Value);
+            Assert.IsTrue(picker.ShowOnDesktop && picker.SceneSelected);
+            Assert.IsFalse(picker.HasUnappliedChanges);
+            Assert.IsTrue(library.IsFavorite("vpet"));
+            Assert.AreEqual("小萝", library.GetDisplayName("vpet"));
+            ClickMenu(picker.CreateCardMenu(target), "恢复原名");
+            Assert.AreEqual("萝莉斯", library.GetDisplayName("vpet"));
+            Assert.AreEqual("萝莉斯", ((DesktopPetPicker.Card)picker.Characters.Items[0]).Name);
+            Assert.IsTrue(library.IsFavorite("vpet"));
+            picker.SearchBox.Text = "萝莉斯";
+            Assert.AreEqual(1, picker.Characters.Items.Count);
+        }
+        finally { shared.SetValue(null, original); }
+    }
+
+    private static void ClickMenu(System.Windows.Controls.ContextMenu menu, string header) =>
+        menu.Items.OfType<System.Windows.Controls.MenuItem>().Single(i => Equals(i.Header, header))
+            .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.MenuItem.ClickEvent));
 
     private sealed class Files : IDisposable
     {

@@ -39,10 +39,17 @@ internal sealed class DesktopPetLibrary
     {
         public List<Asset> Assets { get; set; } = [];
         public HashSet<string> Removed { get; set; } = [];
+        public Dictionary<string, string> DisplayNames { get; set; } = [];
+        public HashSet<string> Favorites { get; set; } = [];
     }
-    private sealed record Snapshot(IReadOnlyList<Asset> Assets,
+    internal sealed record Snapshot(IReadOnlyList<Asset> Assets,
         System.Collections.Frozen.FrozenDictionary<string, Asset> ById,
-        System.Collections.Frozen.FrozenSet<string> Removed);
+        System.Collections.Frozen.FrozenSet<string> Removed,
+        System.Collections.Frozen.FrozenDictionary<string, string> DisplayNames,
+        System.Collections.Frozen.FrozenSet<string> Favorites)
+    {
+        internal string DisplayName(string id, string original) => DisplayNames.GetValueOrDefault(id) ?? original;
+    }
     private readonly string _root;
     private readonly object _mutationGate = new();
     private Index _index = new();
@@ -54,12 +61,20 @@ internal sealed class DesktopPetLibrary
     internal IReadOnlyList<Asset> Assets => Volatile.Read(ref _snapshot).Assets;
     internal Asset? FindAsset(string id) => Volatile.Read(ref _snapshot).ById.GetValueOrDefault(id);
     internal bool IsRemoved(string id) => Volatile.Read(ref _snapshot).Removed.Contains(id);
+    internal Snapshot ReadSnapshot() => Volatile.Read(ref _snapshot);
+    internal bool IsFavorite(string id) => ReadSnapshot().Favorites.Contains(id);
+    internal string GetDisplayName(string id) => ReadSnapshot().DisplayName(id, GetOriginalName(id));
+    internal string GetOriginalName(string id) => DesktopPetCatalog.BuiltInCharacters.FirstOrDefault(c => c.Id == id)?.Name
+        ?? DesktopPetScene.BuiltInScenes.FirstOrDefault(s => s.Id == id)?.Name
+        ?? FindAsset(id)?.Name ?? throw new ArgumentException("素材不存在。");
     private const long MaxFileBytes = 32 * 1024 * 1024;
     private const long MaxImportBytes = 128 * 1024 * 1024;
 
     private static Snapshot CreateSnapshot(Index index) => new(Array.AsReadOnly(index.Assets.ToArray()),
         System.Collections.Frozen.FrozenDictionary.ToFrozenDictionary(index.Assets, a => a.Id, StringComparer.Ordinal),
-        System.Collections.Frozen.FrozenSet.ToFrozenSet(index.Removed, StringComparer.Ordinal));
+        System.Collections.Frozen.FrozenSet.ToFrozenSet(index.Removed, StringComparer.Ordinal),
+        System.Collections.Frozen.FrozenDictionary.ToFrozenDictionary(index.DisplayNames, StringComparer.Ordinal),
+        System.Collections.Frozen.FrozenSet.ToFrozenSet(index.Favorites, StringComparer.Ordinal));
 
     internal DesktopPetLibrary(string root)
     {
@@ -70,7 +85,9 @@ internal sealed class DesktopPetLibrary
         {
             if (new FileInfo(path).Length > 1024 * 1024) throw new InvalidDataException("素材索引过大。");
             _index = JsonSerializer.Deserialize<Index>(File.ReadAllText(path)) ?? throw new InvalidDataException();
-            if (_index.Assets is null || _index.Removed is null || _index.Assets.Any(a =>
+            if (_index.Assets is null || _index.Removed is null || _index.DisplayNames is null || _index.Favorites is null ||
+                _index.DisplayNames.Any(p => string.IsNullOrWhiteSpace(p.Key) || !ValidDisplayName(p.Value)) ||
+                _index.Favorites.Any(string.IsNullOrWhiteSpace) || _index.Assets.Any(a =>
                 a is null || !ValidId(a.Id) || string.IsNullOrWhiteSpace(a.Name) || a.Kind is not ("character" or "scene")) ||
                 _index.Assets.Select(a => a.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != _index.Assets.Count)
                 throw new InvalidDataException();
@@ -135,13 +152,48 @@ internal sealed class DesktopPetLibrary
         _index = next;
         Volatile.Write(ref _snapshot, snapshot);
     }
+    private Index CopyIndex() => new()
+    {
+        Assets = [.. _index.Assets], Removed = new(_index.Removed),
+        DisplayNames = new(_index.DisplayNames, StringComparer.Ordinal), Favorites = new(_index.Favorites)
+    };
+    private static bool ValidDisplayName(string? name) => !string.IsNullOrWhiteSpace(name) &&
+        name.Trim().Length <= 40 && !name.Any(char.IsControl);
+    internal void SetDisplayName(string id, string? name)
+    {
+        lock (_mutationGate)
+        {
+            EnsureWritable();
+            string original = GetOriginalName(id);
+            if (name is not null && !ValidDisplayName(name))
+                throw new ArgumentException("名称需为 1–40 个字符，不能包含换行或控制字符。");
+            string? value = name?.Trim();
+            if (value == original) value = null;
+            if (_index.DisplayNames.GetValueOrDefault(id) == value) return;
+            var next = CopyIndex();
+            if (value is null) next.DisplayNames.Remove(id); else next.DisplayNames[id] = value;
+            Commit(next);
+        }
+    }
+    internal void SetFavorite(string id, bool favorite)
+    {
+        lock (_mutationGate)
+        {
+            EnsureWritable();
+            _ = GetOriginalName(id);
+            if (IsFavorite(id) == favorite) return;
+            var next = CopyIndex();
+            if (favorite) next.Favorites.Add(id); else next.Favorites.Remove(id);
+            Commit(next);
+        }
+    }
     internal void SetRemoved(string id, bool removed)
     {
         lock (_mutationGate)
         {
             EnsureWritable();
             if (IsRemoved(id) == removed) return;
-            var next = new Index { Assets = _index.Assets, Removed = new(_index.Removed) };
+            var next = CopyIndex();
             if (removed) next.Removed.Add(id); else next.Removed.Remove(id);
             Commit(next);
         }
@@ -152,7 +204,9 @@ internal sealed class DesktopPetLibrary
         {
             EnsureWritable();
             if (_index.Removed.Count == 0) return;
-            Commit(new Index { Assets = _index.Assets, Removed = [] });
+            var next = CopyIndex();
+            next.Removed.Clear();
+            Commit(next);
         }
     }
 
@@ -223,7 +277,9 @@ internal sealed class DesktopPetLibrary
                 owned = target;
                 if (clips is not null) _clips[id] = new Lazy<Dictionary<string, VPetAnimation.Clip>>(clips);
                 if (image is not null) _images[id] = new Lazy<DesktopPetScene.Layer>(image);
-                Commit(new Index { Assets = [.. _index.Assets, asset], Removed = _index.Removed });
+                var next = CopyIndex();
+                next.Assets.Add(asset);
+                Commit(next);
                 committed = true;
                 return asset;
             }

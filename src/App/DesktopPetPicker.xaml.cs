@@ -2,14 +2,27 @@ namespace DesktopOrganizer
 {
     public partial class DesktopPetPicker : UserControl
     {
-        internal sealed record Card(string Id, string Name, string Description, BitmapSource Preview);
+        internal sealed record Card(string Id, string Name, string Description, BitmapSource Preview,
+            bool Favorite = false, bool Hidden = false, bool InUse = false)
+        {
+            public string FavoriteGlyph => Favorite ? "★" : "☆";
+            public string FavoriteHint => Favorite ? "取消收藏" : "收藏素材";
+            public string Badge => InUse ? (Hidden ? "桌面使用 · 已隐藏" : "桌面正在使用") : Hidden ? "已隐藏" : "";
+        }
+        private sealed record Draft(string? Character, string? Scene, bool Visible, bool ShowScene, double Scale, double X, double Y);
         internal event Action? ApplyRequested;
         internal event Action? CancelRequested;
-        internal string SelectedCharacterId => (Characters.SelectedItem as Card)?.Id ?? DesktopPetWidget.CatCharacterId;
+        internal event Action? LibraryChanged;
+        internal string SelectedCharacterId => _characterId ?? DesktopPetWidget.CatCharacterId;
         internal bool ShowOnDesktop => ShowPet.IsChecked == true;
         internal bool SceneSelected => ShowScene.IsChecked == true;
-        internal string? SelectedSceneId => (Scenes.SelectedItem as Card)?.Id;
+        internal string? SelectedSceneId => _sceneId;
+        internal bool HasUnappliedChanges => _initial is not null && CaptureDraft() != _initial;
         private readonly DesktopPetWidget _preview = new();
+        private string? _characterId;
+        private string? _sceneId;
+        private Draft? _initial;
+        private bool _initialSceneChosen;
         private bool _ready;
         private bool _sceneChosen;
         private bool _refreshing;
@@ -19,178 +32,197 @@ namespace DesktopOrganizer
         internal DesktopPetPicker(string characterId, bool visible, bool scene, DesktopPetLayoutInfo? composition = null)
         {
             InitializeComponent();
-            Characters.SelectedValuePath = nameof(Card.Id);
-            Scenes.SelectedValuePath = nameof(Card.Id);
-            ReloadLibrary(characterId, composition?.SceneId ?? DesktopPetScene.DefaultId(characterId));
+            Characters.SelectedValuePath = Scenes.SelectedValuePath = nameof(Card.Id);
+            _characterId = DesktopPetCatalog.Find(characterId).Id;
+            _sceneId = DesktopPetScene.ResolveId(composition?.SceneId, _characterId);
             ShowPet.IsChecked = visible;
             ShowScene.IsChecked = scene;
             CharacterScale.Value = composition?.CharacterScale ?? 1;
             CharacterX.Value = composition?.CharacterShiftX ?? 0;
             CharacterY.Value = composition?.CharacterShiftY ?? 0;
-            _sceneChosen = composition?.SceneId is not null;
+            _sceneChosen = _initialSceneChosen = composition?.SceneId is not null;
+            _initial = CaptureDraft();
             _preview.HorizontalAlignment = HorizontalAlignment.Center;
             _preview.VerticalAlignment = VerticalAlignment.Bottom;
             PreviewStage.Children.Add(_preview);
             _ready = true;
+            RefreshCards();
             Loaded += (_, _) => { _preview.SetActive(true); UpdatePreview(); };
             Unloaded += (_, _) => { _preview.SetActive(false); CancelImport(); };
             UpdatePreview();
-            if (DesktopPetLibrary.Shared.LoadWarning is string warning) SelectedDescription.Text = warning;
+            if (DesktopPetLibrary.Shared.LoadWarning is string warning) LibraryNotice.Text = warning;
         }
 
-        private void ReloadLibrary(string? character, string? scene)
+        private Draft CaptureDraft() => new(_characterId, _sceneId, ShowOnDesktop, SceneSelected,
+            CharacterScale.Value, CharacterX.Value, CharacterY.Value);
+
+        private void RefreshCards()
         {
+            if (!_ready) return;
+            var library = DesktopPetLibrary.Shared;
+            string query = SearchBox.Text.Trim();
+            int filter = LibraryFilter.SelectedIndex;
+            bool Matches(string id, string name) =>
+                (filter == 2 ? library.IsRemoved(id) : !library.IsRemoved(id)) &&
+                (filter != 1 || library.IsFavorite(id)) &&
+                (name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                 library.GetOriginalName(id).Contains(query, StringComparison.OrdinalIgnoreCase));
+            Card MakeCard(string id, string name, string description, BitmapSource preview, bool inUse) =>
+                new(id, name, description, preview, library.IsFavorite(id), library.IsRemoved(id), inUse);
             _refreshing = true;
             try
             {
-                Characters.ItemsSource = DesktopPetCatalog.Characters.Where(c => !DesktopPetLibrary.Shared.IsRemoved(c.Id))
-                    .Select(c => new Card(c.Id, c.Name, c.Description, DesktopPetCatalog.Preview(c.Id))).ToArray();
-                Scenes.ItemsSource = DesktopPetScene.Scenes.Where(s => !DesktopPetLibrary.Shared.IsRemoved(s.Id))
-                    .Select(s => new Card(s.Id, s.Name, "可与任意角色搭配", DesktopPetScene.GetBackground(s.Id).Image)).ToArray();
-                Characters.SelectedValue = character;
-                if (Characters.SelectedItem is null && Characters.Items.Count > 0) Characters.SelectedIndex = 0;
-                if (Characters.Items.Count == 0) ShowPet.IsChecked = false;
-                Scenes.SelectedValue = scene;
-                if (Scenes.SelectedItem is null && Scenes.Items.Count > 0) Scenes.SelectedIndex = 0;
-                if (Scenes.SelectedItem is null) ShowScene.IsChecked = false;
+                Characters.ItemsSource = DesktopPetCatalog.Characters.Where(c => Matches(c.Id, c.Name))
+                    .Select(c => MakeCard(c.Id, c.Name, c.Description, DesktopPetCatalog.Preview(c.Id),
+                        _initial is { Visible: true } && _initial.Character == c.Id)).ToArray();
+                Scenes.ItemsSource = DesktopPetScene.Scenes.Where(s => Matches(s.Id, s.Name))
+                    .Select(s => MakeCard(s.Id, s.Name, "可与任意角色搭配", DesktopPetScene.GetBackground(s.Id).Image,
+                        _initial is { Visible: true, ShowScene: true } && _initial.Scene == s.Id)).ToArray();
+                // 列表只是视图。筛选或隐藏当前素材，不能清空或替换搭配草稿。
+                Characters.SelectedValue = _characterId;
+                Scenes.SelectedValue = _sceneId;
             }
             finally { _refreshing = false; }
+            UpdateEmptyState();
             UpdatePreview();
         }
-
+        private void Search_Changed(object sender, TextChangedEventArgs e) => RefreshCards();
+        private void Filter_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_ready) return;
+            LibraryNotice.Text = LibraryFilter.SelectedIndex == 2 ? "已隐藏素材仅供管理；点 ⋯ 恢复后可重新试选"
+                : "点卡片试选，点 ⋯ 或按 F2 管理素材";
+            RefreshCards();
+        }
+        private void LibraryTab_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_ready && ReferenceEquals(e.Source, LibraryTabs)) UpdateEmptyState();
+        }
+        private void UpdateEmptyState()
+        {
+            var list = LibraryTabs.SelectedIndex == 1 ? Scenes : Characters;
+            EmptyLibrary.Visibility = list.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            EmptyLibrary.Text = SearchBox.Text.Trim().Length > 0 ? "没有匹配的素材\n试试原名，或清空搜索"
+                : LibraryFilter.SelectedIndex == 2 ? "没有隐藏的素材" : LibraryFilter.SelectedIndex == 1
+                ? "还没有收藏\n点击卡片上的 ☆ 即可收藏" : "素材库为空\n可添加素材，或在「已隐藏」中恢复";
+        }
         private void Characters_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (SelectedDescription is null || _refreshing) return;
-            bool selected = Characters.SelectedItem is Card;
-            ApplyButton.IsEnabled = _importCancellation is null && (selected || Characters.Items.Count == 0);
-            PreviewButton.IsEnabled = selected;
-            SelectedDescription.Text = Characters.SelectedItem is Card card
-                ? "已选择：" + card.Name + (card.Id == DesktopPetCatalog.SunsetDuoId
-                    ? " · 轻点相视，待机时也会自然互动" : " · 轻点互动，拖动换位置") : "请选择桌面伙伴";
-            if (ShowScene is not null && !_sceneChosen)
+            if (!_ready || _refreshing || Characters.SelectedItem is not Card card || card.Hidden) return;
+            _characterId = card.Id;
+            if (!_sceneChosen)
             {
-                _refreshing = true;
-                Scenes.SelectedValue = DesktopPetScene.DefaultId(SelectedCharacterId);
-                _refreshing = false;
-                ShowScene.Content = "搭配" + DesktopPetScene.NameFor(SelectedCharacterId);
-                if (SelectedCharacterId is "pink-haired" or DesktopPetCatalog.SunsetDuoId) ShowScene.IsChecked = true;
+                string defaultId = DesktopPetScene.DefaultId(card.Id);
+                if (!DesktopPetLibrary.Shared.IsRemoved(defaultId))
+                {
+                    _sceneId = defaultId;
+                    _refreshing = true;
+                    try { Scenes.SelectedValue = _sceneId; }
+                    finally { _refreshing = false; }
+                    if (card.Id is "pink-haired" or DesktopPetCatalog.SunsetDuoId) ShowScene.IsChecked = true;
+                }
             }
             UpdatePreview();
         }
-
         private void Scenes_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_refreshing || !_ready) return;
+            if (!_ready || _refreshing || Scenes.SelectedItem is not Card card || card.Hidden) return;
+            _sceneId = card.Id;
             _sceneChosen = true;
-            ShowScene.IsChecked = Scenes.SelectedItem is Card;
+            ShowScene.IsChecked = true;
             UpdatePreview();
         }
         private void UpdatePreview()
         {
             if (!_ready || _refreshing) return;
-            bool selected = Characters.SelectedItem is Card;
-            ApplyButton.IsEnabled = _importCancellation is null && (selected || Characters.Items.Count == 0);
-            PreviewButton.IsEnabled = selected;
+            bool selected = _characterId is not null;
+            ApplyButton.IsEnabled = _importCancellation is null;
+            PreviewButton.IsEnabled = selected && _importCancellation is null;
             _preview.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
-            ShowPet.IsEnabled = Characters.Items.Count > 0;
-            if (Characters.Items.Count == 0) ShowPet.IsChecked = false;
+            ShowPet.IsEnabled = selected;
             _preview.SetCharacter(SelectedCharacterId);
-            _preview.SetComposition(SelectedSceneId, CharacterScale.Value, CharacterX.Value, CharacterY.Value);
-            if (SelectedSceneId is null) ShowScene.IsChecked = false;
-            _preview.SetSceneEnabled(SceneSelected && SelectedSceneId is not null);
+            _preview.SetComposition(_sceneId, CharacterScale.Value, CharacterX.Value, CharacterY.Value);
+            _preview.SetSceneEnabled(SceneSelected && _sceneId is not null);
             PlacementControls.IsEnabled = _preview.SceneEnabled;
-            ShowScene.IsEnabled = Scenes.SelectedItem is Card;
-            ShowScene.Content = "搭配" + ((Scenes.SelectedItem as Card)?.Name ?? "背景");
-            SelectedDescription.Text = selected ? "已选择：" + (Characters.SelectedItem as Card)!.Name +
-                (_preview.SceneEnabled ? " ＋ " + (Scenes.SelectedItem as Card)!.Name : " · 无背景") : "素材库为空，可添加或恢复角色";
+            ShowScene.IsEnabled = _sceneId is not null;
+            string character = DesktopPetCatalog.Find(SelectedCharacterId).Name;
+            string scene = _sceneId is null ? "背景" : DesktopPetLibrary.Shared.GetDisplayName(_sceneId);
+            ShowScene.Content = "显示背景";
+            ShowScene.ToolTip = scene;
+            SelectedDescription.Text = selected ? "正在试选：" + character +
+                (_preview.SceneEnabled ? " ＋ " + scene : " · 无背景") : "请选择桌面伙伴";
+            SelectedDescription.ToolTip = SelectedDescription.Text;
+            DraftStatus.Text = HasUnappliedChanges ? "搭配尚未应用" : "与当前桌面设置一致";
+            RestoreCompositionButton.IsEnabled = HasUnappliedChanges;
+            if (_initial is not null)
+            {
+                DesktopStatus.Text = (_initial.Visible ? "桌面正在使用：" : "桌宠已关闭：") +
+                    DesktopPetCatalog.Find(_initial.Character).Name +
+                    (_initial.ShowScene && _initial.Scene is not null ? " ＋ " + DesktopPetLibrary.Shared.GetDisplayName(_initial.Scene) : "");
+                DesktopStatus.ToolTip = DesktopStatus.Text;
+            }
         }
         internal void CopyCompositionTo(DesktopPetLayoutInfo layout)
         {
-            layout.SceneId = SelectedSceneId;
+            layout.SceneId = _sceneId;
             layout.CharacterScale = CharacterScale.Value;
             layout.CharacterShiftX = CharacterX.Value;
             layout.CharacterShiftY = CharacterY.Value;
         }
-        private void SceneVisibility_Changed(object sender, RoutedEventArgs e) => UpdatePreview();
+        private void Visibility_Changed(object sender, RoutedEventArgs e) => UpdatePreview();
         private void Placement_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdatePreview();
         private void ResetPlacement_Click(object sender, RoutedEventArgs e)
         { CharacterScale.Value = 1; CharacterX.Value = CharacterY.Value = 0; }
+        private void RestoreComposition_Click(object sender, RoutedEventArgs e)
+        {
+            if (_initial is null) return;
+            _refreshing = true;
+            try
+            {
+                _characterId = _initial.Character; _sceneId = _initial.Scene;
+                ShowPet.IsChecked = _initial.Visible; ShowScene.IsChecked = _initial.ShowScene;
+                CharacterScale.Value = _initial.Scale; CharacterX.Value = _initial.X; CharacterY.Value = _initial.Y;
+                _sceneChosen = _initialSceneChosen;
+            }
+            finally { _refreshing = false; }
+            RefreshCards();
+        }
         private void Wave_Click(object sender, RoutedEventArgs e) => _preview.Wave();
         private void Touch_Click(object sender, RoutedEventArgs e) => _preview.ReactToTouch();
         private void Rest_Click(object sender, RoutedEventArgs e) => _preview.Rest();
         private void Wake_Click(object sender, RoutedEventArgs e) => _preview.WakeUp();
-        private void Picker_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (CompositionPanel is null) return;
-            bool wide = e.NewSize.Width >= 720;
-            CompositionPanel.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
-            PreviewColumn.Width = new GridLength(wide ? 374 : 0);
-        }
-        private async void Import_Click(object sender, RoutedEventArgs e)
-        {
-            if (_importCancellation is not null) return;
-            bool scene = LibraryTabs.SelectedIndex == 1;
-            var dialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = scene ? "添加背景图片" : "添加角色图片或动画",
-                Filter = scene ? "PNG 背景|*.png" : "角色素材（PNG 或动画清单）|*.png;*.json|PNG 静态角色|*.png|动画清单|*.json"
-            };
-            if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
-            using var cancellation = new CancellationTokenSource();
-            _importCancellation = cancellation;
-            LibraryActions.IsEnabled = LibraryTabs.IsEnabled = ApplyButton.IsEnabled = false;
-            SelectedDescription.Text = "正在导入素材…关闭窗口可取消尚未完成的导入。";
-            string? resultMessage = null;
-            try
-            {
-                var asset = await DesktopPetLibrary.Shared.ImportAsync(dialog.FileName, scene ? "scene" : "character", cancellation.Token);
-                if (!IsLoaded) return;
-                ReloadLibrary(scene ? SelectedCharacterId : asset.Id, scene ? asset.Id : SelectedSceneId);
-                if (scene) { _sceneChosen = true; ShowScene.IsChecked = true; }
-                UpdatePreview();
-                resultMessage = "已添加“" + asset.Name + "”。素材库已保存；点击应用更新桌面搭配。";
-            }
-            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { resultMessage = "已取消导入。"; }
-            catch (Exception ex) when (DesktopPetLibrary.IsAssetError(ex))
-            { if (IsLoaded) MessageBox.Show(Window.GetWindow(this), "无法添加素材：" + ex.Message, "添加素材"); }
-            finally
-            {
-                _importCancellation = null;
-                LibraryActions.IsEnabled = LibraryTabs.IsEnabled = true;
-                if (IsLoaded) { UpdatePreview(); if (resultMessage is not null) SelectedDescription.Text = resultMessage; }
-            }
-        }
-        private void Remove_Click(object sender, RoutedEventArgs e)
-        {
-            if (_importCancellation is not null) return;
-            Card? card = (LibraryTabs.SelectedIndex == 1 ? Scenes.SelectedItem : Characters.SelectedItem) as Card;
-            if (card is null) return;
-            try
-            {
-                DesktopPetLibrary.Shared.SetRemoved(card.Id, true);
-                ReloadLibrary(SelectedCharacterId, SelectedSceneId);
-                SelectedDescription.Text = "已从素材库移除“" + card.Name + "”，可恢复。原文件保留；应用后更新桌面搭配。";
-            }
-            catch (Exception ex) when (DesktopPetLibrary.IsAssetError(ex))
-            { MessageBox.Show(Window.GetWindow(this), "无法移除素材：" + ex.Message, "移除素材"); }
-        }
-        private void Restore_Click(object sender, RoutedEventArgs e)
-        {
-            if (_importCancellation is not null) return;
-            try { DesktopPetLibrary.Shared.RestoreAll(); ReloadLibrary(SelectedCharacterId, SelectedSceneId); }
-            catch (Exception ex) when (DesktopPetLibrary.IsAssetError(ex))
-            { MessageBox.Show(Window.GetWindow(this), "无法恢复素材：" + ex.Message, "恢复素材"); }
-        }
 
+        private void Picker_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateResponsiveLayout();
+        private void NarrowView_Click(object sender, RoutedEventArgs e) => UpdateResponsiveLayout();
+        private void UpdateResponsiveLayout()
+        {
+            if (!_ready) return;
+            bool wide = ActualWidth >= 720;
+            bool compact = ActualHeight < 500;
+            IntroText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            DesktopStatus.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            NarrowNavigation.Visibility = wide ? Visibility.Collapsed : Visibility.Visible;
+            bool preview = wide || PreviewView.IsChecked == true;
+            LibraryPanel.Visibility = wide || !preview ? Visibility.Visible : Visibility.Collapsed;
+            CompositionPanel.Visibility = preview ? Visibility.Visible : Visibility.Collapsed;
+            PreviewColumn.Width = new GridLength(wide ? 350 : 0);
+            Grid.SetColumn(CompositionPanel, wide ? 1 : 0);
+            CompositionPanel.Margin = new Thickness(wide ? 14 : 0, 0, 0, 0);
+            bool scrollWhole = !wide || ActualHeight < 560;
+            CompositionScroll.VerticalScrollBarVisibility = scrollWhole ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
+            PlacementScroll.VerticalScrollBarVisibility = scrollWhole ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
+            CompositionContent.MinHeight = scrollWhole ? 390 : 0;
+            PreviewViewbox.Height = wide ? Math.Clamp(ActualHeight - 410, 95, 230) : 150;
+        }
         private void Apply_Click(object sender, RoutedEventArgs e)
         {
-            if (_importCancellation is null && (Characters.SelectedItem is Card || Characters.Items.Count == 0)) ApplyRequested?.Invoke();
+            if (_importCancellation is null) ApplyRequested?.Invoke();
         }
         private void Cancel_Click(object sender, RoutedEventArgs e) => CancelRequested?.Invoke();
 
         private void Preview_Click(object sender, RoutedEventArgs e)
         {
-            if (Characters.SelectedItem is not Card) return;
+            if (_characterId is null) return;
             var pet = new DesktopPetWidget();
             pet.SetCharacter(SelectedCharacterId);
             pet.SetComposition(SelectedSceneId, CharacterScale.Value, CharacterX.Value, CharacterY.Value);

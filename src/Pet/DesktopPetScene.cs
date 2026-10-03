@@ -16,22 +16,25 @@ namespace DesktopOrganizer
         internal static Layer SunsetPreview => SunsetCard.Value;
         internal static Layer PinkPreview => PinkCard.Value;
         internal sealed record Scene(string Id, string Name);
-        private static readonly Scene[] BuiltInScenes = [new("tree-grass", "树与草地"), new("tiananmen", "透明夕阳城楼"), new("sunset", "夕阳城楼")];
-        private sealed record SceneSnapshot(IReadOnlyList<DesktopPetLibrary.Asset> Source, IReadOnlyList<Scene> Scenes);
+        internal static IReadOnlyList<Scene> BuiltInScenes { get; } = Array.AsReadOnly(new Scene[]
+            { new("tree-grass", "树与草地"), new("tiananmen", "透明夕阳城楼"), new("sunset", "夕阳城楼") });
+        private sealed record SceneSnapshot(DesktopPetLibrary.Snapshot Source, IReadOnlyList<Scene> Scenes);
         private static SceneSnapshot? _sceneSnapshot;
         internal static IReadOnlyList<Scene> Scenes
         {
             get
             {
-                var source = DesktopPetLibrary.Shared.Assets;
+                var source = DesktopPetLibrary.Shared.ReadSnapshot();
                 var cached = Volatile.Read(ref _sceneSnapshot);
                 if (cached is not null && ReferenceEquals(cached.Source, source)) return cached.Scenes;
-                var next = new SceneSnapshot(source, Array.AsReadOnly(BuiltInScenes.Concat(
-                    source.Where(a => a.Kind == "scene").Select(a => new Scene(a.Id, a.Name))).ToArray()));
+                var next = CreateScenes(source);
                 Volatile.Write(ref _sceneSnapshot, next);
                 return next.Scenes;
             }
         }
+        private static SceneSnapshot CreateScenes(DesktopPetLibrary.Snapshot source) => new(source,
+            Array.AsReadOnly(BuiltInScenes.Concat(source.Assets.Where(a => a.Kind == "scene").Select(a => new Scene(a.Id, a.Name)))
+                .Select(s => s with { Name = source.DisplayName(s.Id, s.Name) }).ToArray()));
         internal static string DefaultId(string characterId) => characterId switch
         { "pink-haired" => "tiananmen", DesktopPetCatalog.SunsetDuoId => "sunset", _ => "tree-grass" };
         internal static string ResolveId(string? sceneId, string characterId) => sceneId is "tree-grass" or "tiananmen" or "sunset"
@@ -57,12 +60,7 @@ namespace DesktopOrganizer
             DesktopPetCatalog.SunsetDuoId => Sunset.Value,
             _ => Background
         };
-        internal static string NameFor(string characterId) => characterId switch
-        {
-            "pink-haired" => "透明夕阳城楼",
-            DesktopPetCatalog.SunsetDuoId => "夕阳城楼",
-            _ => "树与草地"
-        };
+        internal static string NameFor(string characterId) => Scenes.First(s => s.Id == DefaultId(characterId)).Name;
 
         internal static bool ContainsOpaquePoint(Point point, Size size, string characterId = DesktopPetWidget.CatCharacterId)
         {

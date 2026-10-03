@@ -1209,7 +1209,7 @@ public sealed class DesktopPetTests
         var picker = new DesktopPetPicker("vpet", true, false);
         picker.Characters.SelectedValue = "pink-haired";
         Assert.IsTrue(picker.SceneSelected);
-        Assert.AreEqual("搭配透明夕阳城楼", picker.ShowScene.Content);
+        Assert.AreEqual("透明夕阳城楼", picker.ShowScene.ToolTip);
         Assert.AreSame(VPetAnimation.GetClip("pink-haired", "idle").Frames[0].Image,
             DesktopPetCatalog.Preview("pink-haired"), "角色卡片不再绑定配套背景。");
         var reopened = new DesktopPetPicker("pink-haired", true, false);
@@ -1277,11 +1277,12 @@ public sealed class DesktopPetTests
         Assert.IsTrue(button.Y <= 360);
         Assert.IsTrue(picker.Characters.ActualHeight > 60);
         picker.Characters.SelectedIndex = -1;
-        Assert.IsFalse(picker.ApplyButton.IsEnabled);
-        Assert.IsFalse(picker.PreviewButton.IsEnabled);
+        Assert.IsTrue(picker.ApplyButton.IsEnabled);
+        Assert.IsTrue(picker.PreviewButton.IsEnabled);
+        Assert.AreEqual("pink-haired", picker.SelectedCharacterId, "列表清空选择不能丢掉仍在预览的搭配。");
         requested = false;
         picker.ApplyButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
-        Assert.IsFalse(requested);
+        Assert.IsTrue(requested);
         picker.Characters.SelectedValue = "black-haired";
         Assert.IsTrue(picker.ApplyButton.IsEnabled && picker.PreviewButton.IsEnabled);
     }
@@ -1416,7 +1417,7 @@ public sealed class DesktopPetTests
         var picker = new DesktopPetPicker("vpet", true, false);
         picker.Characters.SelectedValue = DesktopPetCatalog.SunsetDuoId;
         Assert.IsTrue(picker.SceneSelected, "首次选择双人组合默认搭配夕阳背景。");
-        StringAssert.Contains(picker.ShowScene.Content.ToString()!, "夕阳城楼");
+        StringAssert.Contains(picker.ShowScene.ToolTip.ToString()!, "夕阳城楼");
         Assert.AreEqual("vpet", f.Pet.CharacterId);
         picker.ApplyRequested += () => f.Invoke("ApplyDesktopPetSelection", picker.SelectedCharacterId, picker.ShowOnDesktop, picker.SceneSelected);
         picker.ApplyButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
@@ -1607,6 +1608,34 @@ public sealed class DesktopPetTests
 
     private static DesktopMonitorRegion Monitor(string name, Rect area, bool primary) => new()
     { DeviceName = name, Bounds = area, WorkArea = area, IsPrimary = primary };
+
+    [STATestMethod]
+    public void PersonalNames_UpdateDesktopToolTipAndQuickMenuWithoutChangingComposition()
+    {
+        using var f = new Fixture();
+        f.Enable("vpet");
+        var library = DesktopPetLibrary.Shared;
+        var names = library.ReadSnapshot().DisplayNames;
+        string before = JsonSerializer.Serialize(f.Layout.DesktopPet);
+        try
+        {
+            library.SetDisplayName("vpet", "小萝");
+            library.SetDisplayName(f.Pet.SceneId, "小院子");
+            f.Invoke("UpdateDesktopPetDescription");
+            f.Invoke("DesktopPetMenu_Opened", f.Pet.ContextMenu, new RoutedEventArgs());
+            StringAssert.Contains(f.Pet.ToolTip.ToString()!, "小萝");
+            StringAssert.Contains(f.Pet.ToolTip.ToString()!, "VPet");
+            Assert.AreEqual("桌面宠物 · 小萝", System.Windows.Automation.AutomationProperties.GetName(f.Pet));
+            Assert.AreEqual("小萝", f.Pet.ContextMenu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "vpet")).Header);
+            Assert.AreEqual("小院子", f.Pet.ContextMenu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "scene")).Header);
+            Assert.AreEqual(before, JsonSerializer.Serialize(f.Layout.DesktopPet));
+        }
+        finally
+        {
+            library.SetDisplayName("vpet", names.GetValueOrDefault("vpet"));
+            library.SetDisplayName(f.Pet.SceneId, names.GetValueOrDefault(f.Pet.SceneId));
+        }
+    }
 
     private sealed class Fixture : IDisposable
     {
