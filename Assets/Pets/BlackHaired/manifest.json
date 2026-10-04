@@ -3,7 +3,7 @@
   "columns": 4,
   "clips": {
     "idle": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 0,
@@ -28,196 +28,100 @@
       ]
     },
     "wave": {
-      "sheet": "wave-layered.png",
+      "sheet": "wave-v6.png",
       "frames": [
         {
           "index": 0,
-          "milliseconds": 50
+          "milliseconds": 70
         },
         {
           "index": 1,
-          "milliseconds": 50
+          "milliseconds": 60
         },
         {
           "index": 2,
-          "milliseconds": 50
+          "milliseconds": 60
         },
         {
           "index": 3,
-          "milliseconds": 50
+          "milliseconds": 80
         },
         {
           "index": 4,
-          "milliseconds": 50
+          "milliseconds": 70
         },
         {
           "index": 5,
-          "milliseconds": 50
+          "milliseconds": 100
         },
         {
           "index": 6,
-          "milliseconds": 50
+          "milliseconds": 120
         },
         {
           "index": 7,
-          "milliseconds": 50
+          "milliseconds": 90
         },
         {
           "index": 8,
-          "milliseconds": 50
+          "milliseconds": 70
         },
         {
           "index": 9,
-          "milliseconds": 50
+          "milliseconds": 160
         },
         {
           "index": 10,
-          "milliseconds": 50
+          "milliseconds": 110
         },
         {
           "index": 11,
-          "milliseconds": 50
+          "milliseconds": 180
         },
         {
           "index": 12,
-          "milliseconds": 50
+          "milliseconds": 100
         },
         {
           "index": 13,
-          "milliseconds": 50
+          "milliseconds": 60
         },
         {
           "index": 14,
-          "milliseconds": 50
+          "milliseconds": 60
         },
         {
           "index": 15,
-          "milliseconds": 50
+          "milliseconds": 80
         },
         {
           "index": 16,
-          "milliseconds": 50
+          "milliseconds": 60
         },
         {
           "index": 17,
-          "milliseconds": 50
+          "milliseconds": 80
         },
         {
           "index": 18,
-          "milliseconds": 50
+          "milliseconds": 60
         },
         {
           "index": 19,
-          "milliseconds": 50
+          "milliseconds": 60
         },
         {
           "index": 20,
-          "milliseconds": 50
+          "milliseconds": 80
         },
         {
           "index": 21,
-          "milliseconds": 50
-        },
-        {
-          "index": 22,
-          "milliseconds": 50
-        },
-        {
-          "index": 23,
-          "milliseconds": 50
-        },
-        {
-          "index": 24,
-          "milliseconds": 50
-        },
-        {
-          "index": 25,
-          "milliseconds": 50
-        },
-        {
-          "index": 26,
-          "milliseconds": 50
-        },
-        {
-          "index": 27,
-          "milliseconds": 50
-        },
-        {
-          "index": 28,
-          "milliseconds": 50
-        },
-        {
-          "index": 29,
-          "milliseconds": 50
-        },
-        {
-          "index": 30,
-          "milliseconds": 50
-        },
-        {
-          "index": 31,
-          "milliseconds": 50
-        },
-        {
-          "index": 32,
-          "milliseconds": 50
-        },
-        {
-          "index": 33,
-          "milliseconds": 50
-        },
-        {
-          "index": 34,
-          "milliseconds": 50
-        },
-        {
-          "index": 35,
-          "milliseconds": 50
-        },
-        {
-          "index": 36,
-          "milliseconds": 50
-        },
-        {
-          "index": 37,
-          "milliseconds": 50
-        },
-        {
-          "index": 38,
-          "milliseconds": 50
-        },
-        {
-          "index": 39,
-          "milliseconds": 50
-        },
-        {
-          "index": 40,
-          "milliseconds": 50
-        },
-        {
-          "index": 41,
-          "milliseconds": 50
-        },
-        {
-          "index": 42,
-          "milliseconds": 50
-        },
-        {
-          "index": 43,
-          "milliseconds": 50
-        },
-        {
-          "index": 44,
-          "milliseconds": 50
-        },
-        {
-          "index": 45,
-          "milliseconds": 50
+          "milliseconds": 140
         }
       ]
     },
     "touchStart": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 0,
@@ -230,7 +134,7 @@
       ]
     },
     "touchLoop": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 15,
@@ -251,7 +155,7 @@
       ]
     },
     "touchEnd": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 3,
@@ -264,7 +168,7 @@
       ]
     },
     "raisedStart": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 4,
@@ -273,7 +177,7 @@
       ]
     },
     "raisedLoop": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 4,
@@ -290,7 +194,7 @@
       ]
     },
     "raisedEnd": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 5,
@@ -327,7 +231,7 @@
       ]
     },
     "sleepStart": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 8,
@@ -344,7 +248,7 @@
       ]
     },
     "sleepLoop": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 10,
@@ -357,7 +261,7 @@
       ]
     },
     "sleepEnd": {
-      "sheet": "actions-clean.png",
+      "sheet": "actions.png",
       "frames": [
         {
           "index": 9,
