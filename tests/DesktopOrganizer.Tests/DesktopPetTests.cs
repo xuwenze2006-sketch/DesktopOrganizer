@@ -1122,6 +1122,68 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
+    public void BlackWave_RaisesAndLowersTheHandWithoutSuddenJumps()
+    {
+        using var f = new Fixture(); f.Enable("black-haired");
+        var wave = VPetAnimation.GetClip("black-haired", "wave");
+        var centers = new List<Point>();
+        foreach (var frame in wave.Frames)
+        {
+            byte[] pixels = BgraPixels(frame.Image);
+            var skin = new bool[256 * 256];
+            for (int y = 60; y < 177; y++)
+            for (int x = 0; x < 140; x++)
+            {
+                // Exclude the face and neck, but include the hand while it
+                // passes the chest. The other hand is outside this region.
+                if (y < 96 && x >= 111) continue;
+                int p = (y * 256 + x) * 4;
+                skin[y * 256 + x] = pixels[p + 3] > 128 && pixels[p + 2] > 155
+                    && pixels[p + 1] > 95 && pixels[p + 1] > pixels[p] * 1.05
+                    && pixels[p + 2] > pixels[p + 1] * 1.12;
+            }
+            int largestArea = 0;
+            Point center = default;
+            for (int pixel = 0; pixel < skin.Length; pixel++)
+            {
+                if (!skin[pixel]) continue;
+                var pending = new Stack<int>(); pending.Push(pixel); skin[pixel] = false;
+                int area = 0; double sumX = 0, sumY = 0;
+                while (pending.TryPop(out int current))
+                {
+                    int x = current % 256, y = current / 256;
+                    area++; sumX += x; sumY += y;
+                    for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx < 0 || nx >= 256 || ny < 0 || ny >= 256) continue;
+                        int next = ny * 256 + nx;
+                        if (skin[next]) { skin[next] = false; pending.Push(next); }
+                    }
+                }
+                if (area > largestArea) { largestArea = area; center = new Point(sumX / area, sumY / area); }
+            }
+            Assert.IsTrue(largestArea >= 30, "招手的手掌必须清晰可见，不能在抬臂过程中消失。");
+            centers.Add(center);
+        }
+        var velocities = new List<Vector>();
+        for (int i = 1; i < centers.Count; i++)
+        {
+            Vector velocity = (centers[i] - centers[i - 1]) / (wave.Milliseconds[i - 1] / 1000.0);
+            Assert.IsTrue(velocity.Length <= 320,
+                $"第 {i} 帧手掌移动过快：{velocity.Length:F0} 源像素/秒，不能直接跳过抬臂和收手过渡。");
+            velocities.Add(velocity);
+        }
+        for (int i = 1; i < velocities.Count; i++)
+        {
+            double seconds = (wave.Milliseconds[i - 1] + wave.Milliseconds[i]) / 2000.0;
+            Assert.IsTrue((velocities[i] - velocities[i - 1]).Length / seconds <= 4000,
+                $"第 {i + 1} 帧手掌突然变速或反向，抬臂和摆腕应连续衔接。");
+        }
+    }
+
+    [STATestMethod]
     public void BlackWave_MaintainsHeadAndLegVolumeAndNeckHeightThroughoutGreeting()
     {
         using var f = new Fixture(); f.Enable("black-haired");
@@ -1277,8 +1339,9 @@ public sealed class DesktopPetTests
         Assert.IsTrue(Enumerable.Range(0, idle.Length / 4).Count(i => idle[i * 4 + 3] > 128) > 1000,
             "控件预览必须实际显示角色，空白截图不能通过首尾一致检查。");
         var preview = new List<(BitmapSource Image, int Milliseconds)> { (Capture(), 450) };
+        int waveFrames = VPetAnimation.GetClip("black-haired", "wave").Frames.Length;
         f.Pet.Wave();
-        while (f.Pet.CurrentClip == "wave" && preview.Count < 40)
+        while (f.Pet.CurrentClip == "wave" && preview.Count <= waveFrames)
         {
             var frame = Capture();
             Assert.AreEqual(0, BgraPixels(frame)[3], "实际渲染仍需保留透明背景。");
@@ -1292,7 +1355,7 @@ public sealed class DesktopPetTests
         if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_MOTION_QA") == "1")
         {
             preview.Add((Capture(), 800));
-            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-wave-v6");
+            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-layered-wave");
         }
     }
 

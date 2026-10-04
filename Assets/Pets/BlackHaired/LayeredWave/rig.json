@@ -1,0 +1,42 @@
+{
+  "frameCount": 46,
+  "frameMilliseconds": 50,
+  "standingSheet": "actions-clean.png",
+  "layers": {
+    "head": "head.png",
+    "smile": "face-smile.png",
+    "neck": "neck.png",
+    "torso": "torso.png",
+    "legs": "legs.png",
+    "otherArm": "other-arm.png",
+    "sleeve": "sleeve.png",
+    "handRest": "hand-rest.png",
+    "handOpen": "hand-open.png"
+  },
+  "bind": {
+    "hip": [129, 157],
+    "neck": [129, 92],
+    "shoulder": [110, 102],
+    "elbow": [100, 128],
+    "wrist": [99, 155],
+    "otherShoulder": [149, 102]
+  },
+  "motion": {
+    "bodyEnvelope": [0, 0.6, 1.65, 2.22],
+    "armEnvelope": [0.02, 0.84, 1.4, 2.2],
+    "headEnvelope": [0.08, 0.72, 1.72, 2.24],
+    "waveStart": 0.84,
+    "waveEnd": 1.54,
+    "smileEnvelope": [0.85, 1.02, 1.4, 1.58],
+    "bodyTilt": -2.2,
+    "hipShift": -1.2,
+    "bodySway": 1.1,
+    "hipSway": -0.05,
+    "headSway": 0.55,
+    "headTilt": -4.5,
+    "upperRotation": 32,
+    "foreRotation": 178,
+    "otherArmCounterTilt": 1.7,
+    "wristSwing": 15
+  }
+}

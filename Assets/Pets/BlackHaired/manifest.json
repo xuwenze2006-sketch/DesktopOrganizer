@@ -3,7 +3,7 @@
   "columns": 4,
   "clips": {
     "idle": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 0,
@@ -28,100 +28,196 @@
       ]
     },
     "wave": {
-      "sheet": "wave-v6.png",
+      "sheet": "wave-layered.png",
       "frames": [
         {
           "index": 0,
-          "milliseconds": 70
+          "milliseconds": 50
         },
         {
           "index": 1,
-          "milliseconds": 60
+          "milliseconds": 50
         },
         {
           "index": 2,
-          "milliseconds": 60
+          "milliseconds": 50
         },
         {
           "index": 3,
-          "milliseconds": 80
+          "milliseconds": 50
         },
         {
           "index": 4,
-          "milliseconds": 70
+          "milliseconds": 50
         },
         {
           "index": 5,
-          "milliseconds": 100
+          "milliseconds": 50
         },
         {
           "index": 6,
-          "milliseconds": 120
+          "milliseconds": 50
         },
         {
           "index": 7,
-          "milliseconds": 90
+          "milliseconds": 50
         },
         {
           "index": 8,
-          "milliseconds": 70
+          "milliseconds": 50
         },
         {
           "index": 9,
-          "milliseconds": 160
+          "milliseconds": 50
         },
         {
           "index": 10,
-          "milliseconds": 110
+          "milliseconds": 50
         },
         {
           "index": 11,
-          "milliseconds": 180
+          "milliseconds": 50
         },
         {
           "index": 12,
-          "milliseconds": 100
+          "milliseconds": 50
         },
         {
           "index": 13,
-          "milliseconds": 60
+          "milliseconds": 50
         },
         {
           "index": 14,
-          "milliseconds": 60
+          "milliseconds": 50
         },
         {
           "index": 15,
-          "milliseconds": 80
+          "milliseconds": 50
         },
         {
           "index": 16,
-          "milliseconds": 60
+          "milliseconds": 50
         },
         {
           "index": 17,
-          "milliseconds": 80
+          "milliseconds": 50
         },
         {
           "index": 18,
-          "milliseconds": 60
+          "milliseconds": 50
         },
         {
           "index": 19,
-          "milliseconds": 60
+          "milliseconds": 50
         },
         {
           "index": 20,
-          "milliseconds": 80
+          "milliseconds": 50
         },
         {
           "index": 21,
-          "milliseconds": 140
+          "milliseconds": 50
+        },
+        {
+          "index": 22,
+          "milliseconds": 50
+        },
+        {
+          "index": 23,
+          "milliseconds": 50
+        },
+        {
+          "index": 24,
+          "milliseconds": 50
+        },
+        {
+          "index": 25,
+          "milliseconds": 50
+        },
+        {
+          "index": 26,
+          "milliseconds": 50
+        },
+        {
+          "index": 27,
+          "milliseconds": 50
+        },
+        {
+          "index": 28,
+          "milliseconds": 50
+        },
+        {
+          "index": 29,
+          "milliseconds": 50
+        },
+        {
+          "index": 30,
+          "milliseconds": 50
+        },
+        {
+          "index": 31,
+          "milliseconds": 50
+        },
+        {
+          "index": 32,
+          "milliseconds": 50
+        },
+        {
+          "index": 33,
+          "milliseconds": 50
+        },
+        {
+          "index": 34,
+          "milliseconds": 50
+        },
+        {
+          "index": 35,
+          "milliseconds": 50
+        },
+        {
+          "index": 36,
+          "milliseconds": 50
+        },
+        {
+          "index": 37,
+          "milliseconds": 50
+        },
+        {
+          "index": 38,
+          "milliseconds": 50
+        },
+        {
+          "index": 39,
+          "milliseconds": 50
+        },
+        {
+          "index": 40,
+          "milliseconds": 50
+        },
+        {
+          "index": 41,
+          "milliseconds": 50
+        },
+        {
+          "index": 42,
+          "milliseconds": 50
+        },
+        {
+          "index": 43,
+          "milliseconds": 50
+        },
+        {
+          "index": 44,
+          "milliseconds": 50
+        },
+        {
+          "index": 45,
+          "milliseconds": 50
         }
       ]
     },
     "touchStart": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 0,
@@ -134,7 +230,7 @@
       ]
     },
     "touchLoop": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 15,
@@ -155,7 +251,7 @@
       ]
     },
     "touchEnd": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 3,
@@ -168,7 +264,7 @@
       ]
     },
     "raisedStart": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 4,
@@ -177,7 +273,7 @@
       ]
     },
     "raisedLoop": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 4,
@@ -194,7 +290,7 @@
       ]
     },
     "raisedEnd": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 5,
@@ -231,7 +327,7 @@
       ]
     },
     "sleepStart": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 8,
@@ -248,7 +344,7 @@
       ]
     },
     "sleepLoop": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 10,
@@ -261,7 +357,7 @@
       ]
     },
     "sleepEnd": {
-      "sheet": "actions.png",
+      "sheet": "actions-clean.png",
       "frames": [
         {
           "index": 9,
