@@ -1061,6 +1061,67 @@ public sealed class DesktopPetTests
     }
 
     [STATestMethod]
+    public void BlackWave_DoesNotCompositeAnExtraEyeBesideTheFace()
+    {
+        using var f = new Fixture(); f.Enable("black-haired");
+        var wave = VPetAnimation.GetClip("black-haired", "wave");
+        double standingEyeSeparation = 0;
+        for (int frameIndex = 0; frameIndex < wave.Frames.Length; frameIndex++)
+        {
+            byte[] pixels = BgraPixels(wave.Frames[frameIndex].Image);
+            var iris = new bool[256 * 256];
+            for (int y = 45; y < 87; y++)
+            for (int x = 90; x < 169; x++)
+            {
+                int p = (y * 256 + x) * 4;
+                iris[y * 256 + x] = pixels[p + 3] > 128 && pixels[p + 2] > 90
+                    && pixels[p + 2] > pixels[p + 1] * 1.5 && pixels[p + 2] > pixels[p] * 1.3;
+            }
+            var eyes = new List<Point>();
+            for (int pixel = 0; pixel < iris.Length; pixel++)
+            {
+                if (!iris[pixel]) continue;
+                var pending = new Stack<int>();
+                pending.Push(pixel); iris[pixel] = false;
+                int area = 0;
+                double momentX = 0, momentY = 0;
+                while (pending.TryPop(out int current))
+                {
+                    area++;
+                    int x = current % 256, y = current / 256;
+                    momentX += x; momentY += y;
+                    for (int dy = -1; dy <= 1; dy++)
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx < 0 || nx >= 256 || ny < 0 || ny >= 256) continue;
+                        int next = ny * 256 + nx;
+                        if (iris[next]) { iris[next] = false; pending.Push(next); }
+                    }
+                }
+                // Ignore antialiased eye-corner specks; the broken hand mask
+                // retained a separate 4–8px iris from the discarded face.
+                if (area >= 4)
+                {
+                    eyes.Add(new Point(momentX / area, momentY / area));
+                    Assert.IsTrue(area <= 32,
+                        $"第 {frameIndex} 帧虹膜区域异常增大，不能把旧眼睛合并叠在当前眼睛上。");
+                }
+            }
+            Assert.IsTrue(eyes.Count <= 2,
+                $"第 {frameIndex} 帧出现 {eyes.Count} 块虹膜区域，手部遮罩不能留下另一张脸的眼睛。");
+            if (eyes.Count == 2)
+            {
+                double separation = (eyes[0] - eyes[1]).Length;
+                if (frameIndex == 0) standingEyeSeparation = separation;
+                Assert.IsTrue(standingEyeSeparation > 0 && separation >= standingEyeSeparation * .85
+                    && separation <= standingEyeSeparation * 1.15,
+                    "头部可以侧倾，但不能用另一张脸的眼睛覆盖原眼，突然改变双眼间距。");
+            }
+        }
+    }
+
+    [STATestMethod]
     public void BlackWave_MaintainsHeadAndLegVolumeAndNeckHeightThroughoutGreeting()
     {
         using var f = new Fixture(); f.Enable("black-haired");
