@@ -1292,7 +1292,7 @@ public sealed class DesktopPetTests
         if (Environment.GetEnvironmentVariable("DESKTOPORGANIZER_RENDER_MOTION_QA") == "1")
         {
             preview.Add((Capture(), 800));
-            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-wave-v6");
+            SaveFallPreview(preview, scene ? "wave-scene" : scale == 1 ? "wave-native" : "wave-large", "artifacts/black-wave-drawn-v1/control-preview");
         }
     }
 

@@ -28,7 +28,7 @@
       ]
     },
     "wave": {
-      "sheet": "wave-v6.png",
+      "sheet": "wave-drawn-v1.png",
       "frames": [
         {
           "index": 0,
@@ -36,23 +36,23 @@
         },
         {
           "index": 1,
-          "milliseconds": 60
+          "milliseconds": 95
         },
         {
           "index": 2,
-          "milliseconds": 60
+          "milliseconds": 95
         },
         {
           "index": 3,
-          "milliseconds": 80
+          "milliseconds": 95
         },
         {
           "index": 4,
-          "milliseconds": 70
+          "milliseconds": 80
         },
         {
           "index": 5,
-          "milliseconds": 100
+          "milliseconds": 85
         },
         {
           "index": 6,
@@ -64,19 +64,19 @@
         },
         {
           "index": 8,
-          "milliseconds": 70
+          "milliseconds": 140
         },
         {
           "index": 9,
-          "milliseconds": 160
+          "milliseconds": 100
         },
         {
           "index": 10,
-          "milliseconds": 110
+          "milliseconds": 180
         },
         {
           "index": 11,
-          "milliseconds": 180
+          "milliseconds": 80
         },
         {
           "index": 12,
@@ -84,38 +84,26 @@
         },
         {
           "index": 13,
-          "milliseconds": 60
+          "milliseconds": 130
         },
         {
           "index": 14,
-          "milliseconds": 60
+          "milliseconds": 95
         },
         {
           "index": 15,
-          "milliseconds": 80
+          "milliseconds": 120
         },
         {
           "index": 16,
-          "milliseconds": 60
+          "milliseconds": 100
         },
         {
           "index": 17,
-          "milliseconds": 80
+          "milliseconds": 95
         },
         {
           "index": 18,
-          "milliseconds": 60
-        },
-        {
-          "index": 19,
-          "milliseconds": 60
-        },
-        {
-          "index": 20,
-          "milliseconds": 80
-        },
-        {
-          "index": 21,
           "milliseconds": 140
         }
       ]
