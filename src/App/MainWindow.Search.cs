@@ -3,6 +3,8 @@ namespace DesktopOrganizer
 {
     public partial class MainWindow
     {
+        private readonly DesktopSearchIndexCache _desktopSearchIndexCache = new();
+
         private void DesktopSearchButton_Click(object sender, RoutedEventArgs e)
         {
             TryShowDesktopSearchDialog();
@@ -36,6 +38,7 @@ namespace DesktopOrganizer
             }
             finally
             {
+                _desktopSearchIndexCache.Clear();
                 ReleaseDesktopSearchDialog(ref _desktopSearchDialogReservation);
             }
         }
@@ -50,21 +53,10 @@ namespace DesktopOrganizer
             string? text,
             DesktopSmartView view)
         {
-            var metadata = _desktopItems.Keys.ToDictionary(
-                name => name,
-                name => new DesktopSearchItemMetadata(
-                    _appLayout.ItemTags.TryGetValue(name, out List<string>? tags)
-                        ? tags
-                        : Array.Empty<string>(),
-                    TryReadMetadataTime(_appLayout.ItemFirstSeenUtcTicks, name),
-                    TryReadMetadataTime(_appLayout.ItemLastMovedUtcTicks, name),
-                    _appLayout.InboxItems.ContainsKey(name)),
-                StringComparer.OrdinalIgnoreCase);
-            DesktopSearchIndex index = DesktopSearchIndex.Build(
+            DesktopSearchIndex index = _desktopSearchIndexCache.GetOrBuild(
                 _desktopItems,
                 _desktopCategories,
-                _appLayout.Groups,
-                metadata);
+                _appLayout);
             return index.Search(new DesktopSearchRequest(
                 text,
                 view,
@@ -154,18 +146,6 @@ namespace DesktopOrganizer
                 return;
             }
             RevealInExplorer(location);
-        }
-
-        private static DateTimeOffset? TryReadMetadataTime(
-            IReadOnlyDictionary<string, long> source,
-            string name)
-        {
-            if (!source.TryGetValue(name, out long ticks) ||
-                ticks < DateTime.MinValue.Ticks || ticks > DateTime.MaxValue.Ticks)
-            {
-                return null;
-            }
-            return new DateTimeOffset(new DateTime(ticks, DateTimeKind.Utc));
         }
     }
 }
