@@ -3,6 +3,9 @@ namespace DesktopOrganizer
 {
     public partial class MainWindow
     {
+        // 默认关闭，仅由显式测量入口启用；每次调用捕获本轮 recorder。
+        internal DesktopRefreshPerformanceRecorder? RefreshPerformanceRecorder { get; set; }
+
         private DesktopScanSnapshot ScanDesktopSnapshot(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -267,6 +270,7 @@ namespace DesktopOrganizer
                 return;
             }
 
+            using var visualMeasurement = RefreshPerformanceRecorder?.Start("visuals/targets");
             ClearPhysicalFolderDropPreview();
             ClearGroupDropPreview();
             ClearRecycleBinDropPreview();
@@ -420,6 +424,7 @@ namespace DesktopOrganizer
                 layoutChanged = true;
             }
 
+            visualMeasurement?.Next("visuals/prune");
             int removedVisuals = 0;
             foreach (string name in _freeIconVisuals.Keys.ToList())
             {
@@ -481,6 +486,7 @@ namespace DesktopOrganizer
                 removedVisuals++;
             }
 
+            visualMeasurement?.Next("visuals/materialize");
             int reusedGroups = 0;
             int createdGroups = 0;
             foreach (GroupInfo group in _appLayout.Groups)
@@ -531,6 +537,7 @@ namespace DesktopOrganizer
                 Panel.SetZIndex(icon, 200);
             }
 
+            visualMeasurement?.Next("visuals/finalize");
             RefreshItemSelectionVisuals();
             string snapStatus = _appLayout.SnapToGrid ? "网格吸附开" : "网格吸附关";
             string pushStatus = !_appLayout.PushReflowEnabled || !_appLayout.SnapToGrid
@@ -1116,6 +1123,8 @@ namespace DesktopOrganizer
 
         private async Task RefreshDesktopSnapshotAsync(bool clearIconCache, string? statusMessage)
         {
+            DesktopRefreshPerformanceRecorder? recorder = RefreshPerformanceRecorder;
+            using var refreshMeasurement = recorder?.Start("refresh-total", measureAllocations: false);
             using CancellationTokenSource refreshCancellation =
                 _refreshCancellationEpoch.CreateLinkedTokenSource(_lifetimeCts.Token);
             try
@@ -1123,13 +1132,19 @@ namespace DesktopOrganizer
                 CancellationToken cancellationToken = refreshCancellation.Token;
                 Stopwatch scanStopwatch = Stopwatch.StartNew();
                 DesktopScanSnapshot snapshot = await Task.Run(
-                    () => ScanDesktopSnapshot(cancellationToken),
+                    () =>
+                    {
+                        using var scanMeasurement = recorder?.Start("scan");
+                        return ScanDesktopSnapshot(cancellationToken);
+                    },
                     cancellationToken).ConfigureAwait(false);
                 scanStopwatch.Stop();
                 _diagnostics.LogSlowOperation("desktop-scan", scanStopwatch.Elapsed, snapshot.Items.Count);
 
                 await Dispatcher.InvokeAsync(() =>
                 {
+                    using var uiTotal = recorder?.Start("ui-total");
+                    using var uiMeasurement = recorder?.Start("prepare");
                     if (_isClosing)
                     {
                         return;
@@ -1171,6 +1186,7 @@ namespace DesktopOrganizer
                         return;
                     }
 
+                    uiMeasurement?.Next("compare");
                     bool snapshotChanged = !_desktopSnapshotInitialized ||
                         !DesktopSnapshotMatches(
                             _desktopItems,
@@ -1190,9 +1206,11 @@ namespace DesktopOrganizer
                         {
                             StatusText.Text = statusMessage;
                         }
+                        recorder?.Complete();
                         return;
                     }
 
+                    uiMeasurement?.Next("icon-cache");
                     bool resetAllIconCache = clearIconCache ||
                         _iconCache.Count > 512 ||
                         _iconCacheVersions.Count > 1024;
@@ -1223,6 +1241,7 @@ namespace DesktopOrganizer
                         }
                     }
 
+                    uiMeasurement?.Next("identity");
                     var previousIdentities = new Dictionary<string, DesktopItemIdentityInfo>(
                         _appLayout.ItemIdentities,
                         StringComparer.OrdinalIgnoreCase);
@@ -1230,6 +1249,7 @@ namespace DesktopOrganizer
                     bool identityLayoutChanged = ReconcileDesktopItemIdentities(
                         snapshot,
                         out Dictionary<string, string> confirmedRenames);
+                    uiMeasurement?.Next("new-items");
                     HashSet<string> newItemNames = DesktopNewItemDetector.FindNewItemNames(
                         previousIdentities,
                         snapshot.Identities,
@@ -1244,21 +1264,26 @@ namespace DesktopOrganizer
                     _desktopSnapshotInitialized = true;
 
                     DateTime utcNow = DateTime.UtcNow;
+                    uiMeasurement?.Next("inbox-suggestions");
+                    IReadOnlyDictionary<string, InboxClassificationSuggestion> inboxSuggestions = BuildInboxSuggestions(snapshot);
+                    uiMeasurement?.Next("inbox");
                     InboxReconcileResult inboxResult = InboxQueueManager.Reconcile(
                         _appLayout.InboxItems,
                         _appLayout.InboxBaselineEstablished,
                         completeScan: snapshot.PhysicalScanComplete && snapshot.ShellScanComplete,
                         previousIdentities,
                         snapshot.Identities,
-                        BuildInboxSuggestions(snapshot),
+                        inboxSuggestions,
                         utcNow,
                         confirmedRenames);
                     _appLayout.InboxBaselineEstablished = inboxResult.BaselineEstablished;
+                    uiMeasurement?.Next("metadata");
                     bool organizationMetadataChanged = ReconcileDesktopOrganizationMetadata(
                         snapshot,
                         newItemNames,
                         inboxBaselineWasEstablished,
                         utcNow);
+                    uiMeasurement?.Next("automation");
                     bool inboxAutoApplied = ApplyAutomaticInboxAcceptances();
                     bool userRulesChanged = snapshot.PhysicalScanComplete && snapshot.ShellScanComplete &&
                         ApplyEnabledOrganizationRules();
@@ -1266,7 +1291,9 @@ namespace DesktopOrganizer
 
                     // 新项目先经过收件箱；只有用户已明确开启“新项目归类”且建议可靠时，
                     // 上面的收件箱接受计划才会把它加入虚拟分类。这里不再绕过审阅队列。
+                    uiMeasurement?.Next("visuals");
                     RebuildDesktopIcons(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+                    uiMeasurement?.Next("save-request");
                     if (identityLayoutChanged || inboxResult.Changed ||
                         inboxResult.BaselineChanged || organizationMetadataChanged ||
                         inboxAutoApplied || userRulesChanged)
@@ -1277,6 +1304,7 @@ namespace DesktopOrganizer
                     {
                         StatusText.Text = statusMessage;
                     }
+                    recorder?.Complete();
                 }, DispatcherPriority.Background, cancellationToken);
             }
             catch (OperationCanceledException) when (

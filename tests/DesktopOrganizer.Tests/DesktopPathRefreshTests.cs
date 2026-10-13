@@ -308,12 +308,12 @@ public sealed class DesktopPathRefreshTests
         Assert.AreEqual(Path.Combine(fixture.UserB, "watcher.txt"), fixture.Items["watcher.txt"]);
     }
 
-    private sealed record ScanResult(
+    internal sealed record ScanResult(
         Dictionary<string, string> Items,
         bool Complete,
         DesktopPathSnapshot Paths);
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         private const BindingFlags PrivateInstance = BindingFlags.NonPublic | BindingFlags.Instance;
         private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(8);
