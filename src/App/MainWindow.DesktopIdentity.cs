@@ -3,7 +3,7 @@ namespace DesktopOrganizer
 {
     public partial class MainWindow
     {
-        private sealed record DesktopItemRenameCandidate(
+        internal sealed record DesktopItemRenameCandidate(
             string OldName,
             string NewName,
             string OldFullPath,
@@ -165,9 +165,33 @@ namespace DesktopOrganizer
                 }
             }
 
+            ReconcileDesktopIdentityRenames(_appLayout.ItemIdentities, snapshot.Identities, renameMap);
+            confirmedRenames = renameMap.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value.NewName,
+                StringComparer.OrdinalIgnoreCase);
+            bool changed = ApplyDesktopRenameBatch(renameMap.Values.ToList());
+            changed |= ReplacePersistedDesktopIdentities(snapshot.Identities);
+            return changed;
+        }
+
+        internal static void ReconcileDesktopIdentityRenames(
+            IReadOnlyDictionary<string, DesktopItemIdentityInfo> previous,
+            IReadOnlyDictionary<string, DesktopItemIdentityInfo> next,
+            Dictionary<string, DesktopItemRenameCandidate> renameMap)
+        {
+            // 同名项目只索引一次，同时保留实际大小写供布局迁移使用。
+            // TryAdd 保持原线性查找的首次匹配语义，不依赖输入字典的比较器。
+            var nextByName = new Dictionary<string, KeyValuePair<string, DesktopItemIdentityInfo>>(
+                next.Count, StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, DesktopItemIdentityInfo> entry in next)
+            {
+                nextByName.TryAdd(entry.Key, entry);
+            }
+
             // Shell 虚拟项目的显示名称会随系统语言、命名空间扩展或冲突消解变化。
             // parsing name 是稳定身份，因此用它迁移布局，而不是把显示名称当作永久主键。
-            Dictionary<string, List<KeyValuePair<string, DesktopItemIdentityInfo>>> nextByShellParsingName = snapshot.Identities
+            Dictionary<string, List<KeyValuePair<string, DesktopItemIdentityInfo>>> nextByShellParsingName = next
                 .Where(pair => pair.Value.Kind == DesktopItemKind.ShellNamespace &&
                                !string.IsNullOrWhiteSpace(pair.Value.ShellParsingName))
                 .GroupBy(pair => pair.Value.ShellParsingName!, StringComparer.OrdinalIgnoreCase)
@@ -175,12 +199,12 @@ namespace DesktopOrganizer
 
             // Watcher 在程序未运行、缓冲区溢出或文件系统不完整上报时可能没有事件。
             // 使用上次保存的卷序列号 + 文件 ID 与本次扫描结果进行二次对账。
-            Dictionary<string, List<KeyValuePair<string, DesktopItemIdentityInfo>>> nextByFileId = snapshot.Identities
+            Dictionary<string, List<KeyValuePair<string, DesktopItemIdentityInfo>>> nextByFileId = next
                 .Where(pair => !string.IsNullOrWhiteSpace(pair.Value.FileId))
                 .GroupBy(pair => pair.Value.FileId!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
 
-            foreach ((string oldName, DesktopItemIdentityInfo oldIdentity) in _appLayout.ItemIdentities)
+            foreach ((string oldName, DesktopItemIdentityInfo oldIdentity) in previous)
             {
                 if (renameMap.ContainsKey(oldName))
                 {
@@ -189,17 +213,16 @@ namespace DesktopOrganizer
 
                 if (oldIdentity.Kind == DesktopItemKind.ShellNamespace)
                 {
-                    if (TryGetActualEntry(snapshot.Identities, oldName, out string? shellActualSameName,
-                            out DesktopItemIdentityInfo? shellSameNameIdentity) &&
-                        ShellIdentityMatches(oldIdentity, shellSameNameIdentity))
+                    if (nextByName.TryGetValue(oldName, out KeyValuePair<string, DesktopItemIdentityInfo> shellSameName) &&
+                        ShellIdentityMatches(oldIdentity, shellSameName.Value))
                     {
-                        if (!string.Equals(oldName, shellActualSameName, StringComparison.Ordinal))
+                        if (!string.Equals(oldName, shellSameName.Key, StringComparison.Ordinal))
                         {
                             renameMap[oldName] = new DesktopItemRenameCandidate(
                                 oldName,
-                                shellActualSameName,
+                                shellSameName.Key,
                                 oldIdentity.LastKnownPath,
-                                shellSameNameIdentity.LastKnownPath,
+                                shellSameName.Value.LastKnownPath,
                                 "shell-case");
                         }
                         continue;
@@ -230,17 +253,16 @@ namespace DesktopOrganizer
                     continue;
                 }
 
-                if (TryGetActualEntry(snapshot.Identities, oldName, out string? actualSameName,
-                        out DesktopItemIdentityInfo? sameNameIdentity) &&
-                    PhysicalIdentityMatches(oldIdentity, sameNameIdentity))
+                if (nextByName.TryGetValue(oldName, out KeyValuePair<string, DesktopItemIdentityInfo> sameName) &&
+                    PhysicalIdentityMatches(oldIdentity, sameName.Value))
                 {
-                    if (!string.Equals(oldName, actualSameName, StringComparison.Ordinal))
+                    if (!string.Equals(oldName, sameName.Key, StringComparison.Ordinal))
                     {
                         renameMap[oldName] = new DesktopItemRenameCandidate(
                             oldName,
-                            actualSameName,
+                            sameName.Key,
                             oldIdentity.LastKnownPath,
-                            sameNameIdentity.LastKnownPath,
+                            sameName.Value.LastKnownPath,
                             "file-id-case");
                     }
                     continue;
@@ -288,14 +310,6 @@ namespace DesktopOrganizer
             {
                 renameMap.Remove(oldName);
             }
-
-            confirmedRenames = renameMap.ToDictionary(
-                pair => pair.Key,
-                pair => pair.Value.NewName,
-                StringComparer.OrdinalIgnoreCase);
-            bool changed = ApplyDesktopRenameBatch(renameMap.Values.ToList());
-            changed |= ReplacePersistedDesktopIdentities(snapshot.Identities);
-            return changed;
         }
 
         private bool TryCreateWatcherRenameCandidate(
@@ -592,27 +606,6 @@ namespace DesktopOrganizer
             return !first.CreationTimeUtcTicks.HasValue ||
                    !second.CreationTimeUtcTicks.HasValue ||
                    first.CreationTimeUtcTicks.Value == second.CreationTimeUtcTicks.Value;
-        }
-
-        private static bool TryGetActualEntry<T>(
-            IReadOnlyDictionary<string, T> dictionary,
-            string lookupName,
-            out string actualName,
-            out T value)
-        {
-            foreach ((string name, T candidate) in dictionary)
-            {
-                if (name.Equals(lookupName, StringComparison.OrdinalIgnoreCase))
-                {
-                    actualName = name;
-                    value = candidate;
-                    return true;
-                }
-            }
-
-            actualName = string.Empty;
-            value = default!;
-            return false;
         }
 
         private static bool DesktopIdentityMapsEqual(
