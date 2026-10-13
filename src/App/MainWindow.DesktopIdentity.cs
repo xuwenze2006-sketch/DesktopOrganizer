@@ -622,12 +622,20 @@ namespace DesktopOrganizer
                 return false;
             }
 
+            // 一次索引旧名称及原始大小写，避免稳定快照逐项扫描整个旧身份表。
+            // TryAdd 保留首次匹配，兼容区分大小写的输入字典中存在同名键的情况。
+            var currentByName = new Dictionary<string, KeyValuePair<string, DesktopItemIdentityInfo>>(
+                current.Count, StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, DesktopItemIdentityInfo> entry in current)
+            {
+                currentByName.TryAdd(entry.Key, entry);
+            }
+
             foreach ((string name, DesktopItemIdentityInfo nextIdentity) in next)
             {
-                if (!TryGetActualEntry(current, name, out string? actualName,
-                        out DesktopItemIdentityInfo? currentIdentity) ||
-                    !string.Equals(actualName, name, StringComparison.Ordinal) ||
-                    !IdentityMetadataEquals(currentIdentity, nextIdentity))
+                if (!currentByName.TryGetValue(name, out KeyValuePair<string, DesktopItemIdentityInfo> entry) ||
+                    !string.Equals(entry.Key, name, StringComparison.Ordinal) ||
+                    !IdentityMetadataEquals(entry.Value, nextIdentity))
                 {
                     return false;
                 }
