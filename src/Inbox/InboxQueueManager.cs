@@ -114,6 +114,8 @@ namespace DesktopOrganizer
             int added = 0;
             int updated = 0;
             int removed = 0;
+            ReconciliationIdentityLookup? currentLookup = null;
+            ReconciliationIdentityLookup? previousLookup = null;
 
             foreach ((string oldName, InboxItemInfo oldEntry) in working.ToList())
             {
@@ -123,12 +125,10 @@ namespace DesktopOrganizer
                     continue;
                 }
 
+                currentLookup ??= new ReconciliationIdentityLookup(currentIdentities);
                 string? currentName = confirmedRenameTarget
-                    ? FindActualKey(currentIdentities, oldName)
-                    : FindUniqueCurrentName(
-                        oldName,
-                        oldEntry.Identity,
-                        currentIdentities);
+                    ? currentLookup.FindActualName(oldName)
+                    : currentLookup.FindUniqueCurrentName(oldName, oldEntry.Identity);
                 if (currentName == null)
                 {
                     working.Remove(oldName);
@@ -191,7 +191,8 @@ namespace DesktopOrganizer
                     }
 
                     if ((!confirmedRenameSource &&
-                         IsKnownIdentity(currentName, currentIdentity, previousIdentities)) ||
+                         (previousLookup ??= new ReconciliationIdentityLookup(previousIdentities))
+                             .IsKnownIdentity(currentName, currentIdentity)) ||
                         !TryGetActualEntry(
                             suggestions,
                             currentName,
@@ -548,54 +549,100 @@ namespace DesktopOrganizer
             return true;
         }
 
-        private static string? FindUniqueCurrentName(
-            string oldName,
-            DesktopItemIdentityInfo oldIdentity,
-            IReadOnlyDictionary<string, DesktopItemIdentityInfo> currentIdentities)
+        // 每轮核对按需建索引。身份匹配在缺失 ID 或创建时间时并不传递，
+        // 因而索引只缩小候选范围，最终仍使用原有身份匹配规则。
+        private sealed class ReconciliationIdentityLookup
         {
-            if (TryGetActualEntry(
-                    currentIdentities,
-                    oldName,
-                    out DesktopItemIdentityInfo? sameNameIdentity) &&
-                sameNameIdentity is not null &&
-                IdentitiesMatch(oldIdentity, sameNameIdentity))
+            private readonly Dictionary<string, KeyValuePair<string, DesktopItemIdentityInfo>> _byName =
+                new(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, List<KeyValuePair<string, DesktopItemIdentityInfo>>> _byStableId =
+                new(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, List<KeyValuePair<string, DesktopItemIdentityInfo>>> _byPath =
+                new(StringComparer.OrdinalIgnoreCase);
+
+            public ReconciliationIdentityLookup(IReadOnlyDictionary<string, DesktopItemIdentityInfo> identities)
             {
-                return FindActualKey(currentIdentities, oldName);
-            }
-
-            List<string> matches = currentIdentities
-                .Where(pair => pair.Value is not null && IdentitiesMatch(oldIdentity, pair.Value))
-                .Select(pair => pair.Key)
-                .Take(2)
-                .ToList();
-            return matches.Count == 1 ? matches[0] : null;
-        }
-
-        private static bool IsKnownIdentity(
-            string currentName,
-            DesktopItemIdentityInfo currentIdentity,
-            IReadOnlyDictionary<string, DesktopItemIdentityInfo> previousIdentities)
-        {
-            foreach ((string previousName, DesktopItemIdentityInfo previousIdentity) in previousIdentities)
-            {
-                if (previousIdentity is null)
+                foreach (KeyValuePair<string, DesktopItemIdentityInfo> entry in identities)
                 {
-                    continue;
-                }
-
-                if (IdentitiesMatch(previousIdentity, currentIdentity))
-                {
-                    return true;
-                }
-
-                if (previousName.Equals(currentName, StringComparison.OrdinalIgnoreCase) &&
-                    SamePathFallbackMatches(previousIdentity, currentIdentity))
-                {
-                    return true;
+                    // 名称查找保留首项，兼容使用区分大小写比较器的输入字典。
+                    _byName.TryAdd(entry.Key, entry);
+                    if (entry.Value is null) continue;
+                    string? stableId = StableId(entry.Value);
+                    if (!string.IsNullOrWhiteSpace(stableId)) AddEntry(_byStableId, stableId, entry);
+                    string? path = IdentityPathKey(entry.Value.LastKnownPath);
+                    if (path != null) AddEntry(_byPath, path, entry);
                 }
             }
 
-            return false;
+            public string? FindActualName(string name) =>
+                !string.IsNullOrWhiteSpace(name) && _byName.TryGetValue(name, out var entry)
+                    ? entry.Key : null;
+
+            public string? FindUniqueCurrentName(string oldName, DesktopItemIdentityInfo oldIdentity)
+            {
+                if (!string.IsNullOrWhiteSpace(oldName) &&
+                    _byName.TryGetValue(oldName, out var sameName) &&
+                    sameName.Value is not null && IdentitiesMatch(oldIdentity, sameName.Value))
+                {
+                    return sameName.Key;
+                }
+
+                string? matchedName = null;
+                foreach ((string name, DesktopItemIdentityInfo identity) in Candidates(oldIdentity))
+                {
+                    if (!IdentitiesMatch(oldIdentity, identity)) continue;
+                    // 同一条目可能同时在 ID 和路径桶中；只有不同原始键才构成歧义。
+                    if (matchedName != null && !string.Equals(matchedName, name, StringComparison.Ordinal))
+                        return null;
+                    matchedName = name;
+                }
+                return matchedName;
+            }
+
+            public bool IsKnownIdentity(string currentName, DesktopItemIdentityInfo currentIdentity)
+            {
+                foreach ((string previousName, DesktopItemIdentityInfo previousIdentity) in Candidates(currentIdentity))
+                {
+                    if (IdentitiesMatch(previousIdentity, currentIdentity) ||
+                        (previousName.Equals(currentName, StringComparison.OrdinalIgnoreCase) &&
+                         SamePathFallbackMatches(previousIdentity, currentIdentity)))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            private IEnumerable<KeyValuePair<string, DesktopItemIdentityInfo>> Candidates(DesktopItemIdentityInfo identity)
+            {
+                if (identity is null) yield break;
+                string? stableId = StableId(identity);
+                if (!string.IsNullOrWhiteSpace(stableId) && _byStableId.TryGetValue(stableId, out var stableMatches))
+                {
+                    foreach (var entry in stableMatches) yield return entry;
+                }
+                string? path = IdentityPathKey(identity.LastKnownPath);
+                if (path != null && _byPath.TryGetValue(path, out var pathMatches))
+                {
+                    foreach (var entry in pathMatches) yield return entry;
+                }
+            }
+
+            private static string? StableId(DesktopItemIdentityInfo identity) =>
+                identity.Kind == DesktopItemKind.ShellNamespace ? identity.ShellParsingName : identity.FileId;
+
+            private static void AddEntry(
+                Dictionary<string, List<KeyValuePair<string, DesktopItemIdentityInfo>>> index,
+                string key,
+                KeyValuePair<string, DesktopItemIdentityInfo> entry)
+            {
+                if (!index.TryGetValue(key, out var entries))
+                {
+                    entries = new List<KeyValuePair<string, DesktopItemIdentityInfo>>();
+                    index.Add(key, entries);
+                }
+                entries.Add(entry);
+            }
         }
 
         private static bool SamePathFallbackMatches(
@@ -616,15 +663,14 @@ namespace DesktopOrganizer
 
         private static bool PersistedPathsEqual(string? first, string? second)
         {
-            if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
-            {
-                return false;
-            }
-
-            return first.Trim().TrimEnd('\\', '/').Equals(
-                second.Trim().TrimEnd('\\', '/'),
-                StringComparison.OrdinalIgnoreCase);
+            string? firstKey = IdentityPathKey(first);
+            string? secondKey = IdentityPathKey(second);
+            return firstKey != null && secondKey != null &&
+                firstKey.Equals(secondKey, StringComparison.OrdinalIgnoreCase);
         }
+
+        private static string? IdentityPathKey(string? path) =>
+            string.IsNullOrWhiteSpace(path) ? null : path.Trim().TrimEnd('\\', '/');
 
         private static void ApplySuggestion(
             InboxItemInfo entry,
