@@ -10,8 +10,9 @@ namespace DesktopOrganizer
             string NewFullPath,
             string Source);
 
-        private static DesktopItemIdentityInfo CreateDesktopItemIdentity(string fullPath)
+        private static DesktopItemIdentityInfo CreateDesktopItemIdentity(string fullPath, out bool? knownIsDirectory)
         {
+            knownIsDirectory = null;
             string normalizedPath = NormalizePersistedPath(fullPath);
             bool isDirectory = false;
             long? creationTimeUtcTicks = null;
@@ -21,6 +22,7 @@ namespace DesktopOrganizer
             {
                 FileAttributes attributes = File.GetAttributes(fullPath);
                 isDirectory = attributes.HasFlag(FileAttributes.Directory);
+                knownIsDirectory = isDirectory;
                 DateTime creationTimeUtc = File.GetCreationTimeUtc(fullPath);
                 if (creationTimeUtc > DateTime.UnixEpoch)
                 {

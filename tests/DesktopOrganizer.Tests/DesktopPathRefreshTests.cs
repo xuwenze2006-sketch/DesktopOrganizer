@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
+using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace DesktopOrganizer.Tests;
@@ -10,6 +12,132 @@ namespace DesktopOrganizer.Tests;
 [TestClass]
 public sealed class DesktopPathRefreshTests
 {
+    [STATestMethod]
+    public void IconType_LabelAndTooltipUseTheAcceptedFolderType()
+    {
+        using var fixture = new Fixture();
+        const string name = "folder.lnk";
+        string path = Directory.CreateDirectory(Path.Combine(fixture.UserA, name)).FullName;
+        fixture.Refresh();
+        Directory.Delete(path);
+        // 固定图标缓存，避免本用例触发后台 Shell 图标提取。
+        fixture.Field<Dictionary<string, BitmapSource?>>("_iconCache")["folder:" + path] = null;
+        fixture.Field<Dictionary<string, System.Windows.FrameworkElement>>("_physicalFolderDropTargets").Clear();
+
+        Border tile = fixture.CreateIcon(path, name);
+
+        var content = (StackPanel)tile.Child;
+        var label = (TextBlock)((Border)content.Children[1]).Child;
+        Assert.AreEqual(name, label.Text, "快照中的文件夹即使以 .lnk 结尾，也不应裁剪名称。");
+        StringAssert.Contains((string)tile.ToolTip, "真实文件夹");
+        Assert.IsFalse(fixture.Field<Dictionary<string, System.Windows.FrameworkElement>>("_physicalFolderDropTargets")
+            .ContainsKey(path), "真实文件操作的目标登记仍需确认目录存在。");
+    }
+
+    [STATestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void IconType_ReusesAcceptedScanUntilTheNextSnapshot(bool initiallyFolder)
+    {
+        using var fixture = new Fixture();
+        string path = Path.Combine(fixture.UserA, "subject.txt");
+        if (initiallyFolder) Directory.CreateDirectory(path);
+        else File.WriteAllText(path, "before");
+        fixture.Refresh();
+        string beforeKey = initiallyFolder ? "folder:" + path : "ext:.txt";
+        string afterKey = initiallyFolder ? "ext:.txt" : "folder:" + path;
+        Assert.AreEqual(beforeKey, fixture.IconCacheKey(path));
+
+        if (initiallyFolder)
+        {
+            Directory.Delete(path);
+            File.WriteAllText(path, "after");
+        }
+        else
+        {
+            File.Delete(path);
+            Directory.CreateDirectory(path);
+        }
+        // 后台扫描本身不发布状态；UI 接受快照前使用此前读取成功的类型。
+        fixture.Scan();
+        Assert.AreEqual(beforeKey, fixture.IconCacheKey(path));
+        fixture.Refresh();
+        Assert.AreEqual(afterKey, fixture.IconCacheKey(path));
+    }
+
+    [STATestMethod]
+    public void IconType_IncompleteScanKeepsTheLastAcceptedTypes()
+    {
+        using var fixture = new Fixture();
+        string path = Directory.CreateDirectory(Path.Combine(fixture.UserA, "subject.txt")).FullName;
+        fixture.Refresh();
+        Directory.Delete(path);
+        File.WriteAllText(path, "replacement");
+        fixture.CommonPath = Path.Combine(fixture.Root, "unavailable");
+
+        fixture.Refresh();
+
+        Assert.IsTrue(fixture.Field<bool>("_desktopScanUnavailable"));
+        Assert.AreEqual("folder:" + path, fixture.IconCacheKey(path));
+        fixture.CommonPath = fixture.Common;
+        fixture.Refresh();
+        Assert.AreEqual("ext:.txt", fixture.IconCacheKey(path));
+    }
+
+    [STATestMethod]
+    public void IconType_UnchangedScanReplacesRuntimeTypesBeforeReturning()
+    {
+        using var fixture = new Fixture();
+        string path = Path.Combine(fixture.UserA, "subject.txt");
+        File.WriteAllText(path, "file");
+        fixture.Refresh();
+        fixture.Field<DesktopItemTypeLookup>("_desktopItemTypes").ReplaceSnapshot(
+            new Dictionary<string, bool> { [path] = true });
+        Assert.AreEqual("folder:" + path, fixture.IconCacheKey(path));
+
+        fixture.Refresh();
+
+        Assert.AreEqual("ext:.txt", fixture.IconCacheKey(path));
+    }
+
+    [STATestMethod]
+    public void IconType_DesktopMigrationDropsOldPathAndIgnoresSameNameIdentity()
+    {
+        using var fixture = new Fixture();
+        string oldPath = Directory.CreateDirectory(Path.Combine(fixture.UserA, "subject.txt")).FullName;
+        fixture.Refresh();
+        string newPath = Path.Combine(fixture.UserB, "subject.txt");
+        File.WriteAllText(newPath, "new file");
+        // 新路径没有已接受的类型，不能根据旧路径的同名持久化身份判断为文件夹。
+        Assert.AreEqual("file-system-file", fixture.VisualKind(newPath));
+        fixture.UserPath = fixture.UserB;
+        fixture.Refresh();
+        Directory.Delete(oldPath);
+
+        Assert.AreEqual("ext:.txt", fixture.IconCacheKey(newPath));
+        Assert.AreEqual("ext:.txt", fixture.IconCacheKey(oldPath));
+        Assert.AreEqual("missing", fixture.VisualKind(oldPath));
+    }
+
+    [STATestMethod]
+    [DataRow("file")]
+    [DataRow("folder")]
+    [DataRow("missing")]
+    public void IconType_OnlySuccessfulAttributeReadsProduceKnownTypes(string kind)
+    {
+        using var fixture = new Fixture();
+        string path = Path.Combine(fixture.UserA, "subject.txt");
+        if (kind == "file") File.WriteAllText(path, "file");
+        else if (kind == "folder") Directory.CreateDirectory(path);
+        object?[] arguments = [path, null];
+
+        typeof(MainWindow).GetMethod("CreateDesktopItemIdentity", BindingFlags.Static | BindingFlags.NonPublic)!
+            .Invoke(null, arguments);
+
+        if (kind == "missing") Assert.IsNull(arguments[1]);
+        else Assert.AreEqual(kind == "folder", arguments[1]);
+    }
+
     [STATestMethod]
     public void Scan_ReReadsMigratedDesktopAndMergesTheCommonDesktop()
     {
@@ -265,6 +393,13 @@ public sealed class DesktopPathRefreshTests
         public string[] WatcherPaths() => (string[])Invoke("GetDesktopWatcherPaths")!;
 
         public void Rebuild() => Invoke("RebuildDesktopIconsCore", new HashSet<string>(), false);
+
+        public string IconCacheKey(string path) => (string)typeof(MainWindow).GetMethod(
+            "GetIconCacheKey", PrivateInstance | BindingFlags.Static)!.Invoke(Window, [path])!;
+
+        public string VisualKind(string path) => (string)Invoke("GetDesktopItemVisualKind", path)!;
+
+        public Border CreateIcon(string path, string name) => (Border)Invoke("CreateIconVisual", path, name, null)!;
 
         public void ClearClassification() => Invoke("ClearAutoClassificationAfterConfirmation",
             (object)Layout.Groups.ToArray());

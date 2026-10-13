@@ -111,6 +111,7 @@ namespace DesktopOrganizer
         private string? _fileOperationJournalError;
         private DesktopGeometry _desktopGeometry = new([]);
         private Dictionary<string, string> _desktopItems = new(StringComparer.OrdinalIgnoreCase);
+        private readonly DesktopItemTypeLookup _desktopItemTypes = new();
         private Dictionary<string, DesktopCategoryDefinition> _desktopCategories = new(StringComparer.OrdinalIgnoreCase);
         private HashSet<string> _reliableDesktopCategoryNames = new(StringComparer.OrdinalIgnoreCase);
         private bool _desktopSnapshotInitialized;
@@ -223,7 +224,10 @@ namespace DesktopOrganizer
             Dictionary<string, DesktopItemIdentityInfo> Identities,
             bool PhysicalScanComplete,
             bool ShellScanComplete,
-            DesktopPathSnapshot Paths);
+            DesktopPathSnapshot Paths)
+        {
+            public Dictionary<string, bool> KnownFileSystemTypes { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+        }
 
         private sealed record DesktopRenameOperation(
             string OldFullPath,

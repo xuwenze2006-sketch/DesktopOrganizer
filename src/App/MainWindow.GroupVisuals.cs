@@ -189,22 +189,9 @@ namespace DesktopOrganizer
             };
         }
 
-        private static string GetDesktopItemTypeSortKey(string location)
-        {
-            if (ShellItemLocation.TryDecode(location, out _, out bool shellFolder))
-            {
-                return shellFolder ? string.Empty : ".shell";
-            }
+        private string GetDesktopItemTypeSortKey(string location) => _desktopItemTypes.GetTypeSortKey(location);
 
-            return Directory.Exists(location) ? string.Empty : Path.GetExtension(location);
-        }
-
-        private static bool IsDesktopItemFolderLike(string location)
-        {
-            return ShellItemLocation.TryDecode(location, out _, out bool shellFolder)
-                ? shellFolder
-                : Directory.Exists(location);
-        }
+        private bool IsDesktopItemFolderLike(string location) => _desktopItemTypes.IsFolderLike(location);
 
         private void SetGroupSortMode(GroupInfo group, GroupSortMode mode)
         {
@@ -739,23 +726,7 @@ namespace DesktopOrganizer
             return container;
         }
 
-        private static string GetIconCacheKey(string path)
-        {
-            if (ShellItemLocation.TryDecode(path, out string parsingName, out _))
-            {
-                return "shell:" + parsingName;
-            }
-
-            if (Directory.Exists(path))
-            {
-                return "folder:" + path;
-            }
-
-            string extension = Path.GetExtension(path).ToLowerInvariant();
-            return extension is ".exe" or ".lnk" or ".url" or ".ico" || string.IsNullOrEmpty(extension)
-                ? "path:" + path
-                : "ext:" + extension;
-        }
+        private string GetIconCacheKey(string path) => _desktopItemTypes.GetIconCacheKey(path);
 
         // ==================== 自由图标拖拽 ====================
 

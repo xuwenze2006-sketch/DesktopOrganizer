@@ -11,6 +11,7 @@ namespace DesktopOrganizer
                 fullPath,
                 out string shellParsingName,
                 out _);
+            bool isPhysicalFolder = !isShellNamespace && _desktopItemTypes.IsFolderLike(fullPath);
             var content = new StackPanel
             {
                 VerticalAlignment = VerticalAlignment.Top,
@@ -23,7 +24,7 @@ namespace DesktopOrganizer
             {
                 Text = !isShellNamespace &&
                        displayName.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) &&
-                       !Directory.Exists(fullPath)
+                       !isPhysicalFolder
                     ? displayName[..^4]
                     : displayName,
                 Foreground = isGroupedIcon
@@ -91,7 +92,7 @@ namespace DesktopOrganizer
                     ? parentGroup == null
                         ? $"Windows Shell 系统项目；单击选择；双击打开，可拖入虚拟分类\nCtrl+单击可多选\n{shellParsingName}"
                         : $"Windows Shell 系统项目；单击选择；双击打开，拖到分类框外可变为自由图标\nCtrl+单击可多选；Shift+单击可连续选择\n{shellParsingName}"
-                    : Directory.Exists(fullPath)
+                    : isPhysicalFolder
                         ? parentGroup == null
                             ? $"真实文件夹：拖入此处会移动真实文件\n单击选择；双击打开；Ctrl+单击可多选\n{fullPath}"
                             : $"真实文件夹：拖到中央会移入真实文件；左右边缘用于插入排序\n单击选择；双击打开；Ctrl+单击可多选；Shift+单击可连续选择\n{fullPath}"

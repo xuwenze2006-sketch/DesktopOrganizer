@@ -161,6 +161,7 @@ namespace DesktopOrganizer
                 }
 
                 _desktopScanUnavailable = false;
+                _desktopItemTypes.ReplaceSnapshot(snapshot.KnownFileSystemTypes);
                 _desktopItems = snapshot.Items;
                 _desktopCategories = snapshot.Categories;
                 _reliableDesktopCategoryNames = snapshot.ReliableCategoryNames;

@@ -15,6 +15,7 @@ namespace DesktopOrganizer
             var categories = new Dictionary<string, DesktopCategoryDefinition>(StringComparer.OrdinalIgnoreCase);
             var reliableCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var identities = new Dictionary<string, DesktopItemIdentityInfo>(StringComparer.OrdinalIgnoreCase);
+            var knownFileSystemTypes = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
             foreach ((string name, string fullPath) in items)
             {
@@ -35,7 +36,11 @@ namespace DesktopOrganizer
                         reliableCategoryNames.Add(name);
                     }
 
-                    identities[name] = CreateDesktopItemIdentity(fullPath);
+                    identities[name] = CreateDesktopItemIdentity(fullPath, out bool? knownIsDirectory);
+                    if (knownIsDirectory.HasValue)
+                    {
+                        knownFileSystemTypes[fullPath] = knownIsDirectory.Value;
+                    }
                 }
             }
 
@@ -46,7 +51,10 @@ namespace DesktopOrganizer
                 identities,
                 physicalScanComplete,
                 shellScanComplete,
-                paths);
+                paths)
+            {
+                KnownFileSystemTypes = knownFileSystemTypes
+            };
         }
 
         private static bool DesktopSnapshotMatches(
@@ -565,7 +573,7 @@ namespace DesktopOrganizer
         {
             string cacheKey = GetIconCacheKey(fullPath);
             return new FreeIconVisualState(
-                GetDesktopItemVisualKind(displayName, fullPath),
+                GetDesktopItemVisualKind(fullPath),
                 _appLayout.IsEditMode,
                 !ShellItemLocation.TryDecode(fullPath, out _, out _) && IsFileOperationPending(fullPath),
                 _iconVisualGeneration,
@@ -598,7 +606,7 @@ namespace DesktopOrganizer
                 string fullPath = item.FullPath;
                 AppendFingerprintPart(builder, itemName);
                 AppendFingerprintPart(builder, fullPath);
-                AppendFingerprintPart(builder, GetDesktopItemVisualKind(itemName, fullPath));
+                AppendFingerprintPart(builder, GetDesktopItemVisualKind(fullPath));
                 builder.Append('|').Append(GetIconCacheVersion(GetIconCacheKey(fullPath)));
                 builder.Append('|').Append(
                     !ShellItemLocation.TryDecode(fullPath, out _, out _) && IsFileOperationPending(fullPath)
@@ -609,23 +617,7 @@ namespace DesktopOrganizer
             return builder.ToString();
         }
 
-        private string GetDesktopItemVisualKind(string displayName, string fullPath)
-        {
-            if (ShellItemLocation.TryDecode(fullPath, out _, out bool shellFolder))
-            {
-                return shellFolder ? "shell-folder" : "shell-item";
-            }
-
-            if (_appLayout.ItemIdentities.TryGetValue(displayName, out DesktopItemIdentityInfo? identity) &&
-                identity.Kind == DesktopItemKind.FileSystem)
-            {
-                return identity.IsDirectory ? "file-system-folder" : "file-system-file";
-            }
-
-            return Directory.Exists(fullPath)
-                ? "file-system-folder"
-                : File.Exists(fullPath) ? "file-system-file" : "missing";
-        }
+        private string GetDesktopItemVisualKind(string fullPath) => _desktopItemTypes.GetVisualKind(fullPath);
 
         private static void AppendFingerprintPart(StringBuilder builder, string value)
         {
@@ -1186,6 +1178,9 @@ namespace DesktopOrganizer
                             _reliableDesktopCategoryNames,
                             snapshot) ||
                         !DesktopIdentityMapsEqual(_appLayout.ItemIdentities, snapshot.Identities);
+
+                    // 可靠性可能变化而身份字段相同；未变化快照也必须替换运行时类型。
+                    _desktopItemTypes.ReplaceSnapshot(snapshot.KnownFileSystemTypes);
 
                     // 某些 Shell 操作会产生“内容未变化”的通知。没有变化时不要清空并重建
                     // 整棵视觉树，否则持续的无效通知仍会周期性占用 UI 线程。

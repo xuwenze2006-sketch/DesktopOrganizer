@@ -20,7 +20,7 @@ namespace DesktopOrganizer
                 out bool isShellFolder);
             bool isFolder = isShellNamespace
                 ? isShellFolder
-                : GetDesktopItemVisualKind(displayName, fullPath) == "file-system-folder";
+                : GetDesktopItemVisualKind(fullPath) == "file-system-folder";
 
             var image = new Image
             {

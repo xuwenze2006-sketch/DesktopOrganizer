@@ -12,6 +12,40 @@ public sealed class GroupRefreshTests
     public TestContext TestContext { get; set; } = null!;
 
     [STATestMethod]
+    [DataRow(1)]
+    [DataRow(2)]
+    [DataRow(5)]
+    public void Rebuild_KnownTypesAvoidRepeatedFileSystemQueries(int sortMode)
+    {
+        int queries = 0;
+        var types = new DesktopItemTypeLookup(_ => { queries++; return false; }, _ => { queries++; return false; });
+        using var fixture = new Fixture(types);
+        var known = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        for (int index = 0; index < 1000; index++)
+        {
+            string name = $"Item{index:D4}.txt";
+            string path = Path.Combine(fixture.Root, name);
+            fixture.AddItem(name, path);
+            known[path] = index % 10 == 0;
+        }
+        fixture.Group.SortMode = (GroupSortMode)sortMode;
+        fixture.Rebuild();
+        int fallbackQueries = queries;
+        Assert.IsGreaterThanOrEqualTo(1000, fallbackQueries, "没有扫描类型时应查询文件系统。");
+
+        types.ReplaceSnapshot(known);
+        queries = 0;
+        fixture.Rebuild();
+        FrameworkElement visual = fixture.Visual;
+        fixture.Rebuild();
+
+        Assert.AreEqual(0, queries, "分组指纹和排序应复用已读取的文件类型。");
+        Assert.AreSame(visual, fixture.Visual);
+        Assert.HasCount(1000, fixture.Panel.GetItemNamesSnapshot());
+        TestContext.WriteLine($"1000 项分组刷新，排序 {sortMode}：未知类型回退 {fallbackQueries} 次查询；已知类型连续两次刷新 {queries} 次查询。");
+    }
+
+    [STATestMethod]
     [DataRow(0, "zeta.txt,beta.bin,folder,alpha.txt,shell folder,shell item,missing.txt")]
     [DataRow(1, "alpha.txt,beta.bin,folder,missing.txt,shell folder,shell item,zeta.txt")]
     [DataRow(2, "folder,shell folder,beta.bin,shell item,alpha.txt,missing.txt,zeta.txt")]
@@ -144,12 +178,13 @@ public sealed class GroupRefreshTests
         public FrameworkElement Visual => Field<Dictionary<string, FrameworkElement>>("_groupVisuals")[Group.Id];
         public VirtualizingGroupPanel Panel => Field<Dictionary<string, VirtualizingGroupPanel>>("_groupItemPanels")[Group.Id];
 
-        public Fixture()
+        public Fixture(DesktopItemTypeLookup? types = null)
         {
             Directory.CreateDirectory(Root);
             var resolver = new DesktopPathResolver(_ => Root);
             // 不调用 Show/Loaded，不读写用户布局，也不启动桌面扫描或文件监听。
             Window = new MainWindow(false, _ => { }, resolver);
+            if (types != null) Set("_desktopItemTypes", types);
             Set("_desktopSnapshotInitialized", true);
             Set("_isSafeModeActive", true);
             Layout.Groups.Clear();
