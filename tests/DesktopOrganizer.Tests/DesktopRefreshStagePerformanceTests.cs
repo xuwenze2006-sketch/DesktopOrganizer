@@ -2,7 +2,6 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using System.Windows;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace DesktopOrganizer.Tests;
@@ -95,7 +94,7 @@ public sealed class DesktopRefreshStagePerformanceTests
                     MeasuredUtc = DateTime.UtcNow,
                     Runtime = Environment.Version.ToString(),
                     Environment.ProcessorCount,
-                    Profile = "separate fixture per scenario; temporary local files; four extensions; free icons; 25% deferred inbox; safe mode; no watcher events; native icon extraction disabled; fixed 1920x1080 geometry; no Show/Loaded; deferred persistence excluded",
+                    Profile = "separate fixture per scenario; temporary local files; four extensions; free icons; 25% deferred inbox; safe mode; no watcher events; controlled frozen bitmap with real queue and UI completion; completion drained between samples; fixed 1920x1080 geometry; no Show/Loaded; deferred persistence excluded",
                     WarmupsPerScenario = 3,
                     Samples = samples
                 }, new JsonSerializerOptions { WriteIndented = true }));
@@ -111,10 +110,9 @@ public sealed class DesktopRefreshStagePerformanceTests
 
     private static List<RefreshSample> RunScenario(int count, string scenario, int warmups, int iterations)
     {
-        using var fixture = new DesktopPathRefreshTests.Fixture();
+        using var loader = new ControlledIconLoader();
+        using var fixture = new DesktopPathRefreshTests.Fixture(iconLoadService: loader.Service);
         Assert.IsNull(fixture.Window.RefreshPerformanceRecorder);
-        // 拒绝本次夹具的所有加载请求；保留服务生命周期和缓存全清路径，结束时再正常释放。
-        fixture.Field<ShellIconLoadService>("_shellIconLoadService").AdvanceGeneration(int.MaxValue);
         fixture.Field<DispatcherTimer>("_layoutSaveTimer").Interval = TimeSpan.FromHours(1);
         typeof(MainWindow).GetField("_desktopGeometry", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(fixture.Window, new DesktopGeometry([new DesktopMonitorRegion
@@ -126,9 +124,8 @@ public sealed class DesktopRefreshStagePerformanceTests
         fixture.Window.IconCanvas.Arrange(new Rect(0, 0, 1920, 1080));
         for (int index = 0; index < count; index++)
             File.WriteAllText(Path.Combine(fixture.UserA, $"A{index:D4}{Extensions[index % Extensions.Length]}"), "fixture");
-        foreach (string extension in Extensions)
-            fixture.Field<Dictionary<string, BitmapSource?>>("_iconCache")["ext:" + extension] = null;
         fixture.Refresh();
+        fixture.WaitForIcons();
         Assert.HasCount(count, fixture.Items);
         Assert.IsTrue(fixture.Layout.ItemIdentities.Values.All(identity => !string.IsNullOrWhiteSpace(identity.FileId)),
             "批量改名测量依赖临时磁盘提供稳定 FileId。");
@@ -174,9 +171,11 @@ public sealed class DesktopRefreshStagePerformanceTests
             }
 
             var recorder = new DesktopRefreshPerformanceRecorder();
+            int loadsBefore = loader.LoadCount;
             fixture.Window.RefreshPerformanceRecorder = recorder;
             fixture.Refresh();
             fixture.Window.RefreshPerformanceRecorder = null;
+            fixture.WaitForIcons();
             fixture.Field<DispatcherTimer>("_layoutSaveTimer").Stop();
             IReadOnlyList<DesktopRefreshStageSample> stages = recorder.Samples;
             Assert.IsTrue(recorder.Completed, $"{count} items / {scenario} / round {round}: 刷新未正常完成，拒绝使用提前退出的样本。");
@@ -201,11 +200,17 @@ public sealed class DesktopRefreshStagePerformanceTests
             Dictionary<string, FrameworkElement> after = fixture.Field<Dictionary<string, FrameworkElement>>("_freeIconVisuals");
             var previousVisuals = before.Values.ToHashSet();
             int reused = after.Values.Count(previousVisuals.Contains);
-            if (scenario == "unchanged") Assert.AreEqual(count, reused);
+            bool resetAllIconCache = fixture.Field<int>("_iconVisualGeneration") != generationBefore;
+            // 压力夹具可能超过缓存版本容量，仍须允许正常的全清和重新加载。
+            if (scenario == "unchanged" || (scenario == "single-change" && !resetAllIconCache))
+            {
+                Assert.AreEqual(count, reused, "无变化和普通文件内容变化均应复用已有控件。");
+                Assert.AreEqual(0, loader.LoadCount - loadsBefore, "共享类型图标不应重复加载。");
+            }
             if (round >= 0)
                 samples.Add(new RefreshSample(count, scenario, round, after.Count - reused, reused, before.Count - reused,
-                    cacheVersionCountBefore, fixture.Field<int>("_iconVisualGeneration") != generationBefore,
-                    count - fixture.Layout.FreeIcons.Count, stages));
+                    cacheVersionCountBefore, resetAllIconCache,
+                    count - fixture.Layout.FreeIcons.Count, loader.LoadCount - loadsBefore, stages));
         }
         return samples;
     }
@@ -218,6 +223,6 @@ public sealed class DesktopRefreshStagePerformanceTests
     }
 
     private sealed record RefreshSample(int Count, string Scenario, int Iteration, int Created, int Reused, int Removed,
-        int CacheVersionCountBefore, bool ResetAllIconCache, int TemporaryOverflowPositions,
+        int CacheVersionCountBefore, bool ResetAllIconCache, int TemporaryOverflowPositions, int IconLoads,
         IReadOnlyList<DesktopRefreshStageSample> Stages);
 }

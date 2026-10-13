@@ -31,7 +31,8 @@ namespace DesktopOrganizer
 
                 if (!currentIdentities.TryGetValue(name, out DesktopItemIdentityInfo? currentIdentity) ||
                     !nextIdentities.TryGetValue(name, out DesktopItemIdentityInfo? nextIdentity) ||
-                    !IdentityMetadataEquals(currentIdentity, nextIdentity))
+                    (!IdentityMetadataEquals(currentIdentity, nextIdentity) &&
+                     !CanReuseSharedExtensionIcon(currentLocation, currentIdentity, nextIdentity)))
                 {
                     changedLocations.Add(currentLocation);
                     changedLocations.Add(nextLocation);
@@ -71,16 +72,34 @@ namespace DesktopOrganizer
             return keys.ToList();
         }
 
-        private static bool IdentityMetadataEquals(
+        private static bool CanReuseSharedExtensionIcon(
+            string location,
             DesktopItemIdentityInfo first,
             DesktopItemIdentityInfo second)
+        {
+            // ext: 使用文件属性提取类型图标，内容变化不影响图像。只在可靠的同一文件上
+            // 忽略修改时间；缺失身份、替换、目录和按文件提取的图标仍按原规则失效。
+            return first.Kind == DesktopItemKind.FileSystem &&
+                   !first.IsDirectory &&
+                   !string.IsNullOrWhiteSpace(first.FileId) &&
+                   first.CreationTimeUtcTicks > DateTime.UnixEpoch.Ticks &&
+                   first.LastWriteTimeUtcTicks > DateTime.UnixEpoch.Ticks &&
+                   second.LastWriteTimeUtcTicks > DateTime.UnixEpoch.Ticks &&
+                   IdentityMetadataEquals(first, second, compareLastWriteTime: false) &&
+                   DesktopItemTypeLookup.UsesSharedExtensionIcon(Path.GetExtension(location));
+        }
+
+        private static bool IdentityMetadataEquals(
+            DesktopItemIdentityInfo first,
+            DesktopItemIdentityInfo second,
+            bool compareLastWriteTime = true)
         {
             return first.Kind == second.Kind &&
                    ShellItemLocation.AreEquivalent(first.LastKnownPath, second.LastKnownPath) &&
                    string.Equals(first.FileId, second.FileId, StringComparison.OrdinalIgnoreCase) &&
                    string.Equals(first.ShellParsingName, second.ShellParsingName, StringComparison.OrdinalIgnoreCase) &&
                    first.CreationTimeUtcTicks == second.CreationTimeUtcTicks &&
-                   first.LastWriteTimeUtcTicks == second.LastWriteTimeUtcTicks &&
+                   (!compareLastWriteTime || first.LastWriteTimeUtcTicks == second.LastWriteTimeUtcTicks) &&
                    first.IsDirectory == second.IsDirectory;
         }
     }

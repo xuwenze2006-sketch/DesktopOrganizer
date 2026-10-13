@@ -13,12 +13,14 @@ namespace DesktopOrganizer
         private readonly AutoResetEvent _workAvailable = new(false);
         private readonly CancellationTokenSource _shutdown = new();
         private readonly Thread _workerThread;
+        private readonly Func<string, string, BitmapSource?> _loadIcon;
         private long _nextSequence;
         private int _minimumGeneration;
         private int _disposeStarted;
 
-        public ShellIconLoadService()
+        public ShellIconLoadService(Func<string, string, BitmapSource?>? loadIcon = null)
         {
+            _loadIcon = loadIcon ?? LoadFrozenIcon;
             _workerThread = new Thread(WorkerMain)
             {
                 IsBackground = true,
@@ -129,7 +131,7 @@ namespace DesktopOrganizer
                         }
 
                         Stopwatch stopwatch = Stopwatch.StartNew();
-                        BitmapSource? source = LoadFrozenIcon(
+                        BitmapSource? source = _loadIcon(
                             work.ItemLocation,
                             work.RequestKey.CacheKey);
                         stopwatch.Stop();

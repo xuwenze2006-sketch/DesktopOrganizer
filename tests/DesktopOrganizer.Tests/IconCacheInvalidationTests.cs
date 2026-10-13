@@ -69,6 +69,84 @@ public sealed class IconCacheInvalidationTests
     }
 
     [TestMethod]
+    [DataRow("A.txt")]
+    [DataRow("A.TXT")]
+    [DataRow("A.pdf")]
+    public void SameOrdinaryFile_ContentChangeKeepsSharedIcon(string name)
+    {
+        string path = @"C:\Desktop\" + name;
+        var before = ReliableIdentity(path);
+        var after = ReliableIdentity(path);
+        after.LastWriteTimeUtcTicks++;
+        Assert.HasCount(0, IconCacheInvalidation.FindChangedLocations(
+            Items((name, path)), Identities((name, before)), Items((name, path)), Identities((name, after))));
+    }
+
+    [TestMethod]
+    [DataRow("id-changed")]
+    [DataRow("id-missing")]
+    [DataRow("creation-changed")]
+    [DataRow("creation-missing")]
+    [DataRow("creation-invalid")]
+    [DataRow("write-missing")]
+    [DataRow("old-write-missing")]
+    [DataRow("write-invalid")]
+    [DataRow("folder")]
+    [DataRow("type-changed")]
+    [DataRow("identity-path-changed")]
+    [DataRow("shell-kind")]
+    public void UncertainOrDifferentIdentity_ContentChangeStillInvalidates(string change)
+    {
+        const string path = @"C:\Desktop\A.txt";
+        var before = ReliableIdentity(path);
+        var after = ReliableIdentity(path);
+        after.LastWriteTimeUtcTicks++;
+        switch (change)
+        {
+            case "id-changed": after.FileId = "replacement"; break;
+            case "id-missing": before.FileId = after.FileId = null; break;
+            case "creation-changed": after.CreationTimeUtcTicks++; break;
+            case "creation-missing": before.CreationTimeUtcTicks = after.CreationTimeUtcTicks = null; break;
+            case "creation-invalid": before.CreationTimeUtcTicks = after.CreationTimeUtcTicks = 0; break;
+            case "write-missing": after.LastWriteTimeUtcTicks = null; break;
+            case "old-write-missing": before.LastWriteTimeUtcTicks = null; break;
+            case "write-invalid": after.LastWriteTimeUtcTicks = 0; break;
+            case "folder": before.IsDirectory = after.IsDirectory = true; break;
+            case "type-changed": after.IsDirectory = true; break;
+            case "identity-path-changed": after.LastKnownPath = @"C:\Desktop\Other.txt"; break;
+            case "shell-kind": before.Kind = after.Kind = DesktopItemKind.ShellNamespace; break;
+            default: Assert.Fail("未知边界。"); break;
+        }
+        CollectionAssert.AreEquivalent(new[] { path }, IconCacheInvalidation.FindChangedLocations(
+            Items(("A.txt", path)), Identities(("A.txt", before)),
+            Items(("A.txt", path)), Identities(("A.txt", after))).ToArray());
+    }
+
+    [TestMethod]
+    [DataRow("A.EXE")]
+    [DataRow("A.LNK")]
+    [DataRow("A.URL")]
+    [DataRow("A.ICO")]
+    [DataRow("A")]
+    public void FileSpecificIcon_ContentChangeStillInvalidates(string name)
+    {
+        string path = @"C:\Desktop\" + name;
+        var before = ReliableIdentity(path);
+        var after = ReliableIdentity(path);
+        after.LastWriteTimeUtcTicks++;
+        CollectionAssert.AreEquivalent(new[] { path }, IconCacheInvalidation.FindChangedLocations(
+            Items((name, path)), Identities((name, before)),
+            Items((name, path)), Identities((name, after))).ToArray());
+    }
+
+    private static DesktopItemIdentityInfo ReliableIdentity(string path) => new()
+    {
+        Kind = DesktopItemKind.FileSystem, LastKnownPath = path, FileId = "stable-id",
+        CreationTimeUtcTicks = new DateTime(2025, 1, 1).Ticks,
+        LastWriteTimeUtcTicks = new DateTime(2025, 1, 2).Ticks
+    };
+
+    [TestMethod]
     public void IconLoadRequestKey_DifferentCacheVersion_DoesNotDeduplicate()
     {
         var stale = new IconLoadRequestKey("path:C:\\Desktop\\A.exe", generation: 4, cacheVersion: 1);

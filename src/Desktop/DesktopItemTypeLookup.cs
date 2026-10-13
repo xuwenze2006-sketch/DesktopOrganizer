@@ -53,9 +53,16 @@ namespace DesktopOrganizer
             if (IsFolderLike(location)) return "folder:" + location;
 
             string extension = Path.GetExtension(location).ToLowerInvariant();
-            return extension is ".exe" or ".lnk" or ".url" or ".ico" || string.IsNullOrEmpty(extension)
-                ? "path:" + location
-                : "ext:" + extension;
+            return UsesSharedExtensionIcon(extension)
+                ? "ext:" + extension
+                : "path:" + location;
         }
+
+        internal static bool UsesSharedExtensionIcon(string extension) =>
+            !string.IsNullOrEmpty(extension) &&
+            !extension.Equals(".exe", StringComparison.OrdinalIgnoreCase) &&
+            !extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase) &&
+            !extension.Equals(".url", StringComparison.OrdinalIgnoreCase) &&
+            !extension.Equals(".ico", StringComparison.OrdinalIgnoreCase);
     }
 }

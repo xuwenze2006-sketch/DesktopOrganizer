@@ -332,7 +332,7 @@ public sealed class DesktopPathRefreshTests
         public Dictionary<string, string> Items => Field<Dictionary<string, string>>("_desktopItems");
         public List<FileSystemWatcher> Watchers => Field<List<FileSystemWatcher>>("_watchers");
 
-        public Fixture(bool safeMode = true)
+        public Fixture(bool safeMode = true, ShellIconLoadService? iconLoadService = null)
         {
             Root = Path.Combine(Path.GetTempPath(), "DesktopOrganizer.Tests", Guid.NewGuid().ToString("N"));
             UserA = Directory.CreateDirectory(Path.Combine(Root, "原用户桌面")).FullName;
@@ -344,6 +344,11 @@ public sealed class DesktopPathRefreshTests
                 ? UserPath : CommonPath);
             // 不调用 Show/Loaded，不读用户布局，写入委托只接收内存快照。
             Window = new MainWindow(false, _writes.Enqueue, Resolver);
+            if (iconLoadService != null)
+            {
+                Field<ShellIconLoadService>("_shellIconLoadService").Dispose();
+                Set("_shellIconLoadService", iconLoadService);
+            }
             Set("_isSafeModeActive", safeMode);
             Layout.SnapToGrid = false;
             Layout.RecycleBinWidget.IsVisible = false;
@@ -370,13 +375,18 @@ public sealed class DesktopPathRefreshTests
                 Property<bool>("PhysicalScanComplete"), Property<DesktopPathSnapshot>("Paths"));
         }
 
-        public void Refresh()
+        public void Refresh(bool clearIconCache = false)
         {
-            var task = (Task)Invoke("RefreshDesktopSnapshotAsync", false, null)!;
+            var task = (Task)Invoke("RefreshDesktopSnapshotAsync", clearIconCache, null)!;
             _refreshes.Add(task);
             PumpUntil(() => task.IsCompleted, "桌面刷新未在预期时间内结束。");
             task.GetAwaiter().GetResult();
         }
+
+        public void WaitForIcons() => PumpUntil(() =>
+            Field<System.Collections.IDictionary>("_queuedIconLoads").Count == 0 &&
+            Field<System.Collections.IDictionary>("_pendingIconVisuals").Count == 0,
+            "图标排队或回填未完成。");
 
         public bool Apply(DesktopPathSnapshot snapshot) => (bool)Invoke("ApplyDesktopPaths", snapshot)!;
 
