@@ -558,15 +558,15 @@ namespace DesktopOrganizer
                 : string.Empty;
             StatusText.Text =
                 $"{existing.Count} 项 · {_appLayout.Groups.Count} 组 · {_appLayout.FolderPortals.Count} 个只读入口 · {editStatus}{fileOperationStatus}{gridOverflowStatus}";
-            StatusText.ToolTip =
-                $"{existing.Count} 个桌面项目；{_appLayout.Groups.Count} 个分组（自动 {autoGroupCount}）；" +
-                $"{_appLayout.FolderPortals.Count} 个真实文件夹只读入口；" +
-                $"{editStatus}；{safeStatus}；{snapStatus}；{pushStatus}；{autoStatus}；{desktopMode}；" +
-                $"后台真实文件任务 {_fileOperationCount} 个；" +
+            SetStatusDetails(
+                $"{existing.Count} 个桌面项目 · {_appLayout.Groups.Count} 个分组（自动 {autoGroupCount}）\n" +
+                $"{_appLayout.FolderPortals.Count} 个真实文件夹只读入口\n\n" +
+                $"{editStatus} · {safeStatus}\n{snapStatus} · {pushStatus} · {autoStatus}\n{desktopMode}\n" +
+                $"后台真实文件任务 {_fileOperationCount} 个\n" +
                 (gridOverflowCount > 0
-                    ? $"网格已满，{gridOverflowCount} 个新增项目使用未持久化的临时位置；"
+                    ? $"网格已满，{gridOverflowCount} 个新增项目使用未持久化的临时位置。\n"
                     : string.Empty) +
-                Environment.NewLine + GetDesktopPathDescription();
+                Environment.NewLine + GetDesktopPathDescription(), "桌面概况");
             UpdateAutoClassificationControls();
             UpdateCollapseGroupsButton();
 
@@ -1064,7 +1064,7 @@ namespace DesktopOrganizer
         {
             _desktopScanUnavailable = true;
             StatusText.Text = "桌面暂时无法完整读取，已保留原布局；悬停查看位置";
-            StatusText.ToolTip = GetDesktopPathDescription();
+            SetStatusDetails(GetDesktopPathDescription());
             int failureCount = Interlocked.Increment(ref _consecutiveIncompleteScans);
             _diagnostics.Log(
                 $"SCAN incomplete physical={snapshot.PhysicalScanComplete}, " +
@@ -1165,7 +1165,7 @@ namespace DesktopOrganizer
                     if (recovered)
                     {
                         StatusText.Text = "桌面读取已恢复";
-                        StatusText.ToolTip = GetDesktopPathDescription();
+                        SetStatusDetails(GetDesktopPathDescription());
                     }
                     if (!snapshot.ShellScanComplete)
                     {

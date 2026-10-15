@@ -63,20 +63,8 @@ namespace DesktopOrganizer
             fallbackStyle.Triggers.Add(hideFallback);
             fallback.Style=fallbackStyle;
             var content=new Grid();content.Children.Add(details);content.Children.Add(fallback);
-            double workWidth=_desktopGeometry.FindMonitorForPoint(GetControlPanelPosition()).WorkArea.Width;
-            double width=Math.Max(1,Math.Min(320,workWidth-24));
-            var tooltip=new ToolTip {
-                Style=(Style)FindResource("StatusDetailToolTipStyle"),Width=width,MaxWidth=width,
-                Placement=System.Windows.Controls.Primitives.PlacementMode.Bottom,
-                PlacementTarget=ControlPanelDragHandle,VerticalOffset=6,Content=content };
-            tooltip.Opened += (_, _) =>
-            {
-                double currentWorkWidth=_desktopGeometry.FindMonitorForPoint(GetControlPanelPosition()).WorkArea.Width;
-                double currentWidth=Math.Max(1,Math.Min(320,currentWorkWidth-24));
-                tooltip.Width=currentWidth;tooltip.MaxWidth=currentWidth;
-            };
             StatusText.Text=summary;
-            StatusText.ToolTip=tooltip;
+            StatusText.ToolTip=CreateStatusDetailToolTip(content);
         }
 
     }

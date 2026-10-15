@@ -32,7 +32,7 @@ namespace DesktopOrganizer
             if (changed || !watchersMatch)
             {
                 StartDesktopWatchers();
-                StatusText.ToolTip = GetDesktopPathDescription();
+                SetStatusDetails(GetDesktopPathDescription());
             }
             return true;
         }

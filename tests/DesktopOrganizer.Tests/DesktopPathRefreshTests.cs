@@ -301,7 +301,9 @@ public sealed class DesktopPathRefreshTests
         fixture.Probe();
         fixture.WaitForItem("new.txt");
         Assert.IsFalse(fixture.Items.ContainsKey("old.txt"));
-        StringAssert.Contains((string)fixture.Window.StatusText.ToolTip, fixture.UserB);
+        var tip = (ToolTip)fixture.Window.StatusText.ToolTip;
+        var content = (StackPanel)tip.Content;
+        StringAssert.Contains(string.Join("\n", content.Children.OfType<TextBlock>().Select(block => block.Text)), fixture.UserB);
 
         File.WriteAllText(Path.Combine(fixture.UserB, "watcher.txt"), "event");
         fixture.WaitForItem("watcher.txt");

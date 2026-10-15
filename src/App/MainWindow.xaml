@@ -50,6 +50,8 @@
         <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#FFE3ECE2"/>
         <SolidColorBrush x:Key="IconSurfaceBrush" Color="#FFF0E8DD"/>
         <SolidColorBrush x:Key="SwitchTrackBrush" Color="#FFCFC7BC"/>
+        <SolidColorBrush x:Key="ScrollThumbBrush" Color="#FF7E9287"/>
+        <SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="#FF60796B"/>
 
         <Style x:Key="StatusDetailToolTipStyle" TargetType="ToolTip">
             <Setter Property="Background" Value="{StaticResource PanelSurfaceBrush}"/>
@@ -384,6 +386,7 @@
             <Setter Property="Width" Value="18"/>
             <Setter Property="Height" Value="18"/>
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ScrollThumbBrush}"/>
             <Setter Property="Cursor" Value="SizeNWSE"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -399,6 +402,10 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Grip" Property="StrokeThickness" Value="2"/>
+                                <Setter TargetName="Grip" Property="Stroke" Value="{StaticResource ScrollThumbHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="Grip" Property="Stroke" Value="{StaticResource AccentBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -410,20 +417,26 @@
              高饱和度横向滑块或异常强调色。水平滚动始终关闭。 -->
         <Style x:Key="GroupScrollThumbStyle" TargetType="Thumb">
             <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Background" Value="#FFB7AA9C"/>
+            <Setter Property="Background" Value="{StaticResource ScrollThumbBrush}"/>
+            <Setter Property="Focusable" Value="False"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
-                        <Border x:Name="ThumbChrome"
-                                Margin="2,1"
-                                CornerRadius="3"
-                                Background="{TemplateBinding Background}"/>
+                        <!-- 保留整列命中区域，只有滑块本身绘制细线。 -->
+                        <Grid Background="Transparent">
+                            <Border x:Name="ThumbChrome"
+                                    Margin="2,1"
+                                    CornerRadius="3"
+                                    Background="{TemplateBinding Background}"/>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ThumbChrome" Property="Background" Value="#FF95887B"/>
+                                <Setter TargetName="ThumbChrome" Property="Background" Value="{StaticResource ScrollThumbHoverBrush}"/>
+                                <Setter TargetName="ThumbChrome" Property="Margin" Value="1,1"/>
                             </Trigger>
                             <Trigger Property="IsDragging" Value="True">
                                 <Setter TargetName="ThumbChrome" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="ThumbChrome" Property="Margin" Value="1,1"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -434,7 +447,7 @@
         <Style x:Key="GroupScrollBarStyle" TargetType="ScrollBar">
             <Setter Property="Width" Value="9"/>
             <Setter Property="MinWidth" Value="9"/>
-            <Setter Property="Background" Value="#28756C63"/>
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Focusable" Value="False"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -488,6 +501,7 @@
                                                     SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
                             <ScrollBar x:Name="PART_VerticalScrollBar"
                                        Grid.Column="1"
+                                       Margin="0,4,0,20"
                                        Orientation="Vertical"
                                        Style="{StaticResource GroupScrollBarStyle}"
                                        Minimum="0"

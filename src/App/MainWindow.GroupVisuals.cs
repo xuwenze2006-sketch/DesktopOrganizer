@@ -627,7 +627,6 @@ namespace DesktopOrganizer
                     : Visibility.Visible,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Bottom,
-                BorderBrush = new SolidColorBrush(WithAlpha(accentColor, 215)),
                 Tag = group,
                 Style = TryFindResource("GroupResizeThumbStyle") as Style
             };
