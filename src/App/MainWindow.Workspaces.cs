@@ -28,6 +28,11 @@ namespace DesktopOrganizer
         internal bool TryCreateWorkspace(string name, out string error)
         {
             error = string.Empty;
+            if (HasPendingFileOperations)
+            {
+                error = "真实文件任务正在进行，完成后才能切换工作区。";
+                return false;
+            }
             try
             {
                 PrepareLayoutForPersistence();

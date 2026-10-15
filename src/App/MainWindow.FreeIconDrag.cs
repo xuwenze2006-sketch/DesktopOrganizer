@@ -453,10 +453,26 @@ namespace DesktopOrganizer
             }
         }
 
+        private void CompletePhysicalFolderIconDrop(
+            FrameworkElement dragged,
+            string targetFolderPath,
+            Func<string, string, MessageBoxButton, MessageBoxImage, MessageBoxResult, MessageBoxResult>? confirm = null)
+        {
+            IconTag? tag = dragged.Tag as IconTag;
+            // 与回收站投放一致：在模态确认前恢复视觉并清空拖动状态，
+            // 取消或校验失败后不进入普通布局投放的保存路径。
+            ResetAllInteractionState(restoreDraggedVisual: true);
+            if (tag != null)
+            {
+                MoveDesktopItemIntoPhysicalFolder(tag.FullPath, tag.DisplayName, targetFolderPath, confirm);
+            }
+        }
+
         private PhysicalFolderMoveResult MoveDesktopItemIntoPhysicalFolder(
             string sourcePath,
             string displayName,
-            string targetFolderPath)
+            string targetFolderPath,
+            Func<string, string, MessageBoxButton, MessageBoxImage, MessageBoxResult, MessageBoxResult>? confirm = null)
         {
             if (ShellItemLocation.TryDecode(sourcePath, out _, out _))
             {
@@ -543,22 +559,26 @@ namespace DesktopOrganizer
 
             string sourceName = Path.GetFileName(Path.TrimEndingDirectorySeparator(sourcePath));
             string destinationPath = Path.Combine(targetFolderPath, sourceName);
-            bool allowAutoRename = false;
-            if (File.Exists(destinationPath) || Directory.Exists(destinationPath))
+            bool allowAutoRename = File.Exists(destinationPath) || Directory.Exists(destinationPath);
+            string confirmationMessage =
+                $"确定将“{displayName}”移入以下真实文件夹？\n\n{normalizedTargetFolder}\n\n这会移动真实文件。";
+            if (allowAutoRename)
             {
-                MessageBoxResult conflictResult = MessageBox.Show(
-                    $"目标文件夹中已经存在同名项目：\n\n{sourceName}\n\n是否自动生成不重复的名称后继续移动？",
-                    "存在同名项目",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question,
-                    MessageBoxResult.No);
-                if (conflictResult != MessageBoxResult.Yes)
-                {
-                    StatusText.Text = $"已取消移动“{displayName}”";
-                    return PhysicalFolderMoveResult.Rejected;
-                }
+                confirmationMessage +=
+                    $"\n\n目标已存在同名项目“{sourceName}”。确认后将自动生成不重复的名称，不覆盖已有项目。";
+            }
 
-                allowAutoRename = true;
+            confirm ??= MessageBox.Show;
+            MessageBoxResult confirmation = confirm(
+                confirmationMessage,
+                "确认移入真实文件夹",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Question,
+                MessageBoxResult.Cancel);
+            if (confirmation != MessageBoxResult.OK)
+            {
+                StatusText.Text = $"已取消移动“{displayName}”";
+                return PhysicalFolderMoveResult.Rejected;
             }
 
             GroupInfo? originalGroup = _appLayout.Groups.FirstOrDefault(group =>
@@ -727,8 +747,20 @@ namespace DesktopOrganizer
                 return;
             }
 
+            CompleteIconDrop(e.GetPosition(IconCanvas));
+            e.Handled = true;
+        }
+
+        private void CompleteIconDrop(
+            Point finalCanvasPoint,
+            Func<string, string, MessageBoxButton, MessageBoxImage, MessageBoxResult, MessageBoxResult>? confirmPhysicalFolderMove = null)
+        {
+            if (_draggedElement == null || _draggedIsGroup)
+            {
+                return;
+            }
+
             UIElement dragged = _draggedElement;
-            Point finalCanvasPoint = e.GetPosition(IconCanvas);
             bool folderPortalBlocked = false;
             if (dragged is FrameworkElement draggedFrameworkElement)
             {
@@ -743,7 +775,6 @@ namespace DesktopOrganizer
                 // 松手时重新命中，快速跨过回收站也不能沿用上一帧预览。
                 if (TryCompleteRecycleBinIconDrop(finalCanvasPoint, draggedFrameworkElement))
                 {
-                    e.Handled = true;
                     return;
                 }
 
@@ -778,6 +809,13 @@ namespace DesktopOrganizer
             ClearPhysicalFolderDropPreview();
             ClearGroupDropPreview();
 
+            if (!string.IsNullOrWhiteSpace(physicalFolderTargetPath) &&
+                dragged is FrameworkElement physicalFolderDraggedElement)
+            {
+                CompletePhysicalFolderIconDrop(physicalFolderDraggedElement, physicalFolderTargetPath, confirmPhysicalFolderMove);
+                return;
+            }
+
             _isCompletingIconDrop = true;
             try
             {
@@ -806,23 +844,6 @@ namespace DesktopOrganizer
 
                 // 两类预览在 MouseUp 前已经互斥：分类框内默认执行虚拟归组，
                 // 文件夹中央（或 Shift 整格投放）进入真实移动，两侧保留插入排序。
-                if (!string.IsNullOrWhiteSpace(physicalFolderTargetPath))
-                {
-                    CancelPushPreview(restoreVisuals: true);
-                    PhysicalFolderMoveResult moveResult = MoveDesktopItemIntoPhysicalFolder(
-                        tag.FullPath,
-                        name,
-                        physicalFolderTargetPath);
-                    if (moveResult != PhysicalFolderMoveResult.NotHandled)
-                    {
-                        dropHandled = true;
-                        if (moveResult == PhysicalFolderMoveResult.Rejected)
-                        {
-                            RestoreDraggedIconAfterRejectedDrop(dragged, sourceGroup);
-                        }
-                    }
-                }
-
                 if (!dropHandled)
                 {
                     GroupInfo? targetGroup = previewedGroupTarget;
@@ -910,7 +931,6 @@ namespace DesktopOrganizer
             ClearPendingIconDrag();
             EndPushPreviewSession();
             SaveLayout();
-            e.Handled = true;
         }
 
         private GroupItemDropResult ApplyVirtualGroupDrop(
