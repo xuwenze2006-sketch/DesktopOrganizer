@@ -24,12 +24,18 @@ namespace DesktopOrganizer
 
             if (wheelScrollLines < 0 ||
                 !double.IsFinite(rowHeight) ||
-                rowHeight <= 0)
+                rowHeight <= 0 ||
+                !double.IsFinite(viewportHeight) || viewportHeight <= 0)
             {
                 return 0;
             }
 
-            return wheelScrollLines * rowHeight;
+            // Windows 的“行”使用小幅像素步长，而不是一整排约 90 DIP 的桌面图标。
+            return Math.Min(viewportHeight, wheelScrollLines * Math.Min(16, rowHeight));
         }
+
+        public static double GetVerticalOffsetChange(int delta, int wheelScrollLines,
+            double rowHeight, double viewportHeight) =>
+            -(delta / 120d) * GetVerticalDistance(wheelScrollLines, rowHeight, viewportHeight);
     }
 }

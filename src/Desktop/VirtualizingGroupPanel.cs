@@ -24,6 +24,12 @@ namespace DesktopOrganizer
         private double _viewportWidth;
         private double _viewportHeight;
         private double _verticalOffset;
+        private ScrollViewer? _scrollOwner;
+        private DispatcherTimer? _wheelScrollTimer;
+        private double _wheelScrollStart;
+        private double _wheelScrollTarget;
+        private long _wheelScrollStartedAt;
+        private const double WheelScrollDurationMilliseconds = 120;
         private bool _isStable = true;
         private Border? _insertionIndicator;
         private int? _insertionIndicatorBoundary;
@@ -52,6 +58,8 @@ namespace DesktopOrganizer
             Focusable = false;
             CanHorizontallyScroll = false;
             CanVerticallyScroll = true;
+            Unloaded += (_, _) => StopWheelScroll();
+            IsVisibleChanged += (_, _) => { if (!IsVisible) StopWheelScroll(); };
         }
 
         public bool IsStable => _isStable && _suppressedIndices.Count == 0;
@@ -66,6 +74,7 @@ namespace DesktopOrganizer
                 return;
             }
 
+            StopWheelScroll();
             _columnCount = columnCount;
             _slotWidth = slotWidth;
             ClearInsertionIndicator();
@@ -156,6 +165,7 @@ namespace DesktopOrganizer
         /// </summary>
         public void ReleaseRealizedContainers()
         {
+            StopWheelScroll();
             ClearInsertionIndicator();
             RecycleOutsideRange(0, -1);
             InvalidateMeasure();
@@ -179,6 +189,7 @@ namespace DesktopOrganizer
             }
 
             _realized.Remove(index);
+            StopWheelScroll();
             _suppressedIndices.Add(index);
             _isStable = false;
             Children.Remove(element);
@@ -318,6 +329,7 @@ namespace DesktopOrganizer
                            !AreClose(_extentHeight, extentHeight) ||
                            !AreClose(_viewportWidth, viewportWidth) ||
                            !AreClose(_viewportHeight, viewportHeight);
+            if (changed) StopWheelScroll();
             _extentWidth = extentWidth;
             _extentHeight = extentHeight;
             _viewportWidth = viewportWidth;
@@ -385,7 +397,26 @@ namespace DesktopOrganizer
 
         public double VerticalOffset => _verticalOffset;
 
-        public ScrollViewer? ScrollOwner { get; set; }
+        public ScrollViewer? ScrollOwner
+        {
+            get => _scrollOwner;
+            set
+            {
+                if (ReferenceEquals(_scrollOwner, value)) return;
+                StopWheelScroll();
+                if (_scrollOwner != null)
+                {
+                    _scrollOwner.PreviewMouseWheel -= ScrollOwner_PreviewMouseWheel;
+                    _scrollOwner.PreviewMouseDown -= ScrollOwner_PreviewMouseDown;
+                }
+                _scrollOwner = value;
+                if (_scrollOwner != null)
+                {
+                    _scrollOwner.PreviewMouseWheel += ScrollOwner_PreviewMouseWheel;
+                    _scrollOwner.PreviewMouseDown += ScrollOwner_PreviewMouseDown;
+                }
+            }
+        }
 
         public void LineUp() => SetVerticalOffset(_verticalOffset - _rowHeight);
 
@@ -401,27 +432,66 @@ namespace DesktopOrganizer
 
         public void MouseWheelUp()
         {
-            ScrollMouseWheel(direction: -1);
+            ScrollMouseWheel(120, SystemParameters.WheelScrollLines, SystemParameters.ClientAreaAnimation);
         }
 
         public void MouseWheelDown()
         {
-            ScrollMouseWheel(direction: 1);
+            ScrollMouseWheel(-120, SystemParameters.WheelScrollLines, SystemParameters.ClientAreaAnimation);
         }
 
-        private void ScrollMouseWheel(int direction)
+        private void ScrollOwner_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            double distance = WheelScrollPolicy.GetVerticalDistance(
-                SystemParameters.WheelScrollLines,
-                _rowHeight,
-                _viewportHeight);
-            if (distance <= 0)
+            if (e.Handled) return;
+            ScrollMouseWheel(e.Delta, SystemParameters.WheelScrollLines, SystemParameters.ClientAreaAnimation);
+            // 阻止 ScrollViewer 再把细小 Delta 当成一个完整滚轮刻度处理。
+            e.Handled = true;
+        }
+
+        private void ScrollOwner_PreviewMouseDown(object sender, MouseButtonEventArgs e) => StopWheelScroll();
+
+        internal void ScrollMouseWheel(int delta, int wheelScrollLines, bool animate)
+        {
+            double change = WheelScrollPolicy.GetVerticalOffsetChange(delta, wheelScrollLines, _rowHeight, _viewportHeight);
+            if (!CanVerticallyScroll || change == 0) return;
+            // 同向输入累加到目标；反向输入立即从可见位置掉头，不先消耗旧方向的积压。
+            bool continuing = IsWheelScrolling && Math.Sign(change) == Math.Sign(_wheelScrollTarget - _verticalOffset);
+            double target = CoerceVerticalOffset((continuing ? _wheelScrollTarget : _verticalOffset) + change);
+            if (!animate || target == _verticalOffset)
             {
+                StopWheelScroll();
+                ApplyVerticalOffset(target, exact: true);
                 return;
             }
 
-            SetVerticalOffset(_verticalOffset + direction * distance);
+            _wheelScrollStart = _verticalOffset;
+            _wheelScrollTarget = target;
+            _wheelScrollStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (_wheelScrollTimer == null)
+            {
+                _wheelScrollTimer = new DispatcherTimer(DispatcherPriority.Render, Dispatcher)
+                {
+                    Interval = TimeSpan.FromMilliseconds(16)
+                };
+                _wheelScrollTimer.Tick += (_, _) => AdvanceWheelScroll(
+                    System.Diagnostics.Stopwatch.GetElapsedTime(_wheelScrollStartedAt));
+            }
+            _wheelScrollTimer.Start();
         }
+
+        internal bool IsWheelScrolling => _wheelScrollTimer?.IsEnabled == true;
+
+        internal void AdvanceWheelScroll(TimeSpan elapsed)
+        {
+            if (!IsWheelScrolling) return;
+            double progress = Math.Clamp(elapsed.TotalMilliseconds / WheelScrollDurationMilliseconds, 0, 1);
+            double eased = 1 - Math.Pow(1 - progress, 3);
+            ApplyVerticalOffset(progress >= 1 ? _wheelScrollTarget :
+                _wheelScrollStart + (_wheelScrollTarget - _wheelScrollStart) * eased, exact: progress >= 1);
+            if (progress >= 1) StopWheelScroll();
+        }
+
+        private void StopWheelScroll() => _wheelScrollTimer?.Stop();
 
         public void MouseWheelLeft()
         {
@@ -449,9 +519,16 @@ namespace DesktopOrganizer
 
         public void SetVerticalOffset(double offset)
         {
+            // 滑块拖动、定位、翻页等显式操作优先，后续动画帧不能把位置拉回去。
+            StopWheelScroll();
+            ApplyVerticalOffset(offset);
+        }
+
+        private void ApplyVerticalOffset(double offset, bool exact = false)
+        {
             if (_viewportHeight <= 0 || double.IsNaN(offset)) return;
             double clamped = CoerceVerticalOffset(offset);
-            if (AreClose(clamped, _verticalOffset))
+            if (exact ? clamped == _verticalOffset : AreClose(clamped, _verticalOffset))
             {
                 return;
             }
