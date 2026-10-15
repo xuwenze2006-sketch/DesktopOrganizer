@@ -26,12 +26,12 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -41,7 +41,7 @@ jobs:
 
       - name: Upload test results and coverage
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: DesktopOrganizer-test-results-${{ github.run_number }}
           path: artifacts/test-results/**
@@ -49,7 +49,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Windows x64 build
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: DesktopOrganizer-win-x64-${{ github.sha }}
           path: |
