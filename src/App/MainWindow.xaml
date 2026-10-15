@@ -610,7 +610,6 @@
                                 VerticalAlignment="Top"
                                 Visibility="Collapsed"
                                 Cursor="Hand"
-                                ToolTip="轻点互动，拖动换位置；右键切换小黑猫／萝莉斯或隐藏"
                                 ContextMenu="{StaticResource DesktopPetMenu}"
                                 AutomationProperties.Name="桌面宠物"
                                 PreviewMouseLeftButtonDown="DesktopPet_MouseDown"

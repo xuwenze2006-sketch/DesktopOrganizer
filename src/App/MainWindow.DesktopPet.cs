@@ -80,10 +80,6 @@ namespace DesktopOrganizer
 
         private void UpdateDesktopPetDescription()
         {
-            DesktopPet.ToolTip = DesktopPet.CharacterId == DesktopPetWidget.VPetCharacterId
-                ? DesktopPetName + " · VPet／虚拟主播模拟器制作组；轻点摸头，拖动提起，右键切换角色或查看来源"
-                : DesktopPetName + " · 轻点互动，拖动换位置，右键选择桌宠、动作或隐藏";
-            if (DesktopPet.SceneEnabled) DesktopPet.ToolTip += "；拖动背景移动整景";
             System.Windows.Automation.AutomationProperties.SetName(DesktopPet, "桌面宠物 · " + DesktopPetName);
         }
 

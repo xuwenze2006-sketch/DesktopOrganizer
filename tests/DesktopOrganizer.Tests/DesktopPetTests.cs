@@ -1818,7 +1818,7 @@ public sealed class DesktopPetTests
     { DeviceName = name, Bounds = area, WorkArea = area, IsPrimary = primary };
 
     [STATestMethod]
-    public void PersonalNames_UpdateDesktopToolTipAndQuickMenuWithoutChangingComposition()
+    public void PersonalNames_UpdateAccessibilityAndQuickMenuWithoutShowingToolTipOrChangingComposition()
     {
         using var f = new Fixture();
         f.Enable("vpet");
@@ -1831,8 +1831,7 @@ public sealed class DesktopPetTests
             library.SetDisplayName(f.Pet.SceneId, "小院子");
             f.Invoke("UpdateDesktopPetDescription");
             f.Invoke("DesktopPetMenu_Opened", f.Pet.ContextMenu, new RoutedEventArgs());
-            StringAssert.Contains(f.Pet.ToolTip.ToString()!, "小萝");
-            StringAssert.Contains(f.Pet.ToolTip.ToString()!, "VPet");
+            Assert.IsNull(f.Pet.ToolTip);
             Assert.AreEqual("桌面宠物 · 小萝", System.Windows.Automation.AutomationProperties.GetName(f.Pet));
             Assert.AreEqual("小萝", f.Pet.ContextMenu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "vpet")).Header);
             Assert.AreEqual("小院子", f.Pet.ContextMenu.Items.OfType<MenuItem>().Single(i => Equals(i.Tag, "scene")).Header);
