@@ -549,7 +549,7 @@ namespace DesktopOrganizer
                 : _isSafeModeActive ? "新项目归类暂停" : "新项目归类开";
             string desktopMode = _isAttachedToDesktop ? "Progman 底层模式" : "兼容底层模式";
             string editStatus = _appLayout.IsEditMode ? "编辑布局" : "布局已锁定";
-            string safeStatus = _isSafeModeActive ? "安全模式" : "实时模式";
+            string safeStatus = _isSafeModeActive ? "安全模式（约15秒同步）" : "实时模式";
             string fileOperationStatus = HasPendingFileOperations
                 ? $" · {_fileOperationCount} 个文件任务"
                 : string.Empty;
@@ -1179,10 +1179,12 @@ namespace DesktopOrganizer
                     PreserveKnownShellItemsForIncompleteScan(snapshot);
                     RecoverStaleInteractionState();
 
-                    // 不在任何鼠标捕获或拖动过程中替换整棵视觉树。
-                    if (IsUserInteractionActive())
+                    // 扫描期间可能开始拖动或打开 Shell 菜单，应用前再次检查。
+                    if (IsUserInteractionActive() ||
+                        (_isSafeModeActive && Volatile.Read(ref _desktopShellMenuActive) != 0))
                     {
-                        ScheduleDesktopRefresh();
+                        // 安全模式由下一轮低频巡检补同步，不在持续拖动时反复扫描。
+                        if (!_isSafeModeActive) ScheduleDesktopRefresh();
                         return;
                     }
 
@@ -1327,11 +1329,8 @@ namespace DesktopOrganizer
 
         private void NativeIconGuardTimer_Tick(object? sender, EventArgs e)
         {
-            if (!_isSafeModeActive && !_isClosing)
-            {
-                _ = CheckDesktopPathChangesAsync();
-            }
             RecoverStaleInteractionState();
+            _ = CheckDesktopSynchronizationAsync();
             if (Volatile.Read(ref _desktopShellMenuActive) != 0 || IsUserInteractionActive())
             {
                 return;

@@ -106,6 +106,13 @@ namespace DesktopOrganizer
             ApplySafeModeState(showStatus: true);
         }
 
+        private void ResumeRealtimeDesktop_Click(object sender, RoutedEventArgs e)
+        {
+            _isSafeModeActive = false;
+            ApplySafeModeState(showStatus: true);
+            e.Handled = true;
+        }
+
         private void ApplySafeModeState(bool showStatus, bool updateWatchers = true)
         {
             if (_isSafeModeActive)
@@ -122,7 +129,7 @@ namespace DesktopOrganizer
                 EndPushPreviewSession();
                 if (showStatus)
                 {
-                    StatusText.Text = "安全模式已开启：实时监听、自动归类和挤压预览已暂停；原设置未改变";
+                    StatusText.Text = "安全模式已开启：约15秒同步文件变化，可按F5立即刷新；原设置未改变";
                 }
             }
             else
@@ -149,6 +156,16 @@ namespace DesktopOrganizer
             }
 
             SafeModeToggle.IsChecked = _isSafeModeActive;
+            Visibility safeModeVisibility = _isSafeModeActive ? Visibility.Visible : Visibility.Collapsed;
+            if (SafeModeStatusButton.Visibility != safeModeVisibility)
+            {
+                SafeModeStatusButton.Visibility = safeModeVisibility;
+                ScheduleControlPanelClamp(DispatcherPriority.Loaded);
+            }
+            SetStatusDetails(
+                (_isSafeModeActive ? string.Empty : "已恢复实时监听，F5可立即刷新。\n\n") +
+                GetDesktopPathDescription(),
+                _isSafeModeActive ? "安全模式 · 低频同步" : "实时模式");
             UpdateDesktopPetVisibility();
             PushReflowToggle.IsChecked = _appLayout.PushReflowEnabled;
             AutoClassifyNewItemsToggle.IsChecked = _appLayout.AutoClassifyNewItems;
@@ -176,7 +193,12 @@ namespace DesktopOrganizer
 
             TimeSpan dispatcherDelay = elapsed > expected ? elapsed - expected : TimeSpan.Zero;
             ProcessHealthSnapshot health = _diagnostics.CaptureHealth(dispatcherDelay);
+            ApplyHealthSnapshot(health);
+        }
 
+        private void ApplyHealthSnapshot(ProcessHealthSnapshot health)
+        {
+            if (_isClosing) return;
             bool warning = health.DispatcherDelay >= TimeSpan.FromSeconds(1.5) ||
                            health.WorkingSetBytes >= 800L * 1024 * 1024 ||
                            health.HandleCount >= 8_000;
@@ -196,7 +218,7 @@ namespace DesktopOrganizer
                 _safeModeTriggeredThisSession = true;
                 _isSafeModeActive = true;
                 ApplySafeModeState(showStatus: false);
-                StatusText.Text = "检测到界面持续延迟，已自动进入安全模式";
+                StatusText.Text = "检测到持续延迟或资源压力，已进入安全模式；文件变化约15秒同步";
                 _diagnostics.Log("AUTO_SAFE_MODE reason=" + health);
             }
         }

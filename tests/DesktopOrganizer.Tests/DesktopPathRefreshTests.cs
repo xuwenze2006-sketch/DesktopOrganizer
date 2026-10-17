@@ -334,7 +334,8 @@ public sealed class DesktopPathRefreshTests
         public Dictionary<string, string> Items => Field<Dictionary<string, string>>("_desktopItems");
         public List<FileSystemWatcher> Watchers => Field<List<FileSystemWatcher>>("_watchers");
 
-        public Fixture(bool safeMode = true, ShellIconLoadService? iconLoadService = null)
+        public Fixture(bool safeMode = true, ShellIconLoadService? iconLoadService = null,
+            Action? beforePathRead = null)
         {
             Root = Path.Combine(Path.GetTempPath(), "DesktopOrganizer.Tests", Guid.NewGuid().ToString("N"));
             UserA = Directory.CreateDirectory(Path.Combine(Root, "原用户桌面")).FullName;
@@ -342,8 +343,11 @@ public sealed class DesktopPathRefreshTests
             Common = Directory.CreateDirectory(Path.Combine(Root, "公共桌面")).FullName;
             UserPath = UserA;
             CommonPath = Common;
-            Resolver = new DesktopPathResolver(folder => folder == Environment.SpecialFolder.DesktopDirectory
-                ? UserPath : CommonPath);
+            Resolver = new DesktopPathResolver(folder =>
+            {
+                beforePathRead?.Invoke();
+                return folder == Environment.SpecialFolder.DesktopDirectory ? UserPath : CommonPath;
+            });
             // 不调用 Show/Loaded，不读用户布局，写入委托只接收内存快照。
             Window = new MainWindow(false, _writes.Enqueue, Resolver);
             if (iconLoadService != null)
@@ -363,11 +367,29 @@ public sealed class DesktopPathRefreshTests
         public T Field<T>(string name) =>
             (T)typeof(MainWindow).GetField(name, PrivateInstance)!.GetValue(Window)!;
 
-        private void Set(string name, object value) =>
+        internal void Set(string name, object value) =>
             typeof(MainWindow).GetField(name, PrivateInstance)!.SetValue(Window, value);
 
-        private object? Invoke(string name, params object?[] arguments) =>
-            typeof(MainWindow).GetMethod(name, PrivateInstance)!.Invoke(Window, arguments);
+        internal object? Invoke(string name, params object?[] arguments)
+        {
+            MethodInfo? method = typeof(MainWindow).GetMethod(name, PrivateInstance);
+            Assert.IsNotNull(method, $"缺少运行入口 {name}");
+            return method.Invoke(Window, arguments);
+        }
+
+        public void Synchronize()
+        {
+            var task = (Task)Invoke("CheckDesktopSynchronizationAsync")!;
+            PumpUntil(() => task.IsCompleted, "基础同步巡检未结束。");
+            task.GetAwaiter().GetResult();
+            WaitForRefreshIdle();
+        }
+
+        public void WaitForRefreshIdle()
+        {
+            PumpUntil(() => Field<int>("_refreshWorkerRunning") == 0 &&
+                Field<int>("_refreshRequested") == 0, "基础同步刷新尚未结束。");
+        }
 
         public ScanResult Scan()
         {

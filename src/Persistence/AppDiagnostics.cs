@@ -77,7 +77,7 @@ namespace DesktopOrganizer
         long ManagedBytes)
     {
         public bool IsCritical =>
-            DispatcherDelay >= TimeSpan.FromSeconds(4) ||
+            // 界面延迟需要连续样本确认；资源临界仍立即保护。
             WorkingSetBytes >= 1_200L * 1024 * 1024 ||
             HandleCount >= 12_000;
 
